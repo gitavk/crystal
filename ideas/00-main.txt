@@ -1,0 +1,28 @@
+I want to build the application
+call it crystal.
+and learn new language RUST
+with best practice of the using LLM,
+and share my experience by create a series of the videos for youtube. 
+Build step by step plan (one answer one step), what is best way to release this idea.
+here  the application should be:
+- on rust language
+- allow to keep hands on keyboard for any operations
+- use interface style like zellij https://zellij.dev/documentation/
+- allow to use plugins
+- UX should have:
+  - Keyboard shortcuts (hide in config)
+  - Help screens
+- main functions should allow to implement same as:
+  - https://lenshq.io/products/lens-k8s-ide
+  - https://k9scli.io/
+- must have features:
+  - "Cluster-Aware" Internal Terminal ( it should pre-configure the environment (KUBECONFIG/Context) )
+  -  "exec" and "logs" features are part of a broader Context-Aware Terminal
+- lower level priority feauters:
+  - benchmark HTTP services and pods directly within the UI to help adjust resource requests and limits
+  - logic to automatically detect and connect to cloud-provider clusters (EKS, GKE, AKS)
+  - AI-Powered Assistance
+  - "XRay" and "Pulse" views to allow users to visualize dependencies and get a high-level "state of affairs" for the cluster
+the plan should be well readable for AI tools like claudecode/codex/gemini
+to keep small context window during development
+so split the document on stages.
