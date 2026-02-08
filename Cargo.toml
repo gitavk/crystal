@@ -1,0 +1,18 @@
+[workspace]
+resolver = "2"
+members = [
+    "crates/crystal-app",
+    "crates/crystal-core",
+    "crates/crystal-tui",
+    "crates/crystal-config",
+]
+
+[workspace.dependencies]
+tokio = { version = "1", features = ["full"] }
+ratatui = "0.29"
+crossterm = "0.28"
+serde = { version = "1", features = ["derive"] }
+toml = "0.8"
+anyhow = "1"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }

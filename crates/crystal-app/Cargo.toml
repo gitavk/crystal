@@ -1,0 +1,18 @@
+[package]
+name = "crystal-app"
+version = "0.1.0"
+edition = "2021"
+
+[[bin]]
+name = "crystal"
+path = "src/main.rs"
+
+[dependencies]
+crystal-tui = { path = "../crystal-tui" }
+crystal-config = { path = "../crystal-config" }
+tokio.workspace = true
+ratatui.workspace = true
+crossterm.workspace = true
+anyhow.workspace = true
+tracing.workspace = true
+tracing-subscriber.workspace = true
