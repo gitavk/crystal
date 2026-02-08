@@ -13,17 +13,14 @@ pub struct App {
 
 impl App {
     pub fn new(tick_rate_ms: u64) -> Self {
-        Self {
-            running: true,
-            tick_rate: Duration::from_millis(tick_rate_ms),
-        }
+        Self { running: true, tick_rate: Duration::from_millis(tick_rate_ms) }
     }
 
     pub async fn run(&mut self, terminal: &mut Terminal<impl Backend>) -> anyhow::Result<()> {
         let mut events = EventHandler::new(self.tick_rate);
 
         while self.running {
-            terminal.draw(|frame| crystal_tui::layout::render_root(frame))?;
+            terminal.draw(crystal_tui::layout::render_root)?;
 
             match events.next().await? {
                 AppEvent::Key(key) => self.handle_key(key),
@@ -39,9 +36,8 @@ impl App {
         if key.kind != KeyEventKind::Press {
             return;
         }
-        match key.code {
-            KeyCode::Char('q') => self.running = false,
-            _ => {}
+        if let KeyCode::Char('q') = key.code {
+            self.running = false;
         }
     }
 }

@@ -39,10 +39,7 @@ impl EventHandler {
     }
 
     pub async fn next(&mut self) -> anyhow::Result<AppEvent> {
-        self.rx
-            .recv()
-            .await
-            .ok_or_else(|| anyhow::anyhow!("Event channel closed"))
+        self.rx.recv().await.ok_or_else(|| anyhow::anyhow!("Event channel closed"))
     }
 }
 
