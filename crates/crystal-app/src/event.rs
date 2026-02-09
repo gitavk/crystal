@@ -1,6 +1,8 @@
 use std::time::Duration;
 
 use crossterm::event::{self, Event, KeyEvent};
+use crystal_core::informer::ResourceEvent;
+use crystal_core::PodSummary;
 use tokio::sync::mpsc;
 
 #[derive(Debug)]
@@ -9,15 +11,18 @@ pub enum AppEvent {
     Tick,
     #[allow(dead_code)]
     Resize(u16, u16),
+    KubeUpdate(ResourceEvent<PodSummary>),
 }
 
 pub struct EventHandler {
+    tx: mpsc::UnboundedSender<AppEvent>,
     rx: mpsc::UnboundedReceiver<AppEvent>,
 }
 
 impl EventHandler {
     pub fn new(tick_rate: Duration) -> Self {
         let (tx, rx) = mpsc::unbounded_channel();
+        let tx_clone = tx.clone();
 
         tokio::spawn(async move {
             let mut tick_interval = tokio::time::interval(tick_rate);
@@ -29,13 +34,24 @@ impl EventHandler {
                         None => continue,
                     },
                 };
-                if tx.send(event).is_err() {
+                if tx_clone.send(event).is_err() {
                     break;
                 }
             }
         });
 
-        Self { rx }
+        Self { tx, rx }
+    }
+
+    pub fn forward_kube_events(&self, mut kube_rx: mpsc::Receiver<ResourceEvent<PodSummary>>) {
+        let tx = self.tx.clone();
+        tokio::spawn(async move {
+            while let Some(event) = kube_rx.recv().await {
+                if tx.send(AppEvent::KubeUpdate(event)).is_err() {
+                    break;
+                }
+            }
+        });
     }
 
     pub async fn next(&mut self) -> anyhow::Result<AppEvent> {

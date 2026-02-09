@@ -1,5 +1,6 @@
 mod app;
 mod event;
+mod state;
 
 use std::io;
 
@@ -26,7 +27,7 @@ async fn main() -> anyhow::Result<()> {
     let mut terminal = Terminal::new(backend)?;
 
     let config = crystal_config::Config::default();
-    let mut app = App::new(config.tick_rate_ms());
+    let mut app = App::new(config.tick_rate_ms()).await;
     let result = app.run(&mut terminal).await;
 
     terminal::disable_raw_mode()?;

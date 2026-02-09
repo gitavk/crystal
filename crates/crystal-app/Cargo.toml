@@ -10,6 +10,9 @@ path = "src/main.rs"
 [dependencies]
 crystal-tui = { path = "../crystal-tui" }
 crystal-config = { path = "../crystal-config" }
+crystal-core = { path = "../crystal-core" }
+kube.workspace = true
+k8s-openapi.workspace = true
 tokio.workspace = true
 ratatui.workspace = true
 crossterm.workspace = true
