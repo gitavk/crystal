@@ -5,3 +5,11 @@ edition = "2021"
 
 [dependencies]
 anyhow.workspace = true
+kube.workspace = true
+k8s-openapi.workspace = true
+futures.workspace = true
+tokio.workspace = true
+tokio-util.workspace = true
+tracing.workspace = true
+serde.workspace = true
+jiff.workspace = true
