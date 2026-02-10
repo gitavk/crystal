@@ -11,13 +11,15 @@ pub struct ResourceListWidget<'a> {
     pub scroll_offset: usize,
     pub loading: bool,
     pub error: Option<&'a str>,
+    pub focused: bool,
 }
 
 impl<'a> ResourceListWidget<'a> {
     pub fn render(self, frame: &mut Frame, area: Rect) {
+        let border_color = if self.focused { theme::ACCENT } else { theme::BORDER_COLOR };
         let block = Block::default()
             .borders(Borders::ALL)
-            .border_style(Style::default().fg(theme::BORDER_COLOR))
+            .border_style(Style::default().fg(border_color))
             .title(format!(" {} ", self.title))
             .title_style(Style::default().fg(theme::ACCENT).bold());
 

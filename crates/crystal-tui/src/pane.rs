@@ -1,6 +1,45 @@
-use ratatui::prelude::Rect;
+use std::any::Any;
+
+use ratatui::prelude::{Frame, Rect};
 
 pub type PaneId = u32;
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Direction {
+    Up,
+    Down,
+    Left,
+    Right,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum PaneCommand {
+    ScrollUp,
+    ScrollDown,
+    SelectNext,
+    SelectPrev,
+    Select,
+    Back,
+    ToggleFollow,
+    SendInput(String),
+    SearchInput(char),
+    SearchConfirm,
+    SearchClear,
+}
+
+/// Every pane must satisfy this contract:
+/// - Render itself within a given Rect
+/// - React to focus state (styling only — no behavior change)
+/// - Accept PaneCommands and update internal state
+/// - Never affect other panes or access global state directly
+pub trait Pane {
+    fn render(&self, frame: &mut Frame, area: Rect, focused: bool);
+    fn handle_command(&mut self, cmd: &PaneCommand);
+    fn view_type(&self) -> &ViewType;
+    fn on_focus_change(&mut self, _previous: Option<&ViewType>) {}
+    fn as_any(&self) -> &dyn Any;
+    fn as_any_mut(&mut self) -> &mut dyn Any;
+}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum SplitDirection {
@@ -25,8 +64,8 @@ pub enum ViewType {
     ResourceList(ResourceKind),
     Detail(ResourceKind, String), // kind + resource name
     Terminal,
-    Logs(String),   // pod name
-    Exec(String),   // pod name
+    Logs(String), // pod name
+    Exec(String), // pod name
     Help,
     Empty,
     Plugin(String), // plugin name
@@ -54,10 +93,7 @@ pub struct PaneTree {
 
 impl PaneTree {
     pub fn new(view: ViewType) -> Self {
-        Self {
-            root: PaneNode::Leaf { id: 1, view },
-            next_id: 2,
-        }
+        Self { root: PaneNode::Leaf { id: 1, view }, next_id: 2 }
     }
 
     pub fn root(&self) -> &PaneNode {

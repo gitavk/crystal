@@ -1,5 +1,7 @@
 mod app;
+mod command;
 mod event;
+mod panes;
 mod state;
 
 use std::io;

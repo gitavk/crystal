@@ -1,20 +1,11 @@
+use std::collections::HashMap;
+
 use ratatui::prelude::*;
 use ratatui::widgets::Paragraph;
 
-use crate::pane::{PaneId, PaneTree};
+use crate::pane::{Pane, PaneId, PaneTree};
 use crate::theme;
 use crate::widgets::namespace_selector::NamespaceSelectorWidget;
-use crate::widgets::resource_list::ResourceListWidget;
-
-pub struct ResourceListView<'a> {
-    pub title: &'a str,
-    pub headers: &'a [String],
-    pub items: &'a [Vec<String>],
-    pub selected: Option<usize>,
-    pub scroll_offset: usize,
-    pub loading: bool,
-    pub error: Option<&'a str>,
-}
 
 pub struct NamespaceSelectorView<'a> {
     pub namespaces: &'a [String],
@@ -25,10 +16,10 @@ pub struct NamespaceSelectorView<'a> {
 pub struct RenderContext<'a> {
     pub cluster_name: Option<&'a str>,
     pub namespace: Option<&'a str>,
-    pub resource_list: Option<ResourceListView<'a>>,
     pub namespace_selector: Option<NamespaceSelectorView<'a>>,
-    pub pane_tree: Option<&'a PaneTree>,
+    pub pane_tree: &'a PaneTree,
     pub focused_pane: Option<PaneId>,
+    pub panes: &'a HashMap<PaneId, Box<dyn Pane>>,
 }
 
 pub fn render_root(frame: &mut Frame, ctx: &RenderContext) {
@@ -49,36 +40,12 @@ fn render_header(frame: &mut Frame, area: Rect) {
 }
 
 fn render_body(frame: &mut Frame, area: Rect, ctx: &RenderContext) {
-    if let Some(pane_tree) = ctx.pane_tree {
-        let pane_rects = pane_tree.layout(area);
-        for (_pane_id, pane_area) in &pane_rects {
-            // For now, render the resource list in each pane area.
-            // Future: dispatch based on ViewType per pane.
-            if let Some(ref list) = ctx.resource_list {
-                let widget = ResourceListWidget {
-                    title: list.title,
-                    headers: list.headers,
-                    items: list.items,
-                    selected: list.selected,
-                    scroll_offset: list.scroll_offset,
-                    loading: list.loading,
-                    error: list.error,
-                };
-                widget.render(frame, *pane_area);
-                break;
-            }
+    let pane_rects = ctx.pane_tree.layout(area);
+    for (pane_id, pane_area) in &pane_rects {
+        if let Some(pane) = ctx.panes.get(pane_id) {
+            let focused = ctx.focused_pane == Some(*pane_id);
+            pane.render(frame, *pane_area, focused);
         }
-    } else if let Some(ref list) = ctx.resource_list {
-        let widget = ResourceListWidget {
-            title: list.title,
-            headers: list.headers,
-            items: list.items,
-            selected: list.selected,
-            scroll_offset: list.scroll_offset,
-            loading: list.loading,
-            error: list.error,
-        };
-        widget.render(frame, area);
     }
 
     if let Some(ref ns) = ctx.namespace_selector {
@@ -90,7 +57,7 @@ fn render_body(frame: &mut Frame, area: Rect, ctx: &RenderContext) {
 fn render_status_bar(frame: &mut Frame, area: Rect, ctx: &RenderContext) {
     let cluster = ctx.cluster_name.unwrap_or("no cluster");
     let ns = ctx.namespace.unwrap_or("n/a");
-    let text = format!(" {cluster} | ns:{ns}  │  j/k:navigate  :::namespace  1:pods  q:quit");
+    let text = format!(" {cluster} | ns:{ns}  │  j/k:navigate  :::namespace  ?:help  Tab:focus  q:quit");
     let bar = Paragraph::new(text).style(Style::default().fg(theme::STATUS_FG).bg(theme::STATUS_BG));
     frame.render_widget(bar, area);
 }
