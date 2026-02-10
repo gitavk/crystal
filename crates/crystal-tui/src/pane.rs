@@ -96,6 +96,10 @@ impl PaneTree {
         Self { root: PaneNode::Leaf { id: 1, view }, next_id: 2 }
     }
 
+    pub fn with_initial_id(id: PaneId, view: ViewType) -> Self {
+        Self { root: PaneNode::Leaf { id, view }, next_id: id + 1 }
+    }
+
     pub fn root(&self) -> &PaneNode {
         &self.root
     }
@@ -112,6 +116,17 @@ impl PaneTree {
         } else {
             None
         }
+    }
+
+    /// Split using an externally-allocated pane ID (for TabManager global ID control).
+    pub fn split_with_id(
+        &mut self,
+        target: PaneId,
+        direction: SplitDirection,
+        new_view: ViewType,
+        new_id: PaneId,
+    ) -> bool {
+        self.root.split_at(target, direction, new_id, new_view)
     }
 
     /// Close a pane, promoting its sibling to take the parent's place.
