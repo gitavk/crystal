@@ -273,6 +273,8 @@ impl App {
             namespace: self.context_resolver.namespace(),
             resource_list,
             namespace_selector,
+            pane_tree: None,
+            focused_pane: None,
         }
     }
 }

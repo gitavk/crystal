@@ -1,6 +1,7 @@
 use ratatui::prelude::*;
 use ratatui::widgets::Paragraph;
 
+use crate::pane::{PaneId, PaneTree};
 use crate::theme;
 use crate::widgets::namespace_selector::NamespaceSelectorWidget;
 use crate::widgets::resource_list::ResourceListWidget;
@@ -26,6 +27,8 @@ pub struct RenderContext<'a> {
     pub namespace: Option<&'a str>,
     pub resource_list: Option<ResourceListView<'a>>,
     pub namespace_selector: Option<NamespaceSelectorView<'a>>,
+    pub pane_tree: Option<&'a PaneTree>,
+    pub focused_pane: Option<PaneId>,
 }
 
 pub fn render_root(frame: &mut Frame, ctx: &RenderContext) {
@@ -46,7 +49,26 @@ fn render_header(frame: &mut Frame, area: Rect) {
 }
 
 fn render_body(frame: &mut Frame, area: Rect, ctx: &RenderContext) {
-    if let Some(ref list) = ctx.resource_list {
+    if let Some(pane_tree) = ctx.pane_tree {
+        let pane_rects = pane_tree.layout(area);
+        for (_pane_id, pane_area) in &pane_rects {
+            // For now, render the resource list in each pane area.
+            // Future: dispatch based on ViewType per pane.
+            if let Some(ref list) = ctx.resource_list {
+                let widget = ResourceListWidget {
+                    title: list.title,
+                    headers: list.headers,
+                    items: list.items,
+                    selected: list.selected,
+                    scroll_offset: list.scroll_offset,
+                    loading: list.loading,
+                    error: list.error,
+                };
+                widget.render(frame, *pane_area);
+                break;
+            }
+        }
+    } else if let Some(ref list) = ctx.resource_list {
         let widget = ResourceListWidget {
             title: list.title,
             headers: list.headers,
