@@ -12,7 +12,9 @@ use crystal_core::informer::{ResourceEvent, ResourceWatcher};
 use crystal_core::resource::format_duration;
 use crystal_core::{ContextResolver, KubeClient};
 use crystal_tui::layout::{NamespaceSelectorView, RenderContext};
-use crystal_tui::pane::{Direction, Pane, PaneCommand, PaneId, PaneTree, ResourceKind, SplitDirection, ViewType};
+use crystal_tui::pane::{
+    find_pane_in_direction, Direction, Pane, PaneCommand, PaneId, PaneTree, ResourceKind, SplitDirection, ViewType,
+};
 
 use crate::command::{Command, InputMode};
 use crate::event::{AppEvent, EventHandler};
@@ -278,34 +280,17 @@ impl App {
     }
 
     fn focus_direction(&mut self, dir: Direction) {
-        use ratatui::prelude::Rect;
+        if self.fullscreen_pane.is_some() {
+            return;
+        }
 
-        let area = Rect::new(0, 0, 200, 50);
+        let area = ratatui::prelude::Rect::new(0, 0, 200, 50);
         let layout = self.pane_tree.layout(area);
 
-        let current_rect = layout.iter().find(|(id, _)| *id == self.focused_pane).map(|(_, r)| *r);
-        let Some(current) = current_rect else { return };
+        let current = layout.iter().find(|(id, _)| *id == self.focused_pane).map(|(id, r)| (*id, *r));
+        let Some(current) = current else { return };
 
-        let cx = current.x as i32 + current.width as i32 / 2;
-        let cy = current.y as i32 + current.height as i32 / 2;
-
-        let candidate = layout
-            .iter()
-            .filter(|(id, _)| *id != self.focused_pane)
-            .filter(|(_, r)| match dir {
-                Direction::Up => (r.y as i32 + r.height as i32) <= current.y as i32,
-                Direction::Down => r.y as i32 >= (current.y as i32 + current.height as i32),
-                Direction::Left => (r.x as i32 + r.width as i32) <= current.x as i32,
-                Direction::Right => r.x as i32 >= (current.x as i32 + current.width as i32),
-            })
-            .min_by_key(|(_, r)| {
-                let rx = r.x as i32 + r.width as i32 / 2;
-                let ry = r.y as i32 + r.height as i32 / 2;
-                (cx - rx).abs() + (cy - ry).abs()
-            })
-            .map(|(id, _)| *id);
-
-        if let Some(target) = candidate {
+        if let Some(target) = find_pane_in_direction(current, &layout, dir) {
             self.set_focus(target);
         }
     }

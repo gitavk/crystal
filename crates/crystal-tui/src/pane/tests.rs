@@ -16,6 +16,10 @@ fn area(w: u16, h: u16) -> Rect {
     Rect { x: 0, y: 0, width: w, height: h }
 }
 
+fn rect(x: u16, y: u16, w: u16, h: u16) -> Rect {
+    Rect { x, y, width: w, height: h }
+}
+
 #[test]
 fn single_leaf_layout_returns_full_area() {
     let tree = PaneTree::new(pods_view());
@@ -199,4 +203,115 @@ fn close_nonexistent_pane_returns_false() {
     let mut tree = PaneTree::new(pods_view());
     tree.split(1, SplitDirection::Vertical, logs_view());
     assert!(!tree.close(99));
+}
+
+// --- Directional navigation tests ---
+
+#[test]
+fn direction_right_from_left_pane() {
+    let all = vec![(1, rect(0, 0, 50, 50)), (2, rect(50, 0, 50, 50))];
+    assert_eq!(find_pane_in_direction((1, all[0].1), &all, Direction::Right), Some(2));
+}
+
+#[test]
+fn direction_left_from_right_pane() {
+    let all = vec![(1, rect(0, 0, 50, 50)), (2, rect(50, 0, 50, 50))];
+    assert_eq!(find_pane_in_direction((2, all[1].1), &all, Direction::Left), Some(1));
+}
+
+#[test]
+fn direction_down_from_top_pane() {
+    let all = vec![(1, rect(0, 0, 100, 25)), (2, rect(0, 25, 100, 25))];
+    assert_eq!(find_pane_in_direction((1, all[0].1), &all, Direction::Down), Some(2));
+}
+
+#[test]
+fn direction_up_from_bottom_pane() {
+    let all = vec![(1, rect(0, 0, 100, 25)), (2, rect(0, 25, 100, 25))];
+    assert_eq!(find_pane_in_direction((2, all[1].1), &all, Direction::Up), Some(1));
+}
+
+#[test]
+fn direction_l_shape_finds_correct_neighbors() {
+    // Layout:
+    // [  1  ] [  2  ]
+    // [     3       ]
+    let all = vec![(1, rect(0, 0, 50, 25)), (2, rect(50, 0, 50, 25)), (3, rect(0, 25, 100, 25))];
+
+    assert_eq!(find_pane_in_direction((1, all[0].1), &all, Direction::Right), Some(2));
+    assert_eq!(find_pane_in_direction((1, all[0].1), &all, Direction::Down), Some(3));
+    assert_eq!(find_pane_in_direction((2, all[1].1), &all, Direction::Left), Some(1));
+    assert_eq!(find_pane_in_direction((2, all[1].1), &all, Direction::Down), Some(3));
+    assert_eq!(find_pane_in_direction((3, all[2].1), &all, Direction::Up), Some(1));
+}
+
+#[test]
+fn direction_no_neighbor_returns_none() {
+    let all = vec![(1, rect(0, 0, 50, 50)), (2, rect(50, 0, 50, 50))];
+    assert_eq!(find_pane_in_direction((1, all[0].1), &all, Direction::Left), None);
+    assert_eq!(find_pane_in_direction((1, all[0].1), &all, Direction::Up), None);
+    assert_eq!(find_pane_in_direction((2, all[1].1), &all, Direction::Right), None);
+    assert_eq!(find_pane_in_direction((2, all[1].1), &all, Direction::Down), None);
+}
+
+#[test]
+fn direction_single_pane_returns_none() {
+    let all = vec![(1, rect(0, 0, 100, 50))];
+    assert_eq!(find_pane_in_direction((1, all[0].1), &all, Direction::Right), None);
+    assert_eq!(find_pane_in_direction((1, all[0].1), &all, Direction::Left), None);
+    assert_eq!(find_pane_in_direction((1, all[0].1), &all, Direction::Up), None);
+    assert_eq!(find_pane_in_direction((1, all[0].1), &all, Direction::Down), None);
+}
+
+#[test]
+fn direction_prefers_overlap_candidate() {
+    // Layout:
+    // [  1  ] [  2  ]
+    //         [  3  ]
+    // Pane 3 is below-right, not aligned with pane 1
+    // Moving right from 1 should pick 2 (has overlap) over 3
+    let all = vec![(1, rect(0, 0, 50, 25)), (2, rect(50, 0, 50, 25)), (3, rect(50, 25, 50, 25))];
+    assert_eq!(find_pane_in_direction((1, all[0].1), &all, Direction::Right), Some(2));
+}
+
+#[test]
+fn direction_2x2_grid_navigation() {
+    // [1] [2]
+    // [3] [4]
+    let all =
+        vec![(1, rect(0, 0, 50, 25)), (2, rect(50, 0, 50, 25)), (3, rect(0, 25, 50, 25)), (4, rect(50, 25, 50, 25))];
+
+    assert_eq!(find_pane_in_direction((1, all[0].1), &all, Direction::Right), Some(2));
+    assert_eq!(find_pane_in_direction((1, all[0].1), &all, Direction::Down), Some(3));
+    assert_eq!(find_pane_in_direction((4, all[3].1), &all, Direction::Left), Some(3));
+    assert_eq!(find_pane_in_direction((4, all[3].1), &all, Direction::Up), Some(2));
+    assert_eq!(find_pane_in_direction((3, all[2].1), &all, Direction::Right), Some(4));
+    assert_eq!(find_pane_in_direction((2, all[1].1), &all, Direction::Down), Some(4));
+}
+
+#[test]
+fn focus_cycling_wraps_forward() {
+    let mut tree = PaneTree::new(pods_view());
+    tree.split(1, SplitDirection::Vertical, logs_view());
+    tree.split(2, SplitDirection::Horizontal, help_view());
+    let ids = tree.leaf_ids();
+    // ids = [1, 2, 3]
+
+    let focused = 3;
+    let pos = ids.iter().position(|&id| id == focused).unwrap();
+    let next = ids[(pos + 1) % ids.len()];
+    assert_eq!(next, 1);
+}
+
+#[test]
+fn focus_cycling_wraps_backward() {
+    let mut tree = PaneTree::new(pods_view());
+    tree.split(1, SplitDirection::Vertical, logs_view());
+    tree.split(2, SplitDirection::Horizontal, help_view());
+    let ids = tree.leaf_ids();
+
+    let focused = 1;
+    let pos = ids.iter().position(|&id| id == focused).unwrap();
+    let prev = ids[(pos + ids.len() - 1) % ids.len()];
+    assert_eq!(prev, 3);
 }
