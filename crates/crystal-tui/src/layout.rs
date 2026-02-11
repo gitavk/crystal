@@ -1,11 +1,11 @@
 use std::collections::HashMap;
 
 use ratatui::prelude::*;
-use ratatui::widgets::Paragraph;
 
 use crate::pane::{Pane, PaneId, PaneTree};
-use crate::theme;
 use crate::widgets::namespace_selector::NamespaceSelectorWidget;
+use crate::widgets::status_bar::StatusBarWidget;
+use crate::widgets::tab_bar::TabBarWidget;
 
 pub struct NamespaceSelectorView<'a> {
     pub namespaces: &'a [String],
@@ -20,6 +20,10 @@ pub struct RenderContext<'a> {
     pub pane_tree: &'a PaneTree,
     pub focused_pane: Option<PaneId>,
     pub panes: &'a HashMap<PaneId, Box<dyn Pane>>,
+    pub tab_names: &'a [String],
+    pub active_tab: usize,
+    pub mode_name: &'a str,
+    pub mode_hints: &'a [(String, String)],
 }
 
 pub fn render_root(frame: &mut Frame, ctx: &RenderContext) {
@@ -28,15 +32,14 @@ pub fn render_root(frame: &mut Frame, ctx: &RenderContext) {
         .constraints([Constraint::Length(1), Constraint::Min(0), Constraint::Length(1)])
         .split(frame.area());
 
-    render_header(frame, chunks[0]);
+    render_tab_bar(frame, chunks[0], ctx);
     render_body(frame, chunks[1], ctx);
     render_status_bar(frame, chunks[2], ctx);
 }
 
-fn render_header(frame: &mut Frame, area: Rect) {
-    let header =
-        Paragraph::new(" crystal — kubernetes IDE").style(Style::default().fg(theme::HEADER_FG).bg(theme::HEADER_BG));
-    frame.render_widget(header, area);
+fn render_tab_bar(frame: &mut Frame, area: Rect, ctx: &RenderContext) {
+    let widget = TabBarWidget { tabs: ctx.tab_names, active: ctx.active_tab };
+    widget.render(frame, area);
 }
 
 fn render_body(frame: &mut Frame, area: Rect, ctx: &RenderContext) {
@@ -55,9 +58,11 @@ fn render_body(frame: &mut Frame, area: Rect, ctx: &RenderContext) {
 }
 
 fn render_status_bar(frame: &mut Frame, area: Rect, ctx: &RenderContext) {
-    let cluster = ctx.cluster_name.unwrap_or("no cluster");
-    let ns = ctx.namespace.unwrap_or("n/a");
-    let text = format!(" {cluster} | ns:{ns}  │  j/k:navigate  :::namespace  ?:help  Tab:focus  q:quit");
-    let bar = Paragraph::new(text).style(Style::default().fg(theme::STATUS_FG).bg(theme::STATUS_BG));
-    frame.render_widget(bar, area);
+    let widget = StatusBarWidget {
+        mode: ctx.mode_name,
+        hints: ctx.mode_hints,
+        cluster: ctx.cluster_name,
+        namespace: ctx.namespace,
+    };
+    widget.render(frame, area);
 }

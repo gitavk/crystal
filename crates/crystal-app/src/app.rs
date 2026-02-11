@@ -13,6 +13,7 @@ use crystal_core::resource::format_duration;
 use crystal_core::{ContextResolver, KubeClient};
 use crystal_tui::layout::{NamespaceSelectorView, RenderContext};
 use crystal_tui::pane::{Pane, PaneId, PaneTree, ResourceKind, SplitDirection, ViewType};
+use crystal_tui::widgets::status_bar;
 
 use crate::command::{map_key_to_command, Command, InputMode};
 use crate::event::{AppEvent, EventHandler};
@@ -115,7 +116,9 @@ impl App {
             }
 
             terminal.draw(|frame| {
-                let ctx = self.build_render_context();
+                let (mut ctx, tab_names, hints) = self.build_render_context();
+                ctx.tab_names = &tab_names;
+                ctx.mode_hints = &hints;
                 crystal_tui::layout::render_root(frame, &ctx);
             })?;
 
@@ -359,7 +362,21 @@ impl App {
         result
     }
 
-    fn build_render_context(&self) -> RenderContext<'_> {
+    fn mode_name(&self) -> &'static str {
+        match self.input_mode {
+            InputMode::Normal => "Normal",
+            InputMode::NamespaceSelector => "Namespace",
+        }
+    }
+
+    fn mode_hints(&self) -> Vec<(String, String)> {
+        match self.input_mode {
+            InputMode::Normal => status_bar::normal_mode_hints(),
+            InputMode::NamespaceSelector => status_bar::namespace_selector_hints(),
+        }
+    }
+
+    fn build_render_context(&self) -> (RenderContext<'_>, Vec<String>, Vec<(String, String)>) {
         let namespace_selector = if self.input_mode == InputMode::NamespaceSelector {
             Some(NamespaceSelectorView {
                 namespaces: &self.namespaces,
@@ -370,14 +387,23 @@ impl App {
             None
         };
 
-        RenderContext {
+        let tab_names: Vec<String> = vec!["Main".into()];
+        let hints = self.mode_hints();
+
+        let ctx = RenderContext {
             cluster_name: self.context_resolver.context_name(),
             namespace: self.context_resolver.namespace(),
             namespace_selector,
             pane_tree: &self.pane_tree,
             focused_pane: Some(self.focused_pane),
             panes: &self.panes,
-        }
+            tab_names: &[],
+            active_tab: 0,
+            mode_name: self.mode_name(),
+            mode_hints: &[],
+        };
+
+        (ctx, tab_names, hints)
     }
 }
 
