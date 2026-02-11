@@ -19,6 +19,7 @@ pub struct RenderContext<'a> {
     pub namespace_selector: Option<NamespaceSelectorView<'a>>,
     pub pane_tree: &'a PaneTree,
     pub focused_pane: Option<PaneId>,
+    pub fullscreen_pane: Option<PaneId>,
     pub panes: &'a HashMap<PaneId, Box<dyn Pane>>,
     pub tab_names: &'a [String],
     pub active_tab: usize,
@@ -43,11 +44,17 @@ fn render_tab_bar(frame: &mut Frame, area: Rect, ctx: &RenderContext) {
 }
 
 fn render_body(frame: &mut Frame, area: Rect, ctx: &RenderContext) {
-    let pane_rects = ctx.pane_tree.layout(area);
-    for (pane_id, pane_area) in &pane_rects {
-        if let Some(pane) = ctx.panes.get(pane_id) {
-            let focused = ctx.focused_pane == Some(*pane_id);
-            pane.render(frame, *pane_area, focused);
+    if let Some(fs_id) = ctx.fullscreen_pane {
+        if let Some(pane) = ctx.panes.get(&fs_id) {
+            pane.render(frame, area, true);
+        }
+    } else {
+        let pane_rects = ctx.pane_tree.layout(area);
+        for (pane_id, pane_area) in &pane_rects {
+            if let Some(pane) = ctx.panes.get(pane_id) {
+                let focused = ctx.focused_pane == Some(*pane_id);
+                pane.render(frame, *pane_area, focused);
+            }
         }
     }
 

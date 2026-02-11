@@ -5,6 +5,7 @@ pub struct Tab {
     pub name: String,
     pub pane_tree: PaneTree,
     pub focused_pane: PaneId,
+    pub fullscreen_pane: Option<PaneId>,
 }
 
 pub struct TabManager {
@@ -22,6 +23,7 @@ impl TabManager {
             name: "Main".to_string(),
             pane_tree: PaneTree::with_initial_id(pane_id, initial_view),
             focused_pane: pane_id,
+            fullscreen_pane: None,
         };
         Self { tabs: vec![tab], active_tab: 0, next_pane_id: 2, next_tab_id: 2 }
     }
@@ -35,6 +37,7 @@ impl TabManager {
             name: name.to_string(),
             pane_tree: PaneTree::with_initial_id(pane_id, initial_view),
             focused_pane: pane_id,
+            fullscreen_pane: None,
         };
         self.tabs.push(tab);
         self.active_tab = self.tabs.len() - 1;
@@ -100,6 +103,10 @@ impl TabManager {
         let id = self.next_pane_id;
         self.next_pane_id += 1;
         id
+    }
+
+    pub fn tab_names(&self) -> Vec<String> {
+        self.tabs.iter().map(|t| t.name.clone()).collect()
     }
 
     pub fn split_pane(&mut self, target: PaneId, direction: SplitDirection, new_view: ViewType) -> Option<PaneId> {

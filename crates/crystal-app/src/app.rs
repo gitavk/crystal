@@ -13,8 +13,9 @@ use crystal_core::resource::format_duration;
 use crystal_core::{ContextResolver, KubeClient};
 use crystal_tui::layout::{NamespaceSelectorView, RenderContext};
 use crystal_tui::pane::{
-    find_pane_in_direction, Direction, Pane, PaneCommand, PaneId, PaneTree, ResourceKind, SplitDirection, ViewType,
+    find_pane_in_direction, Direction, Pane, PaneCommand, PaneId, ResourceKind, SplitDirection, ViewType,
 };
+use crystal_tui::tab::TabManager;
 
 use crate::command::{Command, InputMode};
 use crate::event::{AppEvent, EventHandler};
@@ -32,11 +33,9 @@ pub struct App {
     namespace_selected: usize,
     pod_watcher: Option<ResourceWatcher>,
     pending_namespace_switch: Option<String>,
-    pane_tree: PaneTree,
-    focused_pane: PaneId,
+    tab_manager: TabManager,
     panes: HashMap<PaneId, Box<dyn Pane>>,
     pods_pane_id: PaneId,
-    fullscreen_pane: Option<PaneId>,
 }
 
 impl App {
@@ -65,7 +64,7 @@ impl App {
         ];
 
         let pods_pane = ResourceListPane::new(ResourceKind::Pods, pod_headers);
-        let pane_tree = PaneTree::new(ViewType::ResourceList(ResourceKind::Pods));
+        let tab_manager = TabManager::new(ViewType::ResourceList(ResourceKind::Pods));
         let pods_pane_id = 1;
 
         let mut panes: HashMap<PaneId, Box<dyn Pane>> = HashMap::new();
@@ -82,11 +81,9 @@ impl App {
             namespace_selected: 0,
             pod_watcher: None,
             pending_namespace_switch: None,
-            pane_tree,
-            focused_pane: pods_pane_id,
+            tab_manager,
             panes,
             pods_pane_id,
-            fullscreen_pane: None,
         }
     }
 
@@ -176,42 +173,69 @@ impl App {
             Command::NamespaceInput(c) => self.handle_namespace_input(c),
             Command::NamespaceBackspace => self.handle_namespace_backspace(),
             Command::FocusDirection(dir) => self.focus_direction(dir),
-            Command::NewTab => tracing::debug!("NewTab not yet integrated with TabManager"),
-            Command::CloseTab => tracing::debug!("CloseTab not yet integrated with TabManager"),
-            Command::NextTab => tracing::debug!("NextTab not yet integrated with TabManager"),
-            Command::PrevTab => tracing::debug!("PrevTab not yet integrated with TabManager"),
-            Command::GoToTab(n) => tracing::debug!("GoToTab({n}) not yet integrated with TabManager"),
+            Command::NewTab => self.new_tab(),
+            Command::CloseTab => self.close_tab(),
+            Command::NextTab => self.tab_manager.next_tab(),
+            Command::PrevTab => self.tab_manager.prev_tab(),
+            Command::GoToTab(n) => {
+                if n > 0 {
+                    self.tab_manager.switch_tab(n - 1);
+                }
+            }
             Command::ToggleFullscreen => self.toggle_fullscreen(),
-            Command::ResizeGrow => self.pane_tree.resize(self.focused_pane, 0.05),
-            Command::ResizeShrink => self.pane_tree.resize(self.focused_pane, -0.05),
+            Command::ResizeGrow => {
+                let focused = self.tab_manager.active().focused_pane;
+                self.tab_manager.active_mut().pane_tree.resize(focused, 0.05);
+            }
+            Command::ResizeShrink => {
+                let focused = self.tab_manager.active().focused_pane;
+                self.tab_manager.active_mut().pane_tree.resize(focused, -0.05);
+            }
             Command::Pane(ref pane_cmd) if self.dispatcher.mode() == InputMode::NamespaceSelector => {
                 self.handle_namespace_nav(pane_cmd);
             }
             Command::Pane(pane_cmd) => {
-                if let Some(pane) = self.panes.get_mut(&self.focused_pane) {
+                let focused = self.tab_manager.active().focused_pane;
+                if let Some(pane) = self.panes.get_mut(&focused) {
                     pane.handle_command(&pane_cmd);
                 }
             }
         }
     }
 
+    fn new_tab(&mut self) {
+        let tab_count = self.tab_manager.tabs().len();
+        let name = format!("Tab {}", tab_count + 1);
+        let tab_id = self.tab_manager.new_tab(&name, ViewType::Empty);
+        let pane_id = self.tab_manager.tabs().iter().find(|t| t.id == tab_id).unwrap().focused_pane;
+        self.panes.insert(pane_id, Box::new(EmptyPane(ViewType::Empty)));
+    }
+
+    fn close_tab(&mut self) {
+        let tab = self.tab_manager.active();
+        let tab_id = tab.id;
+        let pane_ids: Vec<PaneId> = tab.pane_tree.leaf_ids();
+
+        if self.tab_manager.close_tab(tab_id) {
+            for id in pane_ids {
+                self.panes.remove(&id);
+            }
+        }
+    }
+
     fn toggle_help(&mut self) {
-        let help_pane_id =
-            self.panes.iter().find_map(
-                |(id, p)| {
-                    if matches!(p.view_type(), ViewType::Help) {
-                        Some(*id)
-                    } else {
-                        None
-                    }
-                },
-            );
+        let active_pane_ids = self.tab_manager.active().pane_tree.leaf_ids();
+        let help_pane_id = active_pane_ids
+            .iter()
+            .find(|id| self.panes.get(id).is_some_and(|p| matches!(p.view_type(), ViewType::Help)))
+            .copied();
 
         if let Some(id) = help_pane_id {
             self.close_pane(id);
         } else {
-            let prev_view = self.panes.get(&self.focused_pane).map(|p| p.view_type().clone());
-            if let Some(new_id) = self.pane_tree.split(self.focused_pane, SplitDirection::Vertical, ViewType::Help) {
+            let focused = self.tab_manager.active().focused_pane;
+            let prev_view = self.panes.get(&focused).map(|p| p.view_type().clone());
+            if let Some(new_id) = self.tab_manager.split_pane(focused, SplitDirection::Vertical, ViewType::Help) {
                 let global = self.dispatcher.global_shortcuts();
                 let pane_sc = self.dispatcher.pane_shortcuts();
                 let mut help = HelpPane::new(global, pane_sc);
@@ -223,55 +247,67 @@ impl App {
     }
 
     fn focus_next(&mut self) {
-        let ids = self.pane_tree.leaf_ids();
+        let ids = self.tab_manager.active().pane_tree.leaf_ids();
         if ids.is_empty() {
             return;
         }
-        let pos = ids.iter().position(|&id| id == self.focused_pane).unwrap_or(0);
+        let focused = self.tab_manager.active().focused_pane;
+        let pos = ids.iter().position(|&id| id == focused).unwrap_or(0);
         let next = ids[(pos + 1) % ids.len()];
         self.set_focus(next);
     }
 
     fn focus_prev(&mut self) {
-        let ids = self.pane_tree.leaf_ids();
+        let ids = self.tab_manager.active().pane_tree.leaf_ids();
         if ids.is_empty() {
             return;
         }
-        let pos = ids.iter().position(|&id| id == self.focused_pane).unwrap_or(0);
+        let focused = self.tab_manager.active().focused_pane;
+        let pos = ids.iter().position(|&id| id == focused).unwrap_or(0);
         let prev = ids[(pos + ids.len() - 1) % ids.len()];
         self.set_focus(prev);
     }
 
     fn set_focus(&mut self, new_id: PaneId) {
-        let prev_view = self.panes.get(&self.focused_pane).map(|p| p.view_type().clone());
-        self.focused_pane = new_id;
+        let focused = self.tab_manager.active().focused_pane;
+        let prev_view = self.panes.get(&focused).map(|p| p.view_type().clone());
+        self.tab_manager.active_mut().focused_pane = new_id;
         if let Some(pane) = self.panes.get_mut(&new_id) {
             pane.on_focus_change(prev_view.as_ref());
         }
     }
 
     fn split_focused(&mut self, direction: SplitDirection) {
+        let focused = self.tab_manager.active().focused_pane;
         let view = ViewType::Empty;
-        if let Some(new_id) = self.pane_tree.split(self.focused_pane, direction, view.clone()) {
+        if let Some(new_id) = self.tab_manager.split_pane(focused, direction, view.clone()) {
             self.panes.insert(new_id, Box::new(EmptyPane(view)));
             self.set_focus(new_id);
         }
     }
 
     fn close_focused(&mut self) {
-        self.close_pane(self.focused_pane);
+        let focused = self.tab_manager.active().focused_pane;
+        self.close_pane(focused);
     }
 
     fn close_pane(&mut self, target: PaneId) {
-        let ids = self.pane_tree.leaf_ids();
+        let tab = self.tab_manager.active();
+        let ids = tab.pane_tree.leaf_ids();
         if ids.len() <= 1 {
             return;
         }
-        let was_focused = target == self.focused_pane;
-        if self.pane_tree.close(target) {
+        let focused = tab.focused_pane;
+        let was_focused = target == focused;
+        if self.tab_manager.active_mut().pane_tree.close(target) {
             self.panes.remove(&target);
+            if let Some(ref mut fs) = self.tab_manager.active_mut().fullscreen_pane {
+                if *fs == target {
+                    self.tab_manager.active_mut().fullscreen_pane = None;
+                }
+            }
             if was_focused {
-                let remaining = self.pane_tree.leaf_ids();
+                let remaining = self.tab_manager.active().pane_tree.leaf_ids();
                 if let Some(&first) = remaining.first() {
                     self.set_focus(first);
                 }
@@ -280,14 +316,15 @@ impl App {
     }
 
     fn focus_direction(&mut self, dir: Direction) {
-        if self.fullscreen_pane.is_some() {
+        if self.tab_manager.active().fullscreen_pane.is_some() {
             return;
         }
 
         let area = ratatui::prelude::Rect::new(0, 0, 200, 50);
-        let layout = self.pane_tree.layout(area);
+        let layout = self.tab_manager.active().pane_tree.layout(area);
+        let focused = self.tab_manager.active().focused_pane;
 
-        let current = layout.iter().find(|(id, _)| *id == self.focused_pane).map(|(id, r)| (*id, *r));
+        let current = layout.iter().find(|(id, _)| *id == focused).map(|(id, r)| (*id, *r));
         let Some(current) = current else { return };
 
         if let Some(target) = find_pane_in_direction(current, &layout, dir) {
@@ -296,10 +333,11 @@ impl App {
     }
 
     fn toggle_fullscreen(&mut self) {
-        if self.fullscreen_pane.is_some() {
-            self.fullscreen_pane = None;
+        let tab = self.tab_manager.active_mut();
+        if tab.fullscreen_pane.is_some() {
+            tab.fullscreen_pane = None;
         } else {
-            self.fullscreen_pane = Some(self.focused_pane);
+            tab.fullscreen_pane = Some(tab.focused_pane);
         }
     }
 
@@ -440,18 +478,22 @@ impl App {
             None
         };
 
-        let tab_names: Vec<String> = vec!["Main".into()];
+        let tab_names = self.tab_manager.tab_names();
         let hints = self.mode_hints();
+
+        let tab = self.tab_manager.active();
+        let (pane_tree, focused_pane, fullscreen_pane) = (&tab.pane_tree, tab.focused_pane, tab.fullscreen_pane);
 
         let ctx = RenderContext {
             cluster_name: self.context_resolver.context_name(),
             namespace: self.context_resolver.namespace(),
             namespace_selector,
-            pane_tree: &self.pane_tree,
-            focused_pane: Some(self.focused_pane),
+            pane_tree,
+            focused_pane: Some(focused_pane),
+            fullscreen_pane,
             panes: &self.panes,
             tab_names: &[],
-            active_tab: 0,
+            active_tab: self.tab_manager.active_index(),
             mode_name: self.mode_name(),
             mode_hints: &[],
         };
