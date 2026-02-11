@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 use std::time::Duration;
 
-use crossterm::event::{KeyCode, KeyEvent, KeyEventKind};
+use crossterm::event::{KeyEvent, KeyEventKind};
 use k8s_openapi::api::core::v1::Pod;
 use kube::Api;
 use ratatui::backend::Backend;
@@ -12,11 +12,11 @@ use crystal_core::informer::{ResourceEvent, ResourceWatcher};
 use crystal_core::resource::format_duration;
 use crystal_core::{ContextResolver, KubeClient};
 use crystal_tui::layout::{NamespaceSelectorView, RenderContext};
-use crystal_tui::pane::{Pane, PaneId, PaneTree, ResourceKind, SplitDirection, ViewType};
-use crystal_tui::widgets::status_bar;
+use crystal_tui::pane::{Direction, Pane, PaneCommand, PaneId, PaneTree, ResourceKind, SplitDirection, ViewType};
 
-use crate::command::{map_key_to_command, Command, InputMode};
+use crate::command::{Command, InputMode};
 use crate::event::{AppEvent, EventHandler};
+use crate::keybindings::KeybindingDispatcher;
 use crate::panes::{HelpPane, ResourceListPane};
 
 pub struct App {
@@ -24,7 +24,7 @@ pub struct App {
     tick_rate: Duration,
     kube_client: Option<KubeClient>,
     context_resolver: ContextResolver,
-    input_mode: InputMode,
+    dispatcher: KeybindingDispatcher,
     namespaces: Vec<String>,
     namespace_filter: String,
     namespace_selected: usize,
@@ -34,10 +34,11 @@ pub struct App {
     focused_pane: PaneId,
     panes: HashMap<PaneId, Box<dyn Pane>>,
     pods_pane_id: PaneId,
+    fullscreen_pane: Option<PaneId>,
 }
 
 impl App {
-    pub async fn new(tick_rate_ms: u64) -> Self {
+    pub async fn new(tick_rate_ms: u64, dispatcher: KeybindingDispatcher) -> Self {
         let mut context_resolver = ContextResolver::new();
         let kube_client = match KubeClient::from_kubeconfig().await {
             Ok(client) => {
@@ -63,7 +64,7 @@ impl App {
 
         let pods_pane = ResourceListPane::new(ResourceKind::Pods, pod_headers);
         let pane_tree = PaneTree::new(ViewType::ResourceList(ResourceKind::Pods));
-        let pods_pane_id = 1; // first leaf in a new PaneTree
+        let pods_pane_id = 1;
 
         let mut panes: HashMap<PaneId, Box<dyn Pane>> = HashMap::new();
         panes.insert(pods_pane_id, Box::new(pods_pane));
@@ -73,7 +74,7 @@ impl App {
             tick_rate: Duration::from_millis(tick_rate_ms),
             kube_client,
             context_resolver,
-            input_mode: InputMode::Normal,
+            dispatcher,
             namespaces: Vec::new(),
             namespace_filter: String::new(),
             namespace_selected: 0,
@@ -83,6 +84,7 @@ impl App {
             focused_pane: pods_pane_id,
             panes,
             pods_pane_id,
+            fullscreen_pane: None,
         }
     }
 
@@ -146,13 +148,8 @@ impl App {
             return;
         }
 
-        match self.input_mode {
-            InputMode::Normal => {
-                if let Some(cmd) = map_key_to_command(key, InputMode::Normal) {
-                    self.handle_command(cmd);
-                }
-            }
-            InputMode::NamespaceSelector => self.handle_namespace_key(key),
+        if let Some(cmd) = self.dispatcher.dispatch(key) {
+            self.handle_command(cmd);
         }
     }
 
@@ -166,19 +163,33 @@ impl App {
             Command::SplitHorizontal => self.split_focused(SplitDirection::Horizontal),
             Command::ClosePane => self.close_focused(),
             Command::EnterMode(mode) => {
-                self.input_mode = mode;
+                self.dispatcher.set_mode(mode);
                 if mode == InputMode::NamespaceSelector {
                     self.namespace_filter.clear();
                     self.namespace_selected = 0;
                 }
             }
-            Command::ExitMode => self.input_mode = InputMode::Normal,
+            Command::ExitMode => self.dispatcher.set_mode(InputMode::Normal),
+            Command::NamespaceConfirm => self.handle_namespace_confirm(),
+            Command::NamespaceInput(c) => self.handle_namespace_input(c),
+            Command::NamespaceBackspace => self.handle_namespace_backspace(),
+            Command::FocusDirection(dir) => self.focus_direction(dir),
+            Command::NewTab => tracing::debug!("NewTab not yet integrated with TabManager"),
+            Command::CloseTab => tracing::debug!("CloseTab not yet integrated with TabManager"),
+            Command::NextTab => tracing::debug!("NextTab not yet integrated with TabManager"),
+            Command::PrevTab => tracing::debug!("PrevTab not yet integrated with TabManager"),
+            Command::GoToTab(n) => tracing::debug!("GoToTab({n}) not yet integrated with TabManager"),
+            Command::ToggleFullscreen => self.toggle_fullscreen(),
+            Command::ResizeGrow => self.pane_tree.resize(self.focused_pane, 0.05),
+            Command::ResizeShrink => self.pane_tree.resize(self.focused_pane, -0.05),
+            Command::Pane(ref pane_cmd) if self.dispatcher.mode() == InputMode::NamespaceSelector => {
+                self.handle_namespace_nav(pane_cmd);
+            }
             Command::Pane(pane_cmd) => {
                 if let Some(pane) = self.panes.get_mut(&self.focused_pane) {
                     pane.handle_command(&pane_cmd);
                 }
             }
-            _ => {}
         }
     }
 
@@ -199,7 +210,9 @@ impl App {
         } else {
             let prev_view = self.panes.get(&self.focused_pane).map(|p| p.view_type().clone());
             if let Some(new_id) = self.pane_tree.split(self.focused_pane, SplitDirection::Vertical, ViewType::Help) {
-                let mut help = HelpPane::new();
+                let global = self.dispatcher.global_shortcuts();
+                let pane_sc = self.dispatcher.pane_shortcuts();
+                let mut help = HelpPane::new(global, pane_sc);
                 help.on_focus_change(prev_view.as_ref());
                 self.panes.insert(new_id, Box::new(help));
                 self.set_focus(new_id);
@@ -264,29 +277,72 @@ impl App {
         }
     }
 
-    fn handle_namespace_key(&mut self, key: KeyEvent) {
-        match key.code {
-            KeyCode::Esc => self.input_mode = InputMode::Normal,
-            KeyCode::Enter => {
-                self.select_namespace();
-                self.input_mode = InputMode::Normal;
-            }
-            KeyCode::Up => {
+    fn focus_direction(&mut self, dir: Direction) {
+        use ratatui::prelude::Rect;
+
+        let area = Rect::new(0, 0, 200, 50);
+        let layout = self.pane_tree.layout(area);
+
+        let current_rect = layout.iter().find(|(id, _)| *id == self.focused_pane).map(|(_, r)| *r);
+        let Some(current) = current_rect else { return };
+
+        let cx = current.x as i32 + current.width as i32 / 2;
+        let cy = current.y as i32 + current.height as i32 / 2;
+
+        let candidate = layout
+            .iter()
+            .filter(|(id, _)| *id != self.focused_pane)
+            .filter(|(_, r)| match dir {
+                Direction::Up => (r.y as i32 + r.height as i32) <= current.y as i32,
+                Direction::Down => r.y as i32 >= (current.y as i32 + current.height as i32),
+                Direction::Left => (r.x as i32 + r.width as i32) <= current.x as i32,
+                Direction::Right => r.x as i32 >= (current.x as i32 + current.width as i32),
+            })
+            .min_by_key(|(_, r)| {
+                let rx = r.x as i32 + r.width as i32 / 2;
+                let ry = r.y as i32 + r.height as i32 / 2;
+                (cx - rx).abs() + (cy - ry).abs()
+            })
+            .map(|(id, _)| *id);
+
+        if let Some(target) = candidate {
+            self.set_focus(target);
+        }
+    }
+
+    fn toggle_fullscreen(&mut self) {
+        if self.fullscreen_pane.is_some() {
+            self.fullscreen_pane = None;
+        } else {
+            self.fullscreen_pane = Some(self.focused_pane);
+        }
+    }
+
+    fn handle_namespace_confirm(&mut self) {
+        self.select_namespace();
+        self.dispatcher.set_mode(InputMode::Normal);
+    }
+
+    fn handle_namespace_input(&mut self, c: char) {
+        self.namespace_filter.push(c);
+        self.namespace_selected = 0;
+    }
+
+    fn handle_namespace_backspace(&mut self) {
+        self.namespace_filter.pop();
+        self.namespace_selected = 0;
+    }
+
+    fn handle_namespace_nav(&mut self, cmd: &PaneCommand) {
+        match cmd {
+            PaneCommand::SelectPrev => {
                 self.namespace_selected = self.namespace_selected.saturating_sub(1);
             }
-            KeyCode::Down => {
+            PaneCommand::SelectNext => {
                 let count = self.filtered_namespaces().len();
                 if self.namespace_selected + 1 < count {
                     self.namespace_selected += 1;
                 }
-            }
-            KeyCode::Char(c) => {
-                self.namespace_filter.push(c);
-                self.namespace_selected = 0;
-            }
-            KeyCode::Backspace => {
-                self.namespace_filter.pop();
-                self.namespace_selected = 0;
             }
             _ => {}
         }
@@ -363,21 +419,33 @@ impl App {
     }
 
     fn mode_name(&self) -> &'static str {
-        match self.input_mode {
+        match self.dispatcher.mode() {
             InputMode::Normal => "Normal",
             InputMode::NamespaceSelector => "Namespace",
+            InputMode::Pane => "Pane",
+            InputMode::Tab => "Tab",
+            InputMode::Search => "Search",
+            InputMode::Command => "Command",
+            InputMode::Insert => "Insert",
         }
     }
 
     fn mode_hints(&self) -> Vec<(String, String)> {
-        match self.input_mode {
-            InputMode::Normal => status_bar::normal_mode_hints(),
-            InputMode::NamespaceSelector => status_bar::namespace_selector_hints(),
+        match self.dispatcher.mode() {
+            InputMode::Normal => self.dispatcher.global_hints(),
+            InputMode::NamespaceSelector => {
+                vec![
+                    ("Up/Down".into(), "Navigate".into()),
+                    ("Enter".into(), "Select".into()),
+                    ("Esc".into(), "Cancel".into()),
+                ]
+            }
+            _ => vec![],
         }
     }
 
     fn build_render_context(&self) -> (RenderContext<'_>, Vec<String>, Vec<(String, String)>) {
-        let namespace_selector = if self.input_mode == InputMode::NamespaceSelector {
+        let namespace_selector = if self.dispatcher.mode() == InputMode::NamespaceSelector {
             Some(NamespaceSelectorView {
                 namespaces: &self.namespaces,
                 filter: &self.namespace_filter,

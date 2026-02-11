@@ -49,22 +49,6 @@ impl<'a> StatusBarWidget<'a> {
     }
 }
 
-pub fn normal_mode_hints() -> Vec<(String, String)> {
-    vec![
-        ("Alt+v".into(), "Split V".into()),
-        ("Alt+h".into(), "Split H".into()),
-        ("Tab".into(), "Focus".into()),
-        ("Alt+w".into(), "Close".into()),
-        (":".into(), "Namespace".into()),
-        ("?".into(), "Help".into()),
-        ("q".into(), "Quit".into()),
-    ]
-}
-
-pub fn namespace_selector_hints() -> Vec<(String, String)> {
-    vec![("↑/↓".into(), "Navigate".into()), ("Enter".into(), "Select".into()), ("Esc".into(), "Cancel".into())]
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -95,8 +79,8 @@ mod tests {
     }
 
     #[test]
-    fn shows_normal_mode_hints() {
-        let hints = normal_mode_hints();
+    fn shows_hints() {
+        let hints = vec![("Alt+v".into(), "Split V".into()), ("?".into(), "Help".into())];
         let buf = render_status_bar("Normal", &hints, Some("minikube"), Some("default"), 120);
         let text = buf_text(&buf);
         assert!(text.contains("NORMAL"));
@@ -104,18 +88,6 @@ mod tests {
         assert!(text.contains("Split V"));
         assert!(text.contains("<?>"));
         assert!(text.contains("Help"));
-    }
-
-    #[test]
-    fn shows_namespace_selector_hints() {
-        let hints = namespace_selector_hints();
-        let buf = render_status_bar("Namespace", &hints, Some("minikube"), Some("default"), 120);
-        let text = buf_text(&buf);
-        assert!(text.contains("NAMESPACE"));
-        assert!(text.contains("<Enter>"));
-        assert!(text.contains("Select"));
-        assert!(text.contains("<Esc>"));
-        assert!(text.contains("Cancel"));
     }
 
     #[test]

@@ -9,37 +9,13 @@ use crystal_tui::theme;
 pub struct HelpPane {
     context_view: Option<ViewType>,
     scroll_offset: u16,
+    global_shortcuts: Vec<(String, String)>,
+    pane_shortcuts: Vec<(String, String)>,
 }
 
 impl HelpPane {
-    pub fn new() -> Self {
-        Self { context_view: None, scroll_offset: 0 }
-    }
-
-    fn global_shortcuts() -> Vec<(&'static str, &'static str)> {
-        vec![
-            ("q", "Quit"),
-            ("?", "Toggle help"),
-            ("Tab", "Focus next pane"),
-            ("Shift+Tab", "Focus previous pane"),
-            ("Alt+v", "Split vertical"),
-            ("Alt+h", "Split horizontal"),
-            ("Alt+w", "Close pane"),
-            (":", "Namespace selector"),
-        ]
-    }
-
-    fn pane_shortcuts(view: &ViewType) -> Vec<(&'static str, &'static str)> {
-        match view {
-            ViewType::ResourceList(_) => vec![
-                ("j / Down", "Select next"),
-                ("k / Up", "Select previous"),
-                ("Enter", "Select / confirm"),
-                ("Esc", "Back"),
-            ],
-            ViewType::Logs(_) => vec![("j / Down", "Scroll down"), ("k / Up", "Scroll up"), ("f", "Toggle follow")],
-            _ => vec![],
-        }
+    pub fn new(global_shortcuts: Vec<(String, String)>, pane_shortcuts: Vec<(String, String)>) -> Self {
+        Self { context_view: None, scroll_offset: 0, global_shortcuts, pane_shortcuts }
     }
 }
 
@@ -59,34 +35,31 @@ impl Pane for HelpPane {
 
         lines.push(Line::from(Span::styled("Global Shortcuts", Style::default().fg(theme::ACCENT).bold())));
         lines.push(Line::from(""));
-        for (key, desc) in Self::global_shortcuts() {
+        for (key, desc) in &self.global_shortcuts {
             lines.push(Line::from(vec![
                 Span::styled(format!("  {key:<16}"), Style::default().fg(theme::HEADER_FG).bold()),
-                Span::styled(desc, Style::default().fg(theme::STATUS_FG)),
+                Span::styled(desc.as_str(), Style::default().fg(theme::STATUS_FG)),
             ]));
         }
 
-        if let Some(ref view) = self.context_view {
-            let pane_shortcuts = Self::pane_shortcuts(view);
-            if !pane_shortcuts.is_empty() {
-                let label = match view {
-                    ViewType::ResourceList(_) => "Resource List",
-                    ViewType::Logs(_) => "Logs",
-                    ViewType::Terminal => "Terminal",
-                    _ => "Pane",
-                };
-                lines.push(Line::from(""));
-                lines.push(Line::from(Span::styled(
-                    format!("{label} Shortcuts"),
-                    Style::default().fg(theme::ACCENT).bold(),
-                )));
-                lines.push(Line::from(""));
-                for (key, desc) in pane_shortcuts {
-                    lines.push(Line::from(vec![
-                        Span::styled(format!("  {key:<16}"), Style::default().fg(theme::HEADER_FG).bold()),
-                        Span::styled(desc, Style::default().fg(theme::STATUS_FG)),
-                    ]));
-                }
+        if self.context_view.is_some() && !self.pane_shortcuts.is_empty() {
+            let label = match self.context_view.as_ref() {
+                Some(ViewType::ResourceList(_)) => "Resource List",
+                Some(ViewType::Logs(_)) => "Logs",
+                Some(ViewType::Terminal) => "Terminal",
+                _ => "Pane",
+            };
+            lines.push(Line::from(""));
+            lines.push(Line::from(Span::styled(
+                format!("{label} Shortcuts"),
+                Style::default().fg(theme::ACCENT).bold(),
+            )));
+            lines.push(Line::from(""));
+            for (key, desc) in &self.pane_shortcuts {
+                lines.push(Line::from(vec![
+                    Span::styled(format!("  {key:<16}"), Style::default().fg(theme::HEADER_FG).bold()),
+                    Span::styled(desc.as_str(), Style::default().fg(theme::STATUS_FG)),
+                ]));
             }
         }
 

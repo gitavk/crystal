@@ -70,6 +70,11 @@ tools:
 # BUILD
 # ==================================================================================== #
 
+## check: type-check without building
+.PHONY: check
+check:
+	@cargo check --workspace
+
 ## build: build debug artifacts
 .PHONY: build
 build:

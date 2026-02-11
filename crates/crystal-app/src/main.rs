@@ -1,6 +1,7 @@
 mod app;
 mod command;
 mod event;
+mod keybindings;
 mod panes;
 mod state;
 
@@ -12,6 +13,7 @@ use ratatui::backend::CrosstermBackend;
 use ratatui::Terminal;
 
 use crate::app::App;
+use crate::keybindings::KeybindingDispatcher;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
@@ -28,8 +30,9 @@ async fn main() -> anyhow::Result<()> {
     let backend = CrosstermBackend::new(io::stdout());
     let mut terminal = Terminal::new(backend)?;
 
-    let config = crystal_config::Config::default();
-    let mut app = App::new(config.tick_rate_ms()).await;
+    let config = crystal_config::Config::load();
+    let dispatcher = KeybindingDispatcher::from_config(&config.keybindings);
+    let mut app = App::new(config.tick_rate_ms(), dispatcher).await;
     let result = app.run(&mut terminal).await;
 
     terminal::disable_raw_mode()?;
