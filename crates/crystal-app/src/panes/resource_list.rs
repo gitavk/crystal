@@ -21,11 +21,7 @@ impl ResourceListPane {
 impl Pane for ResourceListPane {
     fn render(&self, frame: &mut Frame, area: Rect, focused: bool) {
         let title = match &self.view_type {
-            ViewType::ResourceList(ResourceKind::Pods) => "Pods",
-            ViewType::ResourceList(ResourceKind::Deployments) => "Deployments",
-            ViewType::ResourceList(ResourceKind::Services) => "Services",
-            ViewType::ResourceList(ResourceKind::Nodes) => "Nodes",
-            ViewType::ResourceList(ResourceKind::Custom(name)) => name.as_str(),
+            ViewType::ResourceList(kind) => kind.display_name(),
             _ => "Resources",
         };
 

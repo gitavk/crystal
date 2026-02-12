@@ -7,4 +7,4 @@ pub mod resource;
 pub use client::KubeClient;
 pub use context::{ClusterContext, ContextResolver};
 pub use error::KubeError;
-pub use resource::{PodPhase, PodSummary, ResourceSummary};
+pub use resource::{DetailSection, PodPhase, PodSummary, ResourceSummary};

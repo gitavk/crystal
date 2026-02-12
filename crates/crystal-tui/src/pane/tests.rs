@@ -315,3 +315,53 @@ fn focus_cycling_wraps_backward() {
     let prev = ids[(pos + ids.len() - 1) % ids.len()];
     assert_eq!(prev, 3);
 }
+
+// --- ResourceKind tests ---
+
+#[test]
+fn resource_kind_all_returns_14_variants() {
+    assert_eq!(ResourceKind::all().len(), 14);
+}
+
+#[test]
+fn resource_kind_short_names_are_unique() {
+    let all = ResourceKind::all();
+    let mut names: Vec<&str> = all.iter().map(|k| k.short_name()).collect();
+    let count = names.len();
+    names.sort();
+    names.dedup();
+    assert_eq!(names.len(), count);
+}
+
+#[test]
+fn resource_kind_is_namespaced() {
+    let cluster_scoped = [ResourceKind::Nodes, ResourceKind::Namespaces, ResourceKind::PersistentVolumes];
+    for kind in ResourceKind::all() {
+        if cluster_scoped.contains(kind) {
+            assert!(!kind.is_namespaced(), "{:?} should be cluster-scoped", kind);
+        } else {
+            assert!(kind.is_namespaced(), "{:?} should be namespaced", kind);
+        }
+    }
+}
+
+#[test]
+fn resource_kind_round_trip_via_short_name() {
+    for kind in ResourceKind::all() {
+        let short = kind.short_name();
+        let resolved = ResourceKind::from_short_name(short);
+        assert_eq!(resolved.as_ref(), Some(kind), "round-trip failed for {:?} (short={})", kind, short);
+    }
+}
+
+#[test]
+fn resource_kind_from_short_name_unknown_returns_none() {
+    assert_eq!(ResourceKind::from_short_name("bogus"), None);
+}
+
+#[test]
+fn resource_kind_display_name_matches_variant() {
+    assert_eq!(ResourceKind::Pods.display_name(), "Pods");
+    assert_eq!(ResourceKind::PersistentVolumeClaims.display_name(), "PersistentVolumeClaims");
+    assert_eq!(ResourceKind::Custom("CRD".into()).display_name(), "CRD");
+}

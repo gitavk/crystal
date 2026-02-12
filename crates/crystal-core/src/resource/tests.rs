@@ -48,3 +48,59 @@ fn format_duration_ranges() {
     assert_eq!(format_duration(Duration::from_secs(7200)), "2h");
     assert_eq!(format_duration(Duration::from_secs(172800)), "2d");
 }
+
+#[test]
+fn pod_summary_row_returns_six_cells() {
+    let summary = PodSummary {
+        name: "nginx".into(),
+        namespace: "default".into(),
+        status: PodPhase::Running,
+        ready: "1/1".into(),
+        restarts: 3,
+        age: Duration::from_secs(7200),
+        node: Some("node-1".into()),
+    };
+    let row = summary.row();
+    assert_eq!(row.len(), 6);
+    assert_eq!(row[0], "nginx");
+    assert_eq!(row[1], "1/1");
+    assert_eq!(row[2], "Running");
+    assert_eq!(row[3], "3");
+    assert_eq!(row[4], "2h");
+    assert_eq!(row[5], "node-1");
+}
+
+#[test]
+fn pod_summary_detail_sections_has_metadata_and_status() {
+    let summary = PodSummary {
+        name: "web".into(),
+        namespace: "prod".into(),
+        status: PodPhase::Pending,
+        ready: "0/2".into(),
+        restarts: 0,
+        age: Duration::from_secs(60),
+        node: None,
+    };
+    let sections = summary.detail_sections();
+    assert_eq!(sections.len(), 2);
+    assert_eq!(sections[0].title, "Metadata");
+    assert_eq!(sections[1].title, "Status");
+    assert_eq!(sections[0].fields.len(), 4); // no node
+    assert_eq!(sections[1].fields[0], ("Ready".into(), "0/2".into()));
+}
+
+#[test]
+fn pod_summary_detail_sections_includes_node_when_present() {
+    let summary = PodSummary {
+        name: "api".into(),
+        namespace: "default".into(),
+        status: PodPhase::Running,
+        ready: "1/1".into(),
+        restarts: 0,
+        age: Duration::from_secs(300),
+        node: Some("worker-2".into()),
+    };
+    let sections = summary.detail_sections();
+    assert_eq!(sections[0].fields.len(), 5);
+    assert_eq!(sections[0].fields[4], ("Node".into(), "worker-2".into()));
+}

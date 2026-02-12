@@ -36,12 +36,20 @@ pub struct PodSummary {
     pub node: Option<String>,
 }
 
+#[derive(Debug, Clone)]
+pub struct DetailSection {
+    pub title: String,
+    pub fields: Vec<(String, String)>,
+}
+
 pub trait ResourceSummary: Send + Sync {
     fn name(&self) -> &str;
     fn namespace(&self) -> Option<&str>;
     fn status_display(&self) -> String;
     fn age(&self) -> Duration;
     fn columns(&self) -> Vec<(&str, String)>;
+    fn row(&self) -> Vec<String>;
+    fn detail_sections(&self) -> Vec<DetailSection>;
 }
 
 impl ResourceSummary for PodSummary {
@@ -70,6 +78,36 @@ impl ResourceSummary for PodSummary {
             ("RESTARTS", self.restarts.to_string()),
             ("AGE", format_duration(self.age)),
             ("NODE", self.node.clone().unwrap_or_default()),
+        ]
+    }
+
+    fn row(&self) -> Vec<String> {
+        vec![
+            self.name.clone(),
+            self.ready.clone(),
+            self.status.to_string(),
+            self.restarts.to_string(),
+            format_duration(self.age),
+            self.node.clone().unwrap_or_default(),
+        ]
+    }
+
+    fn detail_sections(&self) -> Vec<DetailSection> {
+        let mut metadata = vec![
+            ("Name".into(), self.name.clone()),
+            ("Namespace".into(), self.namespace.clone()),
+            ("Status".into(), self.status.to_string()),
+            ("Age".into(), format_duration(self.age)),
+        ];
+        if let Some(node) = &self.node {
+            metadata.push(("Node".into(), node.clone()));
+        }
+
+        let status_section = vec![("Ready".into(), self.ready.clone()), ("Restarts".into(), self.restarts.to_string())];
+
+        vec![
+            DetailSection { title: "Metadata".into(), fields: metadata },
+            DetailSection { title: "Status".into(), fields: status_section },
         ]
     }
 }
