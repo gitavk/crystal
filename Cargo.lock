@@ -259,6 +259,7 @@ dependencies = [
  "kube",
  "ratatui",
  "tokio",
+ "tokio-util",
  "tracing",
  "tracing-subscriber",
 ]

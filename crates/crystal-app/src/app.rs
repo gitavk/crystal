@@ -2,14 +2,22 @@ use std::collections::HashMap;
 use std::time::Duration;
 
 use crossterm::event::{KeyEvent, KeyEventKind};
-use k8s_openapi::api::core::v1::Pod;
+use k8s_openapi::api::apps::v1::{DaemonSet, Deployment, StatefulSet};
+use k8s_openapi::api::batch::v1::CronJob;
+use k8s_openapi::api::batch::v1::Job;
+use k8s_openapi::api::core::v1::{
+    ConfigMap, Namespace, Node, PersistentVolume, PersistentVolumeClaim, Pod, Secret, Service,
+};
+use k8s_openapi::api::networking::v1::Ingress;
 use kube::Api;
 use ratatui::backend::Backend;
 use ratatui::Terminal;
 use tokio::sync::mpsc;
+use tokio_util::sync::CancellationToken;
 
 use crystal_core::informer::{ResourceEvent, ResourceWatcher};
-use crystal_core::resource::format_duration;
+use crystal_core::resource::ResourceSummary;
+use crystal_core::*;
 use crystal_core::{ContextResolver, KubeClient};
 use crystal_tui::layout::{NamespaceSelectorView, RenderContext};
 use crystal_tui::pane::{
@@ -31,11 +39,15 @@ pub struct App {
     namespaces: Vec<String>,
     namespace_filter: String,
     namespace_selected: usize,
-    pod_watcher: Option<ResourceWatcher>,
+    /// Active watchers keyed by pane ID.
+    /// Each pane showing a resource list has its own watcher.
+    /// When a pane switches resource type, its watcher is cancelled and a new one spawned.
+    active_watchers: HashMap<PaneId, CancellationToken>,
     pending_namespace_switch: Option<String>,
     tab_manager: TabManager,
     panes: HashMap<PaneId, Box<dyn Pane>>,
     pods_pane_id: PaneId,
+    app_tx: mpsc::UnboundedSender<AppEvent>,
 }
 
 impl App {
@@ -70,6 +82,9 @@ impl App {
         let mut panes: HashMap<PaneId, Box<dyn Pane>> = HashMap::new();
         panes.insert(pods_pane_id, Box::new(pods_pane));
 
+        // Create a temporary channel to get the sender
+        let (tx, _rx) = mpsc::unbounded_channel();
+
         Self {
             running: true,
             tick_rate: Duration::from_millis(tick_rate_ms),
@@ -79,21 +94,22 @@ impl App {
             namespaces: Vec::new(),
             namespace_filter: String::new(),
             namespace_selected: 0,
-            pod_watcher: None,
+            active_watchers: HashMap::new(),
             pending_namespace_switch: None,
             tab_manager,
             panes,
             pods_pane_id,
+            app_tx: tx,
         }
     }
 
     pub async fn run(&mut self, terminal: &mut Terminal<impl Backend>) -> anyhow::Result<()> {
         let mut events = EventHandler::new(self.tick_rate);
+        self.app_tx = events.app_tx();
 
         if let Some(client) = &self.kube_client {
             let ns = client.namespace().to_string();
-            let inner = client.inner_client();
-            self.init_pod_watcher(&ns, inner, &events);
+            self.start_watcher_for_pane(self.pods_pane_id, &ResourceKind::Pods, &ns);
 
             if let Some(client) = &self.kube_client {
                 match client.list_namespaces().await {
@@ -110,9 +126,8 @@ impl App {
 
         while self.running {
             if let Some(ns) = self.pending_namespace_switch.take() {
-                if let Some(client) = &self.kube_client {
-                    let inner = client.inner_client();
-                    self.init_pod_watcher(&ns, inner, &events);
+                if self.kube_client.is_some() {
+                    self.start_watcher_for_pane(self.pods_pane_id, &ResourceKind::Pods, &ns);
                 }
             }
 
@@ -127,19 +142,152 @@ impl App {
                 AppEvent::Key(key) => self.handle_key(key),
                 AppEvent::Tick => {}
                 AppEvent::Resize(_, _) => {}
-                AppEvent::KubeUpdate(update) => self.handle_kube_update(update),
+                AppEvent::ResourceUpdate { pane_id, headers: _, rows } => self.handle_resource_update(pane_id, rows),
+                AppEvent::ResourceError { pane_id, error } => self.handle_resource_error(pane_id, error),
             }
         }
 
         Ok(())
     }
 
-    fn init_pod_watcher(&mut self, namespace: &str, client: kube::Client, events: &EventHandler) {
-        self.pod_watcher = None;
-        let pod_api: Api<Pod> = Api::namespaced(client, namespace);
-        let (tx, rx) = mpsc::channel(16);
-        self.pod_watcher = Some(ResourceWatcher::watch_pods(pod_api, tx));
-        events.forward_kube_events(rx);
+    /// Start watching a resource type for a specific pane.
+    /// Cancels any existing watcher for that pane first.
+    fn start_watcher_for_pane(&mut self, pane_id: PaneId, kind: &ResourceKind, namespace: &str) {
+        // Cancel existing watcher if any
+        if let Some(token) = self.active_watchers.remove(&pane_id) {
+            token.cancel();
+        }
+
+        let Some(client) = &self.kube_client else {
+            return;
+        };
+
+        let kube_client = client.inner_client();
+        let app_tx = self.app_tx.clone();
+
+        // Create new cancellation token
+        let token = CancellationToken::new();
+        self.active_watchers.insert(pane_id, token.clone());
+
+        // Helper to bridge ResourceEvent<S> to AppEvent::ResourceUpdate
+        fn spawn_bridge<S>(
+            pane_id: PaneId,
+            mut rx: mpsc::Receiver<ResourceEvent<S>>,
+            app_tx: mpsc::UnboundedSender<AppEvent>,
+        ) where
+            S: ResourceSummary + 'static,
+        {
+            tokio::spawn(async move {
+                while let Some(event) = rx.recv().await {
+                    let app_event = match event {
+                        ResourceEvent::Updated(items) => {
+                            let headers = if items.is_empty() {
+                                vec![]
+                            } else {
+                                items[0].columns().into_iter().map(|(h, _)| h.to_string()).collect()
+                            };
+                            let rows = items.iter().map(|item| item.row()).collect();
+                            AppEvent::ResourceUpdate { pane_id, headers, rows }
+                        }
+                        ResourceEvent::Error(error) => AppEvent::ResourceError { pane_id, error },
+                    };
+                    if app_tx.send(app_event).is_err() {
+                        break;
+                    }
+                }
+            });
+        }
+
+        // Match on ResourceKind and spawn the appropriate watcher
+        match kind {
+            ResourceKind::Pods => {
+                let api: Api<Pod> = Api::namespaced(kube_client, namespace);
+                let (tx, rx) = mpsc::channel(16);
+                ResourceWatcher::watch::<Pod, PodSummary>(api, tx);
+                spawn_bridge(pane_id, rx, app_tx);
+            }
+            ResourceKind::Deployments => {
+                let api: Api<Deployment> = Api::namespaced(kube_client, namespace);
+                let (tx, rx) = mpsc::channel(16);
+                ResourceWatcher::watch::<Deployment, DeploymentSummary>(api, tx);
+                spawn_bridge(pane_id, rx, app_tx);
+            }
+            ResourceKind::Services => {
+                let api: Api<Service> = Api::namespaced(kube_client, namespace);
+                let (tx, rx) = mpsc::channel(16);
+                ResourceWatcher::watch::<Service, ServiceSummary>(api, tx);
+                spawn_bridge(pane_id, rx, app_tx);
+            }
+            ResourceKind::StatefulSets => {
+                let api: Api<StatefulSet> = Api::namespaced(kube_client, namespace);
+                let (tx, rx) = mpsc::channel(16);
+                ResourceWatcher::watch::<StatefulSet, StatefulSetSummary>(api, tx);
+                spawn_bridge(pane_id, rx, app_tx);
+            }
+            ResourceKind::DaemonSets => {
+                let api: Api<DaemonSet> = Api::namespaced(kube_client, namespace);
+                let (tx, rx) = mpsc::channel(16);
+                ResourceWatcher::watch::<DaemonSet, DaemonSetSummary>(api, tx);
+                spawn_bridge(pane_id, rx, app_tx);
+            }
+            ResourceKind::Jobs => {
+                let api: Api<Job> = Api::namespaced(kube_client, namespace);
+                let (tx, rx) = mpsc::channel(16);
+                ResourceWatcher::watch::<Job, JobSummary>(api, tx);
+                spawn_bridge(pane_id, rx, app_tx);
+            }
+            ResourceKind::CronJobs => {
+                let api: Api<CronJob> = Api::namespaced(kube_client, namespace);
+                let (tx, rx) = mpsc::channel(16);
+                ResourceWatcher::watch::<CronJob, CronJobSummary>(api, tx);
+                spawn_bridge(pane_id, rx, app_tx);
+            }
+            ResourceKind::ConfigMaps => {
+                let api: Api<ConfigMap> = Api::namespaced(kube_client, namespace);
+                let (tx, rx) = mpsc::channel(16);
+                ResourceWatcher::watch::<ConfigMap, ConfigMapSummary>(api, tx);
+                spawn_bridge(pane_id, rx, app_tx);
+            }
+            ResourceKind::Secrets => {
+                let api: Api<Secret> = Api::namespaced(kube_client, namespace);
+                let (tx, rx) = mpsc::channel(16);
+                ResourceWatcher::watch::<Secret, SecretSummary>(api, tx);
+                spawn_bridge(pane_id, rx, app_tx);
+            }
+            ResourceKind::Ingresses => {
+                let api: Api<Ingress> = Api::namespaced(kube_client, namespace);
+                let (tx, rx) = mpsc::channel(16);
+                ResourceWatcher::watch::<Ingress, IngressSummary>(api, tx);
+                spawn_bridge(pane_id, rx, app_tx);
+            }
+            ResourceKind::Nodes => {
+                let api: Api<Node> = Api::all(kube_client);
+                let (tx, rx) = mpsc::channel(16);
+                ResourceWatcher::watch::<Node, NodeSummary>(api, tx);
+                spawn_bridge(pane_id, rx, app_tx);
+            }
+            ResourceKind::Namespaces => {
+                let api: Api<Namespace> = Api::all(kube_client);
+                let (tx, rx) = mpsc::channel(16);
+                ResourceWatcher::watch::<Namespace, NamespaceSummary>(api, tx);
+                spawn_bridge(pane_id, rx, app_tx);
+            }
+            ResourceKind::PersistentVolumes => {
+                let api: Api<PersistentVolume> = Api::all(kube_client);
+                let (tx, rx) = mpsc::channel(16);
+                ResourceWatcher::watch::<PersistentVolume, PersistentVolumeSummary>(api, tx);
+                spawn_bridge(pane_id, rx, app_tx);
+            }
+            ResourceKind::PersistentVolumeClaims => {
+                let api: Api<PersistentVolumeClaim> = Api::namespaced(kube_client, namespace);
+                let (tx, rx) = mpsc::channel(16);
+                ResourceWatcher::watch::<PersistentVolumeClaim, PersistentVolumeClaimSummary>(api, tx);
+                spawn_bridge(pane_id, rx, app_tx);
+            }
+            ResourceKind::Custom(_) => {
+                tracing::warn!("Custom resource kinds are not yet supported");
+            }
+        }
     }
 
     fn handle_key(&mut self, key: KeyEvent) {
@@ -371,27 +519,18 @@ impl App {
         }
     }
 
-    fn handle_kube_update(&mut self, update: ResourceEvent<crystal_core::PodSummary>) {
-        match update {
-            ResourceEvent::Updated(pods) => {
-                let rows: Vec<Vec<String>> = pods
-                    .iter()
-                    .map(|p| {
-                        vec![
-                            p.name.clone(),
-                            p.namespace.clone(),
-                            p.status.to_string(),
-                            p.ready.clone(),
-                            p.restarts.to_string(),
-                            format_duration(p.age),
-                            p.node.clone().unwrap_or_default(),
-                        ]
-                    })
-                    .collect();
-                self.with_pods_pane(|pane| pane.state.set_items(rows));
+    fn handle_resource_update(&mut self, pane_id: PaneId, rows: Vec<Vec<String>>) {
+        if let Some(pane) = self.panes.get_mut(&pane_id) {
+            if let Some(resource_pane) = pane.as_any_mut().downcast_mut::<ResourceListPane>() {
+                resource_pane.state.set_items(rows);
             }
-            ResourceEvent::Error(e) => {
-                self.with_pods_pane(|pane| pane.state.set_error(e));
+        }
+    }
+
+    fn handle_resource_error(&mut self, pane_id: PaneId, error: String) {
+        if let Some(pane) = self.panes.get_mut(&pane_id) {
+            if let Some(resource_pane) = pane.as_any_mut().downcast_mut::<ResourceListPane>() {
+                resource_pane.state.set_error(error);
             }
         }
     }
@@ -409,7 +548,10 @@ impl App {
         if let Some(ns) = filtered.get(self.namespace_selected).cloned() {
             let ns = if ns == "All Namespaces" { "default".to_string() } else { ns };
 
-            self.pod_watcher = None;
+            // Cancel the current watcher (will be restarted in run loop via pending_namespace_switch)
+            if let Some(token) = self.active_watchers.remove(&self.pods_pane_id) {
+                token.cancel();
+            }
 
             if let Some(ref mut client) = self.kube_client {
                 client.set_namespace(&ns);
