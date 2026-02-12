@@ -3,8 +3,10 @@ pub mod context;
 pub mod error;
 pub mod informer;
 pub mod resource;
+pub mod resources;
 
 pub use client::KubeClient;
 pub use context::{ClusterContext, ContextResolver};
 pub use error::KubeError;
-pub use resource::{DetailSection, PodPhase, PodSummary, ResourceSummary};
+pub use resource::{DetailSection, ResourceSummary};
+pub use resources::*;

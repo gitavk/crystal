@@ -8,7 +8,7 @@ use tokio::sync::mpsc;
 use tokio_util::sync::CancellationToken;
 use tracing::{info, warn};
 
-use crate::resource::PodSummary;
+use crate::resources::PodSummary;
 
 #[derive(Debug, Clone)]
 pub enum ResourceEvent<S> {

@@ -7,7 +7,7 @@ use kube::config::{KubeConfigOptions, Kubeconfig};
 use kube::{Api, Client, Config};
 
 use crate::context::ClusterContext;
-use crate::resource::PodSummary;
+use crate::resources::PodSummary;
 
 pub struct KubeClient {
     client: Client,
