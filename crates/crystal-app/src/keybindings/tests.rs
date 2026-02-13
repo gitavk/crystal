@@ -293,9 +293,9 @@ fn filter_input_mode_forwards_chars_and_responds_to_esc_enter() {
     let mut d = default_dispatcher();
     d.set_mode(InputMode::FilterInput);
 
-    assert_eq!(d.dispatch(press(KeyCode::Char('a'))), Some(Command::Pane(PaneCommand::SearchInput('a'))));
-    assert_eq!(d.dispatch(press(KeyCode::Backspace)), Some(Command::Pane(PaneCommand::ClearFilter)));
-    assert_eq!(d.dispatch(press(KeyCode::Esc)), Some(Command::ExitMode));
+    assert_eq!(d.dispatch(press(KeyCode::Char('a'))), Some(Command::FilterInput('a')));
+    assert_eq!(d.dispatch(press(KeyCode::Backspace)), Some(Command::FilterBackspace));
+    assert_eq!(d.dispatch(press(KeyCode::Esc)), Some(Command::FilterCancel));
     assert_eq!(d.dispatch(press(KeyCode::Enter)), Some(Command::ExitMode));
 }
 
@@ -303,7 +303,7 @@ fn filter_input_mode_forwards_chars_and_responds_to_esc_enter() {
 fn filter_input_mode_ignores_global_bindings() {
     let mut d = default_dispatcher();
     d.set_mode(InputMode::FilterInput);
-    assert_eq!(d.dispatch(press(KeyCode::Char('q'))), Some(Command::Pane(PaneCommand::SearchInput('q'))));
+    assert_eq!(d.dispatch(press(KeyCode::Char('q'))), Some(Command::FilterInput('q')));
 }
 
 #[test]

@@ -50,6 +50,11 @@ pub enum Command {
 
     // Sort
     SortByColumn,
+
+    // Filter input
+    FilterInput(char),
+    FilterBackspace,
+    FilterCancel,
 }
 
 #[cfg(test)]

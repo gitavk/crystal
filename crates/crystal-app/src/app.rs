@@ -44,6 +44,7 @@ pub struct App {
     /// When a pane switches resource type, its watcher is cancelled and a new one spawned.
     active_watchers: HashMap<PaneId, CancellationToken>,
     pending_namespace_switch: Option<String>,
+    filter_input_buffer: String,
     tab_manager: TabManager,
     panes: HashMap<PaneId, Box<dyn Pane>>,
     pods_pane_id: PaneId,
@@ -96,6 +97,7 @@ impl App {
             namespace_selected: 0,
             active_watchers: HashMap::new(),
             pending_namespace_switch: None,
+            filter_input_buffer: String::new(),
             tab_manager,
             panes,
             pods_pane_id,
@@ -198,91 +200,43 @@ impl App {
             });
         }
 
-        // Match on ResourceKind and spawn the appropriate watcher
+        let all_ns = namespace.is_empty();
+
+        macro_rules! spawn_watcher {
+            ($k8s_type:ty, $summary_type:ty) => {{
+                let api: Api<$k8s_type> = if all_ns {
+                    Api::all(kube_client.clone())
+                } else {
+                    Api::namespaced(kube_client.clone(), namespace)
+                };
+                let (tx, rx) = mpsc::channel(16);
+                ResourceWatcher::watch::<$k8s_type, $summary_type>(api, tx);
+                spawn_bridge(pane_id, rx, app_tx);
+            }};
+            (cluster $k8s_type:ty, $summary_type:ty) => {{
+                let api: Api<$k8s_type> = Api::all(kube_client.clone());
+                let (tx, rx) = mpsc::channel(16);
+                ResourceWatcher::watch::<$k8s_type, $summary_type>(api, tx);
+                spawn_bridge(pane_id, rx, app_tx);
+            }};
+        }
+
         match kind {
-            ResourceKind::Pods => {
-                let api: Api<Pod> = Api::namespaced(kube_client, namespace);
-                let (tx, rx) = mpsc::channel(16);
-                ResourceWatcher::watch::<Pod, PodSummary>(api, tx);
-                spawn_bridge(pane_id, rx, app_tx);
-            }
-            ResourceKind::Deployments => {
-                let api: Api<Deployment> = Api::namespaced(kube_client, namespace);
-                let (tx, rx) = mpsc::channel(16);
-                ResourceWatcher::watch::<Deployment, DeploymentSummary>(api, tx);
-                spawn_bridge(pane_id, rx, app_tx);
-            }
-            ResourceKind::Services => {
-                let api: Api<Service> = Api::namespaced(kube_client, namespace);
-                let (tx, rx) = mpsc::channel(16);
-                ResourceWatcher::watch::<Service, ServiceSummary>(api, tx);
-                spawn_bridge(pane_id, rx, app_tx);
-            }
-            ResourceKind::StatefulSets => {
-                let api: Api<StatefulSet> = Api::namespaced(kube_client, namespace);
-                let (tx, rx) = mpsc::channel(16);
-                ResourceWatcher::watch::<StatefulSet, StatefulSetSummary>(api, tx);
-                spawn_bridge(pane_id, rx, app_tx);
-            }
-            ResourceKind::DaemonSets => {
-                let api: Api<DaemonSet> = Api::namespaced(kube_client, namespace);
-                let (tx, rx) = mpsc::channel(16);
-                ResourceWatcher::watch::<DaemonSet, DaemonSetSummary>(api, tx);
-                spawn_bridge(pane_id, rx, app_tx);
-            }
-            ResourceKind::Jobs => {
-                let api: Api<Job> = Api::namespaced(kube_client, namespace);
-                let (tx, rx) = mpsc::channel(16);
-                ResourceWatcher::watch::<Job, JobSummary>(api, tx);
-                spawn_bridge(pane_id, rx, app_tx);
-            }
-            ResourceKind::CronJobs => {
-                let api: Api<CronJob> = Api::namespaced(kube_client, namespace);
-                let (tx, rx) = mpsc::channel(16);
-                ResourceWatcher::watch::<CronJob, CronJobSummary>(api, tx);
-                spawn_bridge(pane_id, rx, app_tx);
-            }
-            ResourceKind::ConfigMaps => {
-                let api: Api<ConfigMap> = Api::namespaced(kube_client, namespace);
-                let (tx, rx) = mpsc::channel(16);
-                ResourceWatcher::watch::<ConfigMap, ConfigMapSummary>(api, tx);
-                spawn_bridge(pane_id, rx, app_tx);
-            }
-            ResourceKind::Secrets => {
-                let api: Api<Secret> = Api::namespaced(kube_client, namespace);
-                let (tx, rx) = mpsc::channel(16);
-                ResourceWatcher::watch::<Secret, SecretSummary>(api, tx);
-                spawn_bridge(pane_id, rx, app_tx);
-            }
-            ResourceKind::Ingresses => {
-                let api: Api<Ingress> = Api::namespaced(kube_client, namespace);
-                let (tx, rx) = mpsc::channel(16);
-                ResourceWatcher::watch::<Ingress, IngressSummary>(api, tx);
-                spawn_bridge(pane_id, rx, app_tx);
-            }
-            ResourceKind::Nodes => {
-                let api: Api<Node> = Api::all(kube_client);
-                let (tx, rx) = mpsc::channel(16);
-                ResourceWatcher::watch::<Node, NodeSummary>(api, tx);
-                spawn_bridge(pane_id, rx, app_tx);
-            }
-            ResourceKind::Namespaces => {
-                let api: Api<Namespace> = Api::all(kube_client);
-                let (tx, rx) = mpsc::channel(16);
-                ResourceWatcher::watch::<Namespace, NamespaceSummary>(api, tx);
-                spawn_bridge(pane_id, rx, app_tx);
-            }
-            ResourceKind::PersistentVolumes => {
-                let api: Api<PersistentVolume> = Api::all(kube_client);
-                let (tx, rx) = mpsc::channel(16);
-                ResourceWatcher::watch::<PersistentVolume, PersistentVolumeSummary>(api, tx);
-                spawn_bridge(pane_id, rx, app_tx);
-            }
+            ResourceKind::Pods => spawn_watcher!(Pod, PodSummary),
+            ResourceKind::Deployments => spawn_watcher!(Deployment, DeploymentSummary),
+            ResourceKind::Services => spawn_watcher!(Service, ServiceSummary),
+            ResourceKind::StatefulSets => spawn_watcher!(StatefulSet, StatefulSetSummary),
+            ResourceKind::DaemonSets => spawn_watcher!(DaemonSet, DaemonSetSummary),
+            ResourceKind::Jobs => spawn_watcher!(Job, JobSummary),
+            ResourceKind::CronJobs => spawn_watcher!(CronJob, CronJobSummary),
+            ResourceKind::ConfigMaps => spawn_watcher!(ConfigMap, ConfigMapSummary),
+            ResourceKind::Secrets => spawn_watcher!(Secret, SecretSummary),
+            ResourceKind::Ingresses => spawn_watcher!(Ingress, IngressSummary),
+            ResourceKind::Nodes => spawn_watcher!(cluster Node, NodeSummary),
+            ResourceKind::Namespaces => spawn_watcher!(cluster Namespace, NamespaceSummary),
+            ResourceKind::PersistentVolumes => spawn_watcher!(cluster PersistentVolume, PersistentVolumeSummary),
             ResourceKind::PersistentVolumeClaims => {
-                let api: Api<PersistentVolumeClaim> = Api::namespaced(kube_client, namespace);
-                let (tx, rx) = mpsc::channel(16);
-                ResourceWatcher::watch::<PersistentVolumeClaim, PersistentVolumeClaimSummary>(api, tx);
-                spawn_bridge(pane_id, rx, app_tx);
+                spawn_watcher!(PersistentVolumeClaim, PersistentVolumeClaimSummary)
             }
             ResourceKind::Custom(_) => {
                 tracing::warn!("Custom resource kinds are not yet supported");
@@ -314,6 +268,15 @@ impl App {
                 if mode == InputMode::NamespaceSelector {
                     self.namespace_filter.clear();
                     self.namespace_selected = 0;
+                }
+                if mode == InputMode::FilterInput {
+                    self.filter_input_buffer.clear();
+                    let focused = self.tab_manager.active().focused_pane;
+                    if let Some(pane) = self.panes.get(&focused) {
+                        if let Some(rp) = pane.as_any().downcast_ref::<ResourceListPane>() {
+                            self.filter_input_buffer = rp.filter_text.clone();
+                        }
+                    }
                 }
             }
             Command::ExitMode => self.dispatcher.set_mode(InputMode::Normal),
@@ -349,7 +312,85 @@ impl App {
                 }
             }
 
-            // Resource actions — dispatch logic added in steps 4.5–4.10
+            Command::FilterInput(c) => {
+                self.filter_input_buffer.push(c);
+                let text = self.filter_input_buffer.clone();
+                let focused = self.tab_manager.active().focused_pane;
+                if let Some(pane) = self.panes.get_mut(&focused) {
+                    pane.handle_command(&PaneCommand::Filter(text));
+                }
+            }
+            Command::FilterBackspace => {
+                self.filter_input_buffer.pop();
+                if self.filter_input_buffer.is_empty() {
+                    let focused = self.tab_manager.active().focused_pane;
+                    if let Some(pane) = self.panes.get_mut(&focused) {
+                        pane.handle_command(&PaneCommand::ClearFilter);
+                    }
+                } else {
+                    let text = self.filter_input_buffer.clone();
+                    let focused = self.tab_manager.active().focused_pane;
+                    if let Some(pane) = self.panes.get_mut(&focused) {
+                        pane.handle_command(&PaneCommand::Filter(text));
+                    }
+                }
+            }
+            Command::FilterCancel => {
+                self.filter_input_buffer.clear();
+                let focused = self.tab_manager.active().focused_pane;
+                if let Some(pane) = self.panes.get_mut(&focused) {
+                    pane.handle_command(&PaneCommand::ClearFilter);
+                }
+                self.dispatcher.set_mode(InputMode::Normal);
+            }
+            Command::SortByColumn => {
+                let focused = self.tab_manager.active().focused_pane;
+                if let Some(pane) = self.panes.get_mut(&focused) {
+                    if let Some(rp) = pane.as_any_mut().downcast_mut::<ResourceListPane>() {
+                        let next_col = match rp.sort_column {
+                            None => 0,
+                            Some(c) => {
+                                let num_cols = rp.state.headers.len();
+                                if num_cols == 0 {
+                                    0
+                                } else {
+                                    (c + 1) % num_cols
+                                }
+                            }
+                        };
+                        rp.sort_by_column(next_col);
+                    }
+                }
+            }
+            Command::ToggleAllNamespaces => {
+                let focused = self.tab_manager.active().focused_pane;
+                if let Some(pane) = self.panes.get_mut(&focused) {
+                    if let Some(rp) = pane.as_any_mut().downcast_mut::<ResourceListPane>() {
+                        rp.all_namespaces = !rp.all_namespaces;
+                        let kind = rp.kind().cloned();
+                        let is_all = rp.all_namespaces;
+
+                        if let Some(kind) = kind {
+                            if kind.is_namespaced() {
+                                if is_all {
+                                    self.start_watcher_for_pane(focused, &kind, "");
+                                } else {
+                                    let ns = self.context_resolver.namespace().unwrap_or("default").to_string();
+                                    self.start_watcher_for_pane(focused, &kind, &ns);
+                                }
+                                if let Some(pane) = self.panes.get_mut(&focused) {
+                                    if let Some(rp) = pane.as_any_mut().downcast_mut::<ResourceListPane>() {
+                                        let headers = rp.state.headers.clone();
+                                        rp.state = crate::state::ResourceListState::new(headers);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Resource actions — dispatch logic added in later steps
             Command::ViewYaml
             | Command::ViewDescribe
             | Command::DeleteResource
@@ -357,14 +398,12 @@ impl App {
             | Command::RestartRollout
             | Command::ViewLogs
             | Command::ExecInto
-            | Command::ToggleAllNamespaces
             | Command::EnterResourceSwitcher
             | Command::ResourceSwitcherInput(_)
             | Command::ResourceSwitcherBackspace
             | Command::ResourceSwitcherConfirm
             | Command::ConfirmAction
-            | Command::DenyAction
-            | Command::SortByColumn => {}
+            | Command::DenyAction => {}
         }
     }
 
@@ -540,6 +579,7 @@ impl App {
         if let Some(pane) = self.panes.get_mut(&pane_id) {
             if let Some(resource_pane) = pane.as_any_mut().downcast_mut::<ResourceListPane>() {
                 resource_pane.state.set_items(rows);
+                resource_pane.refresh_filter_and_sort();
             }
         }
     }
@@ -624,6 +664,9 @@ impl App {
                     ("Enter".into(), "Select".into()),
                     ("Esc".into(), "Cancel".into()),
                 ]
+            }
+            InputMode::FilterInput => {
+                vec![("Enter".into(), "Keep filter".into()), ("Esc".into(), "Clear & exit".into())]
             }
             _ => vec![],
         }

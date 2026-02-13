@@ -32,6 +32,7 @@ impl ResourceListState {
         self.error = Some(err);
     }
 
+    #[allow(dead_code)]
     pub fn next(&mut self) {
         if self.items.is_empty() {
             return;
@@ -42,6 +43,7 @@ impl ResourceListState {
         });
     }
 
+    #[allow(dead_code)]
     pub fn previous(&mut self) {
         if self.items.is_empty() {
             return;

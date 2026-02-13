@@ -97,10 +97,10 @@ impl KeybindingDispatcher {
                 _ => return None,
             },
             InputMode::FilterInput => match key.code {
-                KeyCode::Esc => return Some(Command::ExitMode),
+                KeyCode::Esc => return Some(Command::FilterCancel),
                 KeyCode::Enter => return Some(Command::ExitMode),
-                KeyCode::Char(c) => return Some(Command::Pane(PaneCommand::SearchInput(c))),
-                KeyCode::Backspace => return Some(Command::Pane(PaneCommand::ClearFilter)),
+                KeyCode::Char(c) => return Some(Command::FilterInput(c)),
+                KeyCode::Backspace => return Some(Command::FilterBackspace),
                 _ => return None,
             },
             _ => {}

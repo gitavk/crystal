@@ -13,9 +13,11 @@ fn make_test_app() -> (HashMap<PaneId, Box<dyn Pane>>, PaneTree, PaneId) {
     let headers = vec!["NAME".into(), "STATUS".into()];
     let mut pane1 = ResourceListPane::new(ResourceKind::Pods, headers.clone());
     pane1.state.set_items(vec![vec!["pod-a".into(), "Running".into()], vec!["pod-b".into(), "Pending".into()]]);
+    pane1.refresh_filter_and_sort();
 
     let mut pane2 = ResourceListPane::new(ResourceKind::Services, headers);
     pane2.state.set_items(vec![vec!["svc-a".into(), "Active".into()]]);
+    pane2.refresh_filter_and_sort();
 
     let mut tree = PaneTree::new(ViewType::ResourceList(ResourceKind::Pods));
     let pane2_id = tree.split(1, SplitDirection::Vertical, ViewType::ResourceList(ResourceKind::Services)).unwrap();
@@ -31,6 +33,7 @@ fn make_test_tab_manager() -> (HashMap<PaneId, Box<dyn Pane>>, TabManager) {
     let headers = vec!["NAME".into(), "STATUS".into()];
     let mut pane1 = ResourceListPane::new(ResourceKind::Pods, headers.clone());
     pane1.state.set_items(vec![vec!["pod-a".into(), "Running".into()], vec!["pod-b".into(), "Pending".into()]]);
+    pane1.refresh_filter_and_sort();
 
     let tm = TabManager::new(ViewType::ResourceList(ResourceKind::Pods));
 
