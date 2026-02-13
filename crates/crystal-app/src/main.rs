@@ -3,6 +3,7 @@ mod command;
 mod event;
 mod keybindings;
 mod panes;
+mod resource_switcher;
 mod state;
 
 use std::io;

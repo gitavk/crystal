@@ -252,7 +252,7 @@ fn resource_switcher_mode_accepts_input_backspace_confirm_esc() {
     assert_eq!(d.dispatch(press(KeyCode::Char('p'))), Some(Command::ResourceSwitcherInput('p')));
     assert_eq!(d.dispatch(press(KeyCode::Backspace)), Some(Command::ResourceSwitcherBackspace));
     assert_eq!(d.dispatch(press(KeyCode::Enter)), Some(Command::ResourceSwitcherConfirm));
-    assert_eq!(d.dispatch(press(KeyCode::Esc)), Some(Command::ExitMode));
+    assert_eq!(d.dispatch(press(KeyCode::Esc)), Some(Command::DenyAction));
 }
 
 #[test]

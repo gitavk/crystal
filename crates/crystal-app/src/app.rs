@@ -19,7 +19,7 @@ use crystal_core::informer::{ResourceEvent, ResourceWatcher};
 use crystal_core::resource::ResourceSummary;
 use crystal_core::*;
 use crystal_core::{ContextResolver, KubeClient};
-use crystal_tui::layout::{NamespaceSelectorView, RenderContext};
+use crystal_tui::layout::{NamespaceSelectorView, RenderContext, ResourceSwitcherView};
 use crystal_tui::pane::{
     find_pane_in_direction, Direction, Pane, PaneCommand, PaneId, ResourceKind, SplitDirection, ViewType,
 };
@@ -29,6 +29,7 @@ use crate::command::{Command, InputMode};
 use crate::event::{AppEvent, EventHandler};
 use crate::keybindings::KeybindingDispatcher;
 use crate::panes::{HelpPane, ResourceListPane};
+use crate::resource_switcher::ResourceSwitcher;
 
 pub struct App {
     running: bool,
@@ -45,6 +46,7 @@ pub struct App {
     active_watchers: HashMap<PaneId, CancellationToken>,
     pending_namespace_switch: Option<String>,
     filter_input_buffer: String,
+    resource_switcher: Option<ResourceSwitcher>,
     tab_manager: TabManager,
     panes: HashMap<PaneId, Box<dyn Pane>>,
     pods_pane_id: PaneId,
@@ -98,6 +100,7 @@ impl App {
             active_watchers: HashMap::new(),
             pending_namespace_switch: None,
             filter_input_buffer: String::new(),
+            resource_switcher: None,
             tab_manager,
             panes,
             pods_pane_id,
@@ -305,6 +308,15 @@ impl App {
             Command::Pane(ref pane_cmd) if self.dispatcher.mode() == InputMode::NamespaceSelector => {
                 self.handle_namespace_nav(pane_cmd);
             }
+            Command::Pane(ref pane_cmd) if self.dispatcher.mode() == InputMode::ResourceSwitcher => {
+                if let Some(ref mut sw) = self.resource_switcher {
+                    match pane_cmd {
+                        PaneCommand::SelectNext => sw.select_next(),
+                        PaneCommand::SelectPrev => sw.select_prev(),
+                        _ => {}
+                    }
+                }
+            }
             Command::Pane(pane_cmd) => {
                 let focused = self.tab_manager.active().focused_pane;
                 if let Some(pane) = self.panes.get_mut(&focused) {
@@ -390,6 +402,33 @@ impl App {
                 }
             }
 
+            Command::EnterResourceSwitcher => {
+                self.resource_switcher = Some(ResourceSwitcher::new());
+                self.dispatcher.set_mode(InputMode::ResourceSwitcher);
+            }
+            Command::ResourceSwitcherInput(ch) => {
+                if let Some(ref mut sw) = self.resource_switcher {
+                    sw.on_input(ch);
+                }
+            }
+            Command::ResourceSwitcherBackspace => {
+                if let Some(ref mut sw) = self.resource_switcher {
+                    sw.on_backspace();
+                }
+            }
+            Command::ResourceSwitcherConfirm => {
+                let kind = self.resource_switcher.as_ref().and_then(|sw| sw.confirm());
+                if let Some(kind) = kind {
+                    self.switch_resource(kind);
+                }
+                self.resource_switcher = None;
+                self.dispatcher.set_mode(InputMode::Normal);
+            }
+            Command::DenyAction => {
+                self.resource_switcher = None;
+                self.dispatcher.set_mode(InputMode::Normal);
+            }
+
             // Resource actions — dispatch logic added in later steps
             Command::ViewYaml
             | Command::ViewDescribe
@@ -398,12 +437,7 @@ impl App {
             | Command::RestartRollout
             | Command::ViewLogs
             | Command::ExecInto
-            | Command::EnterResourceSwitcher
-            | Command::ResourceSwitcherInput(_)
-            | Command::ResourceSwitcherBackspace
-            | Command::ResourceSwitcherConfirm
-            | Command::ConfirmAction
-            | Command::DenyAction => {}
+            | Command::ConfirmAction => {}
         }
     }
 
@@ -545,6 +579,20 @@ impl App {
         }
     }
 
+    fn switch_resource(&mut self, kind: ResourceKind) {
+        let focused = self.tab_manager.active().focused_pane;
+        let headers: Vec<String> = Vec::new();
+        let new_pane = ResourceListPane::new(kind.clone(), headers);
+        self.panes.insert(focused, Box::new(new_pane));
+
+        let ns = if kind.is_namespaced() {
+            self.context_resolver.namespace().unwrap_or("default").to_string()
+        } else {
+            String::new()
+        };
+        self.start_watcher_for_pane(focused, &kind, &ns);
+    }
+
     fn handle_namespace_confirm(&mut self) {
         self.select_namespace();
         self.dispatcher.set_mode(InputMode::Normal);
@@ -665,6 +713,13 @@ impl App {
                     ("Esc".into(), "Cancel".into()),
                 ]
             }
+            InputMode::ResourceSwitcher => {
+                vec![
+                    ("Up/Down".into(), "Navigate".into()),
+                    ("Enter".into(), "Select".into()),
+                    ("Esc".into(), "Cancel".into()),
+                ]
+            }
             InputMode::FilterInput => {
                 vec![("Enter".into(), "Keep filter".into()), ("Esc".into(), "Clear & exit".into())]
             }
@@ -683,6 +738,12 @@ impl App {
             None
         };
 
+        let resource_switcher = self.resource_switcher.as_ref().map(|sw| ResourceSwitcherView {
+            input: sw.input(),
+            items: sw.filtered(),
+            selected: sw.selected(),
+        });
+
         let tab_names = self.tab_manager.tab_names();
         let hints = self.mode_hints();
 
@@ -693,6 +754,7 @@ impl App {
             cluster_name: self.context_resolver.context_name(),
             namespace: self.context_resolver.namespace(),
             namespace_selector,
+            resource_switcher,
             pane_tree,
             focused_pane: Some(focused_pane),
             fullscreen_pane,

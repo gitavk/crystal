@@ -83,11 +83,7 @@ pub enum ResourceAction {
 
 impl ResourceAction {
     pub fn available_for(kind: &ResourceKind) -> Vec<ResourceAction> {
-        let mut actions = vec![
-            ResourceAction::Delete,
-            ResourceAction::ViewYaml,
-            ResourceAction::Describe,
-        ];
+        let mut actions = vec![ResourceAction::Delete, ResourceAction::ViewYaml, ResourceAction::Describe];
         match kind {
             ResourceKind::Pods => {
                 actions.push(ResourceAction::ViewLogs);

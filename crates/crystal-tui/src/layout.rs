@@ -2,8 +2,9 @@ use std::collections::HashMap;
 
 use ratatui::prelude::*;
 
-use crate::pane::{Pane, PaneId, PaneTree};
+use crate::pane::{Pane, PaneId, PaneTree, ResourceKind};
 use crate::widgets::namespace_selector::NamespaceSelectorWidget;
+use crate::widgets::resource_switcher::ResourceSwitcherWidget;
 use crate::widgets::status_bar::StatusBarWidget;
 use crate::widgets::tab_bar::TabBarWidget;
 
@@ -13,10 +14,17 @@ pub struct NamespaceSelectorView<'a> {
     pub selected: usize,
 }
 
+pub struct ResourceSwitcherView<'a> {
+    pub input: &'a str,
+    pub items: &'a [ResourceKind],
+    pub selected: usize,
+}
+
 pub struct RenderContext<'a> {
     pub cluster_name: Option<&'a str>,
     pub namespace: Option<&'a str>,
     pub namespace_selector: Option<NamespaceSelectorView<'a>>,
+    pub resource_switcher: Option<ResourceSwitcherView<'a>>,
     pub pane_tree: &'a PaneTree,
     pub focused_pane: Option<PaneId>,
     pub fullscreen_pane: Option<PaneId>,
@@ -60,6 +68,11 @@ fn render_body(frame: &mut Frame, area: Rect, ctx: &RenderContext) {
 
     if let Some(ref ns) = ctx.namespace_selector {
         let widget = NamespaceSelectorWidget { namespaces: ns.namespaces, filter: ns.filter, selected: ns.selected };
+        widget.render(frame, area);
+    }
+
+    if let Some(ref rs) = ctx.resource_switcher {
+        let widget = ResourceSwitcherWidget { input: rs.input, items: rs.items, selected: rs.selected };
         widget.render(frame, area);
     }
 }

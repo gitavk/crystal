@@ -86,7 +86,9 @@ impl KeybindingDispatcher {
         match self.mode {
             InputMode::ResourceSwitcher => match key.code {
                 KeyCode::Enter => return Some(Command::ResourceSwitcherConfirm),
-                KeyCode::Esc => return Some(Command::ExitMode),
+                KeyCode::Esc => return Some(Command::DenyAction),
+                KeyCode::Up => return Some(Command::Pane(PaneCommand::SelectPrev)),
+                KeyCode::Down => return Some(Command::Pane(PaneCommand::SelectNext)),
                 KeyCode::Char(c) => return Some(Command::ResourceSwitcherInput(c)),
                 KeyCode::Backspace => return Some(Command::ResourceSwitcherBackspace),
                 _ => return None,
