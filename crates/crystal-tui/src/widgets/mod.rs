@@ -1,3 +1,4 @@
+pub mod breadcrumb;
 pub mod namespace_selector;
 pub mod resource_list;
 pub mod status_bar;

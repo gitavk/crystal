@@ -57,6 +57,7 @@ fn view_type_key(view_type: &ViewType) -> &'static str {
         ViewType::Exec(_) => "Exec",
         ViewType::Help => "Help",
         ViewType::Empty => "Empty",
+        ViewType::Yaml(_, _) => "Yaml",
         ViewType::Plugin(_) => "Plugin",
     }
 }

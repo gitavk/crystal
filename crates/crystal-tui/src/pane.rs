@@ -145,8 +145,9 @@ pub enum ViewType {
     ResourceList(ResourceKind),
     Detail(ResourceKind, String), // kind + resource name
     Terminal,
-    Logs(String), // pod name
-    Exec(String), // pod name
+    Logs(String),               // pod name
+    Exec(String),               // pod name
+    Yaml(ResourceKind, String), // kind + resource name
     Help,
     Empty,
     Plugin(String), // plugin name
