@@ -25,6 +25,11 @@ pub enum PaneCommand {
     SearchInput(char),
     SearchConfirm,
     SearchClear,
+
+    Filter(String),
+    ClearFilter,
+    SortByColumn(usize),
+    ToggleSortOrder,
 }
 
 /// Every pane must satisfy this contract:

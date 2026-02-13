@@ -222,3 +222,115 @@ fn namespace_mode_global_bindings_still_active() {
     d.set_mode(InputMode::NamespaceSelector);
     assert_eq!(d.dispatch(press(KeyCode::Char('q'))), Some(Command::Quit));
 }
+
+#[test]
+fn resource_bindings_map_in_normal_mode() {
+    let d = default_dispatcher();
+    assert_eq!(d.dispatch(press(KeyCode::Char('y'))), Some(Command::ViewYaml));
+    assert_eq!(d.dispatch(press(KeyCode::Char('d'))), Some(Command::ViewDescribe));
+    assert_eq!(d.dispatch(press_mod(KeyCode::Char('d'), KeyModifiers::CONTROL)), Some(Command::DeleteResource));
+    assert_eq!(d.dispatch(press(KeyCode::Char('l'))), Some(Command::ViewLogs));
+    assert_eq!(d.dispatch(press(KeyCode::Char('e'))), Some(Command::ExecInto));
+    assert_eq!(d.dispatch(press(KeyCode::Char('a'))), Some(Command::ToggleAllNamespaces));
+    assert_eq!(d.dispatch(press(KeyCode::Char('s'))), Some(Command::SortByColumn));
+    assert_eq!(d.dispatch(press(KeyCode::Char('/'))), Some(Command::EnterMode(InputMode::FilterInput)));
+    assert_eq!(d.dispatch(press(KeyCode::Char(':'))), Some(Command::EnterResourceSwitcher));
+}
+
+#[test]
+fn resource_bindings_shift_keys() {
+    let d = default_dispatcher();
+    assert_eq!(d.dispatch(press_mod(KeyCode::Char('S'), KeyModifiers::SHIFT)), Some(Command::ScaleResource));
+    assert_eq!(d.dispatch(press_mod(KeyCode::Char('R'), KeyModifiers::SHIFT)), Some(Command::RestartRollout));
+}
+
+#[test]
+fn resource_switcher_mode_accepts_input_backspace_confirm_esc() {
+    let mut d = default_dispatcher();
+    d.set_mode(InputMode::ResourceSwitcher);
+
+    assert_eq!(d.dispatch(press(KeyCode::Char('p'))), Some(Command::ResourceSwitcherInput('p')));
+    assert_eq!(d.dispatch(press(KeyCode::Backspace)), Some(Command::ResourceSwitcherBackspace));
+    assert_eq!(d.dispatch(press(KeyCode::Enter)), Some(Command::ResourceSwitcherConfirm));
+    assert_eq!(d.dispatch(press(KeyCode::Esc)), Some(Command::ExitMode));
+}
+
+#[test]
+fn resource_switcher_mode_ignores_global_bindings() {
+    let mut d = default_dispatcher();
+    d.set_mode(InputMode::ResourceSwitcher);
+    assert_eq!(d.dispatch(press(KeyCode::Char('q'))), Some(Command::ResourceSwitcherInput('q')));
+}
+
+#[test]
+fn resource_switcher_mode_ignores_unknown_keys() {
+    let mut d = default_dispatcher();
+    d.set_mode(InputMode::ResourceSwitcher);
+    assert_eq!(d.dispatch(press(KeyCode::F(5))), None);
+}
+
+#[test]
+fn confirm_dialog_mode_accepts_y_n_esc() {
+    let mut d = default_dispatcher();
+    d.set_mode(InputMode::ConfirmDialog);
+
+    assert_eq!(d.dispatch(press(KeyCode::Char('y'))), Some(Command::ConfirmAction));
+    assert_eq!(d.dispatch(press(KeyCode::Char('n'))), Some(Command::DenyAction));
+    assert_eq!(d.dispatch(press(KeyCode::Esc)), Some(Command::DenyAction));
+}
+
+#[test]
+fn confirm_dialog_mode_ignores_other_keys() {
+    let mut d = default_dispatcher();
+    d.set_mode(InputMode::ConfirmDialog);
+    assert_eq!(d.dispatch(press(KeyCode::Char('q'))), None);
+    assert_eq!(d.dispatch(press(KeyCode::Char('a'))), None);
+    assert_eq!(d.dispatch(press(KeyCode::Tab)), None);
+}
+
+#[test]
+fn filter_input_mode_forwards_chars_and_responds_to_esc_enter() {
+    let mut d = default_dispatcher();
+    d.set_mode(InputMode::FilterInput);
+
+    assert_eq!(d.dispatch(press(KeyCode::Char('a'))), Some(Command::Pane(PaneCommand::SearchInput('a'))));
+    assert_eq!(d.dispatch(press(KeyCode::Backspace)), Some(Command::Pane(PaneCommand::ClearFilter)));
+    assert_eq!(d.dispatch(press(KeyCode::Esc)), Some(Command::ExitMode));
+    assert_eq!(d.dispatch(press(KeyCode::Enter)), Some(Command::ExitMode));
+}
+
+#[test]
+fn filter_input_mode_ignores_global_bindings() {
+    let mut d = default_dispatcher();
+    d.set_mode(InputMode::FilterInput);
+    assert_eq!(d.dispatch(press(KeyCode::Char('q'))), Some(Command::Pane(PaneCommand::SearchInput('q'))));
+}
+
+#[test]
+fn resource_command_config_names_map_correctly() {
+    let mut config = KeybindingsConfig::default();
+    config.resource.insert("view_yaml".into(), "f1".into());
+    config.resource.insert("view_describe".into(), "f2".into());
+    config.resource.insert("delete".into(), "f3".into());
+    config.resource.insert("scale".into(), "f4".into());
+    config.resource.insert("restart".into(), "f5".into());
+    config.resource.insert("view_logs".into(), "f6".into());
+    config.resource.insert("exec".into(), "f7".into());
+    config.resource.insert("toggle_all_namespaces".into(), "f8".into());
+    config.resource.insert("sort".into(), "f9".into());
+    config.resource.insert("filter".into(), "f10".into());
+    config.resource.insert("resource_switcher".into(), "f11".into());
+
+    let d = KeybindingDispatcher::from_config(&config);
+    assert_eq!(d.dispatch(press(KeyCode::F(1))), Some(Command::ViewYaml));
+    assert_eq!(d.dispatch(press(KeyCode::F(2))), Some(Command::ViewDescribe));
+    assert_eq!(d.dispatch(press(KeyCode::F(3))), Some(Command::DeleteResource));
+    assert_eq!(d.dispatch(press(KeyCode::F(4))), Some(Command::ScaleResource));
+    assert_eq!(d.dispatch(press(KeyCode::F(5))), Some(Command::RestartRollout));
+    assert_eq!(d.dispatch(press(KeyCode::F(6))), Some(Command::ViewLogs));
+    assert_eq!(d.dispatch(press(KeyCode::F(7))), Some(Command::ExecInto));
+    assert_eq!(d.dispatch(press(KeyCode::F(8))), Some(Command::ToggleAllNamespaces));
+    assert_eq!(d.dispatch(press(KeyCode::F(9))), Some(Command::SortByColumn));
+    assert_eq!(d.dispatch(press(KeyCode::F(10))), Some(Command::EnterMode(InputMode::FilterInput)));
+    assert_eq!(d.dispatch(press(KeyCode::F(11))), Some(Command::EnterResourceSwitcher));
+}

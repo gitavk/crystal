@@ -17,6 +17,8 @@ pub struct KeybindingsConfig {
     pub global: HashMap<String, String>,
     #[serde(default)]
     pub pane: HashMap<String, String>,
+    #[serde(default)]
+    pub resource: HashMap<String, String>,
 }
 
 const DEFAULT_CONFIG: &str = include_str!("defaults.toml");
@@ -53,6 +55,9 @@ impl Config {
         }
         for (k, v) in user.keybindings.pane {
             self.keybindings.pane.insert(k, v);
+        }
+        for (k, v) in user.keybindings.resource {
+            self.keybindings.resource.insert(k, v);
         }
     }
 

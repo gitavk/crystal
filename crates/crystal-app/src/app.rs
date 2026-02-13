@@ -348,6 +348,23 @@ impl App {
                     pane.handle_command(&pane_cmd);
                 }
             }
+
+            // Resource actions — dispatch logic added in steps 4.5–4.10
+            Command::ViewYaml
+            | Command::ViewDescribe
+            | Command::DeleteResource
+            | Command::ScaleResource
+            | Command::RestartRollout
+            | Command::ViewLogs
+            | Command::ExecInto
+            | Command::ToggleAllNamespaces
+            | Command::EnterResourceSwitcher
+            | Command::ResourceSwitcherInput(_)
+            | Command::ResourceSwitcherBackspace
+            | Command::ResourceSwitcherConfirm
+            | Command::ConfirmAction
+            | Command::DenyAction
+            | Command::SortByColumn => {}
         }
     }
 
@@ -592,6 +609,9 @@ impl App {
             InputMode::Search => "Search",
             InputMode::Command => "Command",
             InputMode::Insert => "Insert",
+            InputMode::ResourceSwitcher => "Resource",
+            InputMode::ConfirmDialog => "Confirm",
+            InputMode::FilterInput => "Filter",
         }
     }
 

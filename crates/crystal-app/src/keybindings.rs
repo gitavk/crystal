@@ -17,14 +17,20 @@ pub enum InputMode {
     Command,
     Insert,
     NamespaceSelector,
+    ResourceSwitcher,
+    ConfirmDialog,
+    FilterInput,
 }
 
+#[allow(dead_code)]
 pub struct KeybindingDispatcher {
     mode: InputMode,
     global_bindings: HashMap<KeyEvent, Command>,
     pane_bindings: HashMap<KeyEvent, Command>,
+    resource_bindings: HashMap<KeyEvent, Command>,
     reverse_global: Vec<(String, String, String)>,
     reverse_pane: Vec<(String, String, String)>,
+    reverse_resource: Vec<(String, String, String)>,
 }
 
 impl KeybindingDispatcher {
@@ -53,17 +59,62 @@ impl KeybindingDispatcher {
             }
         }
 
-        Self { mode: InputMode::Normal, global_bindings, pane_bindings, reverse_global, reverse_pane }
+        let mut resource_bindings = HashMap::new();
+        let mut reverse_resource = Vec::new();
+
+        for (name, key_str) in &config.resource {
+            if let Some(cmd) = resource_command_from_name(name) {
+                if let Some(key) = parse_key_string(key_str) {
+                    resource_bindings.insert(key, cmd);
+                    reverse_resource.push((name.clone(), key_str.clone(), resource_command_description(name)));
+                }
+            }
+        }
+
+        Self {
+            mode: InputMode::Normal,
+            global_bindings,
+            pane_bindings,
+            resource_bindings,
+            reverse_global,
+            reverse_pane,
+            reverse_resource,
+        }
     }
 
     pub fn dispatch(&self, key: KeyEvent) -> Option<Command> {
+        match self.mode {
+            InputMode::ResourceSwitcher => match key.code {
+                KeyCode::Enter => return Some(Command::ResourceSwitcherConfirm),
+                KeyCode::Esc => return Some(Command::ExitMode),
+                KeyCode::Char(c) => return Some(Command::ResourceSwitcherInput(c)),
+                KeyCode::Backspace => return Some(Command::ResourceSwitcherBackspace),
+                _ => return None,
+            },
+            InputMode::ConfirmDialog => match key.code {
+                KeyCode::Char('y') => return Some(Command::ConfirmAction),
+                KeyCode::Char('n') | KeyCode::Esc => return Some(Command::DenyAction),
+                _ => return None,
+            },
+            InputMode::FilterInput => match key.code {
+                KeyCode::Esc => return Some(Command::ExitMode),
+                KeyCode::Enter => return Some(Command::ExitMode),
+                KeyCode::Char(c) => return Some(Command::Pane(PaneCommand::SearchInput(c))),
+                KeyCode::Backspace => return Some(Command::Pane(PaneCommand::ClearFilter)),
+                _ => return None,
+            },
+            _ => {}
+        }
+
         if let Some(cmd) = self.global_bindings.get(&key) {
             return Some(cmd.clone());
         }
 
         match self.mode {
             InputMode::Insert => Some(Command::Pane(PaneCommand::SendInput(key_to_input_string(key)))),
-            InputMode::Normal => self.pane_bindings.get(&key).cloned(),
+            InputMode::Normal => {
+                self.resource_bindings.get(&key).cloned().or_else(|| self.pane_bindings.get(&key).cloned())
+            }
             InputMode::NamespaceSelector => match key.code {
                 KeyCode::Enter => Some(Command::NamespaceConfirm),
                 KeyCode::Esc => Some(Command::ExitMode),
@@ -75,6 +126,9 @@ impl KeybindingDispatcher {
             },
             InputMode::Search | InputMode::Command => None,
             InputMode::Pane | InputMode::Tab => None,
+            InputMode::ResourceSwitcher | InputMode::ConfirmDialog | InputMode::FilterInput => {
+                unreachable!("handled above")
+            }
         }
     }
 
@@ -106,6 +160,13 @@ impl KeybindingDispatcher {
 
     pub fn pane_shortcuts(&self) -> Vec<(String, String)> {
         let mut sorted = self.reverse_pane.clone();
+        sorted.sort_by(|a, b| a.0.cmp(&b.0));
+        sorted.into_iter().map(|(_, key_str, desc)| (format_key_display(&key_str), desc)).collect()
+    }
+
+    #[allow(dead_code)]
+    pub fn resource_shortcuts(&self) -> Vec<(String, String)> {
+        let mut sorted = self.reverse_resource.clone();
         sorted.sort_by(|a, b| a.0.cmp(&b.0));
         sorted.into_iter().map(|(_, key_str, desc)| (format_key_display(&key_str), desc)).collect()
     }
@@ -223,6 +284,41 @@ fn pane_command_from_name(name: &str) -> Option<PaneCommand> {
         "toggle_follow" => Some(PaneCommand::ToggleFollow),
         _ => None,
     }
+}
+
+fn resource_command_from_name(name: &str) -> Option<Command> {
+    match name {
+        "view_yaml" => Some(Command::ViewYaml),
+        "view_describe" => Some(Command::ViewDescribe),
+        "delete" => Some(Command::DeleteResource),
+        "scale" => Some(Command::ScaleResource),
+        "restart" => Some(Command::RestartRollout),
+        "view_logs" => Some(Command::ViewLogs),
+        "exec" => Some(Command::ExecInto),
+        "toggle_all_namespaces" => Some(Command::ToggleAllNamespaces),
+        "sort" => Some(Command::SortByColumn),
+        "filter" => Some(Command::EnterMode(InputMode::FilterInput)),
+        "resource_switcher" => Some(Command::EnterResourceSwitcher),
+        _ => None,
+    }
+}
+
+fn resource_command_description(name: &str) -> String {
+    match name {
+        "view_yaml" => "View YAML",
+        "view_describe" => "Describe",
+        "delete" => "Delete",
+        "scale" => "Scale",
+        "restart" => "Restart",
+        "view_logs" => "Logs",
+        "exec" => "Exec",
+        "toggle_all_namespaces" => "All NS",
+        "sort" => "Sort",
+        "filter" => "Filter",
+        "resource_switcher" => "Resources",
+        _ => "Unknown",
+    }
+    .into()
 }
 
 fn command_description(name: &str) -> String {

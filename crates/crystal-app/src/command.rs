@@ -27,6 +27,29 @@ pub enum Command {
     NamespaceInput(char),
     NamespaceBackspace,
     Pane(PaneCommand),
+
+    // Resource actions
+    ViewYaml,
+    ViewDescribe,
+    DeleteResource,
+    ScaleResource,
+    RestartRollout,
+    ViewLogs,
+    ExecInto,
+    ToggleAllNamespaces,
+
+    // Resource switcher
+    EnterResourceSwitcher,
+    ResourceSwitcherInput(char),
+    ResourceSwitcherBackspace,
+    ResourceSwitcherConfirm,
+
+    // Confirmation dialog
+    ConfirmAction,
+    DenyAction,
+
+    // Sort
+    SortByColumn,
 }
 
 #[cfg(test)]
