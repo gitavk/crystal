@@ -19,17 +19,28 @@ use crystal_core::informer::{ResourceEvent, ResourceWatcher};
 use crystal_core::resource::ResourceSummary;
 use crystal_core::*;
 use crystal_core::{ContextResolver, KubeClient};
-use crystal_tui::layout::{NamespaceSelectorView, RenderContext, ResourceSwitcherView};
+use crystal_tui::layout::{ConfirmDialogView, NamespaceSelectorView, RenderContext, ResourceSwitcherView};
 use crystal_tui::pane::{
     find_pane_in_direction, Direction, Pane, PaneCommand, PaneId, ResourceKind, SplitDirection, ViewType,
 };
 use crystal_tui::tab::TabManager;
+use crystal_tui::widgets::toast::ToastMessage;
 
 use crate::command::{Command, InputMode};
 use crate::event::{AppEvent, EventHandler};
 use crate::keybindings::KeybindingDispatcher;
 use crate::panes::{HelpPane, ResourceListPane};
 use crate::resource_switcher::ResourceSwitcher;
+
+#[derive(Debug, Clone)]
+pub enum PendingAction {
+    Delete { kind: ResourceKind, name: String, namespace: String },
+}
+
+pub struct PendingConfirmation {
+    pub message: String,
+    pub action: PendingAction,
+}
 
 pub struct App {
     running: bool,
@@ -47,6 +58,8 @@ pub struct App {
     pending_namespace_switch: Option<String>,
     filter_input_buffer: String,
     resource_switcher: Option<ResourceSwitcher>,
+    pending_confirmation: Option<PendingConfirmation>,
+    toasts: Vec<ToastMessage>,
     tab_manager: TabManager,
     panes: HashMap<PaneId, Box<dyn Pane>>,
     pods_pane_id: PaneId,
@@ -101,6 +114,8 @@ impl App {
             pending_namespace_switch: None,
             filter_input_buffer: String::new(),
             resource_switcher: None,
+            pending_confirmation: None,
+            toasts: Vec::new(),
             tab_manager,
             panes,
             pods_pane_id,
@@ -145,10 +160,13 @@ impl App {
 
             match events.next().await? {
                 AppEvent::Key(key) => self.handle_key(key),
-                AppEvent::Tick => {}
+                AppEvent::Tick => {
+                    self.toasts.retain(|t| !t.is_expired());
+                }
                 AppEvent::Resize(_, _) => {}
                 AppEvent::ResourceUpdate { pane_id, headers: _, rows } => self.handle_resource_update(pane_id, rows),
                 AppEvent::ResourceError { pane_id, error } => self.handle_resource_error(pane_id, error),
+                AppEvent::Toast(toast) => self.toasts.push(toast),
             }
         }
 
@@ -426,18 +444,23 @@ impl App {
             }
             Command::DenyAction => {
                 self.resource_switcher = None;
+                self.pending_confirmation = None;
                 self.dispatcher.set_mode(InputMode::Normal);
             }
 
-            // Resource actions — dispatch logic added in later steps
+            Command::DeleteResource => {
+                self.initiate_delete();
+            }
+            Command::ConfirmAction => {
+                self.execute_confirmed_action();
+            }
+
             Command::ViewYaml
             | Command::ViewDescribe
-            | Command::DeleteResource
             | Command::ScaleResource
             | Command::RestartRollout
             | Command::ViewLogs
-            | Command::ExecInto
-            | Command::ConfirmAction => {}
+            | Command::ExecInto => {}
         }
     }
 
@@ -476,7 +499,8 @@ impl App {
             if let Some(new_id) = self.tab_manager.split_pane(focused, SplitDirection::Vertical, ViewType::Help) {
                 let global = self.dispatcher.global_shortcuts();
                 let pane_sc = self.dispatcher.pane_shortcuts();
-                let mut help = HelpPane::new(global, pane_sc);
+                let resource_sc = self.dispatcher.resource_shortcuts();
+                let mut help = HelpPane::new(global, pane_sc, resource_sc);
                 help.on_focus_change(prev_view.as_ref());
                 self.panes.insert(new_id, Box::new(help));
                 self.set_focus(new_id);
@@ -688,6 +712,118 @@ impl App {
         result
     }
 
+    fn initiate_delete(&mut self) {
+        let focused = self.tab_manager.active().focused_pane;
+        let Some(pane) = self.panes.get(&focused) else { return };
+        let Some(rp) = pane.as_any().downcast_ref::<ResourceListPane>() else { return };
+
+        let kind = match rp.view_type() {
+            ViewType::ResourceList(k) => k.clone(),
+            _ => return,
+        };
+
+        let selected_idx = match rp.state.selected {
+            Some(s) => {
+                if rp.filtered_indices.is_empty() {
+                    s
+                } else {
+                    match rp.filtered_indices.get(s) {
+                        Some(&i) => i,
+                        None => return,
+                    }
+                }
+            }
+            None => return,
+        };
+
+        let row = match rp.state.items.get(selected_idx) {
+            Some(r) => r,
+            None => return,
+        };
+
+        let name = row.first().cloned().unwrap_or_default();
+        let namespace = if rp.state.headers.iter().any(|h| h == "NAMESPACE") {
+            let ns_idx = rp.state.headers.iter().position(|h| h == "NAMESPACE").unwrap_or(1);
+            row.get(ns_idx).cloned().unwrap_or_default()
+        } else {
+            self.context_resolver.namespace().unwrap_or("default").to_string()
+        };
+
+        let message = format!("Delete {} {}\nin namespace {}?", kind.display_name(), name, namespace);
+
+        self.pending_confirmation =
+            Some(PendingConfirmation { message, action: PendingAction::Delete { kind, name, namespace } });
+        self.dispatcher.set_mode(InputMode::ConfirmDialog);
+    }
+
+    fn execute_confirmed_action(&mut self) {
+        let confirmation = match self.pending_confirmation.take() {
+            Some(c) => c,
+            None => return,
+        };
+        self.dispatcher.set_mode(InputMode::Normal);
+
+        match confirmation.action {
+            PendingAction::Delete { kind, name, namespace } => {
+                let Some(client) = &self.kube_client else {
+                    self.toasts.push(ToastMessage::error("No cluster connection"));
+                    return;
+                };
+                let kube_client = client.inner_client();
+                let app_tx = self.app_tx.clone();
+                let display_name = format!("{} {}", kind.short_name(), name);
+
+                tokio::spawn(async move {
+                    let executor = crystal_core::ActionExecutor::new(kube_client);
+                    let result = match kind {
+                        ResourceKind::Pods => {
+                            executor.delete::<k8s_openapi::api::core::v1::Pod>(&name, &namespace).await
+                        }
+                        ResourceKind::Deployments => {
+                            executor.delete::<k8s_openapi::api::apps::v1::Deployment>(&name, &namespace).await
+                        }
+                        ResourceKind::Services => {
+                            executor.delete::<k8s_openapi::api::core::v1::Service>(&name, &namespace).await
+                        }
+                        ResourceKind::StatefulSets => {
+                            executor.delete::<k8s_openapi::api::apps::v1::StatefulSet>(&name, &namespace).await
+                        }
+                        ResourceKind::DaemonSets => {
+                            executor.delete::<k8s_openapi::api::apps::v1::DaemonSet>(&name, &namespace).await
+                        }
+                        ResourceKind::Jobs => {
+                            executor.delete::<k8s_openapi::api::batch::v1::Job>(&name, &namespace).await
+                        }
+                        ResourceKind::CronJobs => {
+                            executor.delete::<k8s_openapi::api::batch::v1::CronJob>(&name, &namespace).await
+                        }
+                        ResourceKind::ConfigMaps => {
+                            executor.delete::<k8s_openapi::api::core::v1::ConfigMap>(&name, &namespace).await
+                        }
+                        ResourceKind::Secrets => {
+                            executor.delete::<k8s_openapi::api::core::v1::Secret>(&name, &namespace).await
+                        }
+                        ResourceKind::Ingresses => {
+                            executor.delete::<k8s_openapi::api::networking::v1::Ingress>(&name, &namespace).await
+                        }
+                        ResourceKind::PersistentVolumeClaims => {
+                            executor
+                                .delete::<k8s_openapi::api::core::v1::PersistentVolumeClaim>(&name, &namespace)
+                                .await
+                        }
+                        _ => Err(anyhow::anyhow!("Delete not supported for this resource type")),
+                    };
+
+                    let toast_event = match result {
+                        Ok(()) => AppEvent::Toast(ToastMessage::success(format!("Deleted {display_name}"))),
+                        Err(e) => AppEvent::Toast(ToastMessage::error(format!("Failed to delete {display_name}: {e}"))),
+                    };
+                    let _ = app_tx.send(toast_event);
+                });
+            }
+        }
+    }
+
     fn mode_name(&self) -> &'static str {
         match self.dispatcher.mode() {
             InputMode::Normal => "Normal",
@@ -720,6 +856,9 @@ impl App {
                     ("Esc".into(), "Cancel".into()),
                 ]
             }
+            InputMode::ConfirmDialog => {
+                vec![("y".into(), "Confirm".into()), ("n/Esc".into(), "Cancel".into())]
+            }
             InputMode::FilterInput => {
                 vec![("Enter".into(), "Keep filter".into()), ("Esc".into(), "Clear & exit".into())]
             }
@@ -744,6 +883,8 @@ impl App {
             selected: sw.selected(),
         });
 
+        let confirm_dialog = self.pending_confirmation.as_ref().map(|pc| ConfirmDialogView { message: &pc.message });
+
         let tab_names = self.tab_manager.tab_names();
         let hints = self.mode_hints();
 
@@ -755,6 +896,8 @@ impl App {
             namespace: self.context_resolver.namespace(),
             namespace_selector,
             resource_switcher,
+            confirm_dialog,
+            toasts: &self.toasts,
             pane_tree,
             focused_pane: Some(focused_pane),
             fullscreen_pane,

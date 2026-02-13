@@ -3,10 +3,12 @@ use std::collections::HashMap;
 use ratatui::prelude::*;
 
 use crate::pane::{Pane, PaneId, PaneTree, ResourceKind};
+use crate::widgets::confirm_dialog::ConfirmDialogWidget;
 use crate::widgets::namespace_selector::NamespaceSelectorWidget;
 use crate::widgets::resource_switcher::ResourceSwitcherWidget;
 use crate::widgets::status_bar::StatusBarWidget;
 use crate::widgets::tab_bar::TabBarWidget;
+use crate::widgets::toast::{ToastMessage, ToastWidget};
 
 pub struct NamespaceSelectorView<'a> {
     pub namespaces: &'a [String],
@@ -20,11 +22,17 @@ pub struct ResourceSwitcherView<'a> {
     pub selected: usize,
 }
 
+pub struct ConfirmDialogView<'a> {
+    pub message: &'a str,
+}
+
 pub struct RenderContext<'a> {
     pub cluster_name: Option<&'a str>,
     pub namespace: Option<&'a str>,
     pub namespace_selector: Option<NamespaceSelectorView<'a>>,
     pub resource_switcher: Option<ResourceSwitcherView<'a>>,
+    pub confirm_dialog: Option<ConfirmDialogView<'a>>,
+    pub toasts: &'a [ToastMessage],
     pub pane_tree: &'a PaneTree,
     pub focused_pane: Option<PaneId>,
     pub fullscreen_pane: Option<PaneId>,
@@ -73,6 +81,16 @@ fn render_body(frame: &mut Frame, area: Rect, ctx: &RenderContext) {
 
     if let Some(ref rs) = ctx.resource_switcher {
         let widget = ResourceSwitcherWidget { input: rs.input, items: rs.items, selected: rs.selected };
+        widget.render(frame, area);
+    }
+
+    if let Some(ref cd) = ctx.confirm_dialog {
+        let widget = ConfirmDialogWidget { message: cd.message };
+        widget.render(frame, area);
+    }
+
+    if !ctx.toasts.is_empty() {
+        let widget = ToastWidget { toasts: ctx.toasts };
         widget.render(frame, area);
     }
 }

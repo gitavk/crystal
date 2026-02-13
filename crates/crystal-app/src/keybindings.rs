@@ -166,7 +166,6 @@ impl KeybindingDispatcher {
         sorted.into_iter().map(|(_, key_str, desc)| (format_key_display(&key_str), desc)).collect()
     }
 
-    #[allow(dead_code)]
     pub fn resource_shortcuts(&self) -> Vec<(String, String)> {
         let mut sorted = self.reverse_resource.clone();
         sorted.sort_by(|a, b| a.0.cmp(&b.0));

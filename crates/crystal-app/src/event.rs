@@ -2,6 +2,7 @@ use std::time::Duration;
 
 use crossterm::event::{self, Event, KeyEvent};
 use crystal_tui::pane::PaneId;
+use crystal_tui::widgets::toast::ToastMessage;
 use tokio::sync::mpsc;
 
 #[derive(Debug)]
@@ -23,6 +24,7 @@ pub enum AppEvent {
         pane_id: PaneId,
         error: String,
     },
+    Toast(ToastMessage),
 }
 
 pub struct EventHandler {

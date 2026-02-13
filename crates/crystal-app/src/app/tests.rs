@@ -111,7 +111,7 @@ fn focus_cycling_wraps_around() {
 #[test]
 fn help_pane_updates_context_on_focus() {
     let d = test_dispatcher();
-    let mut help = HelpPane::new(d.global_shortcuts(), d.pane_shortcuts());
+    let mut help = HelpPane::new(d.global_shortcuts(), d.pane_shortcuts(), d.resource_shortcuts());
     let resource_view = ViewType::ResourceList(ResourceKind::Pods);
     help.on_focus_change(Some(&resource_view));
 
