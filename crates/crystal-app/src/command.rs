@@ -1,10 +1,9 @@
-use crystal_core::SessionId;
+use crystal_core::{ForwardId, SessionId};
 use crystal_tui::pane::{Direction, PaneCommand};
 
 pub use crate::keybindings::InputMode;
 
 pub type StreamId = u64;
-pub type ForwardId = u64;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct LogRequest {

@@ -201,7 +201,7 @@ async fn stream_logs(
 }
 
 fn backoff_duration(attempt: u32) -> Duration {
-    let secs = (1u64 << attempt.min(4)).min(30);
+    let secs = (1u64 << attempt.min(5)).min(30);
     Duration::from_secs(secs)
 }
 
