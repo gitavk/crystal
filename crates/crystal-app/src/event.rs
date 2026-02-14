@@ -1,7 +1,7 @@
 use std::time::Duration;
 
 use crossterm::event::{self, Event, KeyEvent};
-use crystal_tui::pane::PaneId;
+use crystal_tui::pane::{PaneId, ResourceKind};
 use crystal_tui::widgets::toast::ToastMessage;
 use tokio::sync::mpsc;
 
@@ -25,6 +25,12 @@ pub enum AppEvent {
         error: String,
     },
     Toast(ToastMessage),
+    YamlReady {
+        pane_id: PaneId,
+        kind: ResourceKind,
+        name: String,
+        content: String,
+    },
 }
 
 pub struct EventHandler {

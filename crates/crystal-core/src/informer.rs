@@ -44,6 +44,7 @@ impl ResourceWatcher {
             tokio::pin!(stream);
 
             let mut snapshot: HashMap<String, S> = HashMap::new();
+            let mut initializing = false;
 
             loop {
                 tokio::select! {
@@ -54,14 +55,24 @@ impl ResourceWatcher {
                     item = stream.next() => {
                         match item {
                             Some(Ok(event)) => {
-                                match event {
-                                    Event::Apply(resource) | Event::InitApply(resource) => {
+                                let should_send = match event {
+                                    Event::InitApply(resource) => {
                                         let summary = S::from(resource);
                                         let key = match summary.namespace() {
                                             Some(ns) => format!("{}/{}", ns, summary.name()),
                                             None => summary.name().to_string(),
                                         };
                                         snapshot.insert(key, summary);
+                                        false
+                                    }
+                                    Event::Apply(resource) => {
+                                        let summary = S::from(resource);
+                                        let key = match summary.namespace() {
+                                            Some(ns) => format!("{}/{}", ns, summary.name()),
+                                            None => summary.name().to_string(),
+                                        };
+                                        snapshot.insert(key, summary);
+                                        true
                                     }
                                     Event::Delete(resource) => {
                                         let name = resource.name_any();
@@ -71,14 +82,22 @@ impl ResourceWatcher {
                                             None => name,
                                         };
                                         snapshot.remove(&key);
+                                        !initializing
                                     }
                                     Event::Init => {
                                         snapshot.clear();
+                                        initializing = true;
+                                        false
                                     }
-                                    Event::InitDone => {}
+                                    Event::InitDone => {
+                                        initializing = false;
+                                        true
+                                    }
+                                };
+                                if should_send {
+                                    let items: Vec<S> = snapshot.values().cloned().collect();
+                                    let _ = tx.send(ResourceEvent::Updated(items)).await;
                                 }
-                                let items: Vec<S> = snapshot.values().cloned().collect();
-                                let _ = tx.send(ResourceEvent::Updated(items)).await;
                             }
                             Some(Err(e)) => {
                                 warn!("Watcher error: {e}");

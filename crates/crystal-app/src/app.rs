@@ -13,10 +13,9 @@ use kube::Api;
 use ratatui::backend::Backend;
 use ratatui::Terminal;
 use tokio::sync::mpsc;
-use tokio_util::sync::CancellationToken;
 
 use crystal_core::informer::{ResourceEvent, ResourceWatcher};
-use crystal_core::resource::ResourceSummary;
+use crystal_core::resource::{DetailSection, ResourceSummary};
 use crystal_core::*;
 use crystal_core::{ContextResolver, KubeClient};
 use crystal_tui::layout::{ConfirmDialogView, NamespaceSelectorView, RenderContext, ResourceSwitcherView};
@@ -29,7 +28,7 @@ use crystal_tui::widgets::toast::ToastMessage;
 use crate::command::{Command, InputMode};
 use crate::event::{AppEvent, EventHandler};
 use crate::keybindings::KeybindingDispatcher;
-use crate::panes::{HelpPane, ResourceListPane};
+use crate::panes::{HelpPane, ResourceDetailPane, ResourceListPane, YamlPane};
 use crate::resource_switcher::ResourceSwitcher;
 
 #[derive(Debug, Clone)]
@@ -54,8 +53,8 @@ pub struct App {
     /// Active watchers keyed by pane ID.
     /// Each pane showing a resource list has its own watcher.
     /// When a pane switches resource type, its watcher is cancelled and a new one spawned.
-    active_watchers: HashMap<PaneId, CancellationToken>,
-    pending_namespace_switch: Option<String>,
+    /// Dropping a ResourceWatcher cancels its background task automatically.
+    active_watchers: HashMap<PaneId, ResourceWatcher>,
     filter_input_buffer: String,
     resource_switcher: Option<ResourceSwitcher>,
     pending_confirmation: Option<PendingConfirmation>,
@@ -111,7 +110,6 @@ impl App {
             namespace_filter: String::new(),
             namespace_selected: 0,
             active_watchers: HashMap::new(),
-            pending_namespace_switch: None,
             filter_input_buffer: String::new(),
             resource_switcher: None,
             pending_confirmation: None,
@@ -145,12 +143,6 @@ impl App {
         }
 
         while self.running {
-            if let Some(ns) = self.pending_namespace_switch.take() {
-                if self.kube_client.is_some() {
-                    self.start_watcher_for_pane(self.pods_pane_id, &ResourceKind::Pods, &ns);
-                }
-            }
-
             terminal.draw(|frame| {
                 let (mut ctx, tab_names, hints) = self.build_render_context();
                 ctx.tab_names = &tab_names;
@@ -167,6 +159,9 @@ impl App {
                 AppEvent::ResourceUpdate { pane_id, headers: _, rows } => self.handle_resource_update(pane_id, rows),
                 AppEvent::ResourceError { pane_id, error } => self.handle_resource_error(pane_id, error),
                 AppEvent::Toast(toast) => self.toasts.push(toast),
+                AppEvent::YamlReady { pane_id, kind, name, content } => {
+                    self.open_yaml_pane(pane_id, kind, name, content);
+                }
             }
         }
 
@@ -176,10 +171,8 @@ impl App {
     /// Start watching a resource type for a specific pane.
     /// Cancels any existing watcher for that pane first.
     fn start_watcher_for_pane(&mut self, pane_id: PaneId, kind: &ResourceKind, namespace: &str) {
-        // Cancel existing watcher if any
-        if let Some(token) = self.active_watchers.remove(&pane_id) {
-            token.cancel();
-        }
+        // Cancel existing watcher if any (dropping it cancels the background task)
+        self.active_watchers.remove(&pane_id);
 
         let Some(client) = &self.kube_client else {
             return;
@@ -187,10 +180,6 @@ impl App {
 
         let kube_client = client.inner_client();
         let app_tx = self.app_tx.clone();
-
-        // Create new cancellation token
-        let token = CancellationToken::new();
-        self.active_watchers.insert(pane_id, token.clone());
 
         // Helper to bridge ResourceEvent<S> to AppEvent::ResourceUpdate
         fn spawn_bridge<S>(
@@ -231,13 +220,15 @@ impl App {
                     Api::namespaced(kube_client.clone(), namespace)
                 };
                 let (tx, rx) = mpsc::channel(16);
-                ResourceWatcher::watch::<$k8s_type, $summary_type>(api, tx);
+                let watcher = ResourceWatcher::watch::<$k8s_type, $summary_type>(api, tx);
+                self.active_watchers.insert(pane_id, watcher);
                 spawn_bridge(pane_id, rx, app_tx);
             }};
             (cluster $k8s_type:ty, $summary_type:ty) => {{
                 let api: Api<$k8s_type> = Api::all(kube_client.clone());
                 let (tx, rx) = mpsc::channel(16);
-                ResourceWatcher::watch::<$k8s_type, $summary_type>(api, tx);
+                let watcher = ResourceWatcher::watch::<$k8s_type, $summary_type>(api, tx);
+                self.active_watchers.insert(pane_id, watcher);
                 spawn_bridge(pane_id, rx, app_tx);
             }};
         }
@@ -337,6 +328,25 @@ impl App {
             }
             Command::Pane(pane_cmd) => {
                 let focused = self.tab_manager.active().focused_pane;
+                match &pane_cmd {
+                    PaneCommand::Select => {
+                        if let Some((kind, name, ns)) = self.selected_resource_info() {
+                            self.open_detail_pane(kind, name, ns);
+                            return;
+                        }
+                    }
+                    PaneCommand::Back => {
+                        if let Some(pane) = self.panes.get(&focused) {
+                            let is_detail_or_yaml =
+                                matches!(pane.view_type(), ViewType::Detail(..) | ViewType::Yaml(..));
+                            if is_detail_or_yaml {
+                                self.close_pane(focused);
+                                return;
+                            }
+                        }
+                    }
+                    _ => {}
+                }
                 if let Some(pane) = self.panes.get_mut(&focused) {
                     pane.handle_command(&pane_cmd);
                 }
@@ -412,6 +422,7 @@ impl App {
                                     if let Some(rp) = pane.as_any_mut().downcast_mut::<ResourceListPane>() {
                                         let headers = rp.state.headers.clone();
                                         rp.state = crate::state::ResourceListState::new(headers);
+                                        rp.filtered_indices.clear();
                                     }
                                 }
                             }
@@ -455,12 +466,99 @@ impl App {
                 self.execute_confirmed_action();
             }
 
-            Command::ViewYaml
-            | Command::ViewDescribe
-            | Command::ScaleResource
-            | Command::RestartRollout
-            | Command::ViewLogs
-            | Command::ExecInto => {}
+            Command::ViewYaml => {
+                if let Some((kind, name, ns)) = self.selected_resource_info() {
+                    let Some(client) = &self.kube_client else {
+                        self.toasts.push(ToastMessage::error("No cluster connection"));
+                        return;
+                    };
+                    let kube_client = client.inner_client();
+                    let app_tx = self.app_tx.clone();
+                    let focused = self.tab_manager.active().focused_pane;
+                    let kind_clone = kind.clone();
+                    let name_clone = name.clone();
+
+                    tokio::spawn(async move {
+                        let executor = crystal_core::ActionExecutor::new(kube_client);
+                        let result = dispatch_get_yaml(&executor, &kind, &name, &ns).await;
+                        let event = match result {
+                            Ok(yaml) => AppEvent::YamlReady {
+                                pane_id: focused,
+                                kind: kind_clone,
+                                name: name_clone,
+                                content: yaml,
+                            },
+                            Err(e) => AppEvent::Toast(ToastMessage::error(format!("YAML fetch failed: {e}"))),
+                        };
+                        let _ = app_tx.send(event);
+                    });
+                }
+            }
+
+            Command::ViewDescribe => {
+                if let Some((kind, name, ns)) = self.selected_resource_info() {
+                    let Some(client) = &self.kube_client else {
+                        self.toasts.push(ToastMessage::error("No cluster connection"));
+                        return;
+                    };
+                    let kube_client = client.inner_client();
+                    let app_tx = self.app_tx.clone();
+                    let focused = self.tab_manager.active().focused_pane;
+                    let kind_clone = kind.clone();
+                    let name_clone = name.clone();
+
+                    tokio::spawn(async move {
+                        let executor = crystal_core::ActionExecutor::new(kube_client);
+                        let result = dispatch_describe(&executor, &kind, &name, &ns).await;
+                        let event = match result {
+                            Ok(text) => AppEvent::YamlReady {
+                                pane_id: focused,
+                                kind: kind_clone,
+                                name: name_clone,
+                                content: text,
+                            },
+                            Err(e) => AppEvent::Toast(ToastMessage::error(format!("Describe failed: {e}"))),
+                        };
+                        let _ = app_tx.send(event);
+                    });
+                }
+            }
+
+            Command::RestartRollout => {
+                if let Some((kind, name, ns)) = self.selected_resource_info() {
+                    if kind == ResourceKind::Deployments {
+                        let Some(client) = &self.kube_client else {
+                            self.toasts.push(ToastMessage::error("No cluster connection"));
+                            return;
+                        };
+                        let kube_client = client.inner_client();
+                        let app_tx = self.app_tx.clone();
+
+                        tokio::spawn(async move {
+                            let executor = crystal_core::ActionExecutor::new(kube_client);
+                            let toast = match executor.restart_rollout(&name, &ns).await {
+                                Ok(()) => ToastMessage::success(format!("Restarted {name}")),
+                                Err(e) => ToastMessage::error(format!("Restart failed: {e}")),
+                            };
+                            let _ = app_tx.send(AppEvent::Toast(toast));
+                        });
+                    } else {
+                        self.toasts.push(ToastMessage::info("Restart rollout is only available for Deployments"));
+                    }
+                }
+            }
+
+            Command::ScaleResource => {
+                self.toasts.push(ToastMessage::info("Scale not yet implemented"));
+            }
+
+            Command::ViewLogs => {
+                self.toasts.push(ToastMessage::info("Logs not yet implemented"));
+            }
+
+            Command::ExecInto => {
+                self.toasts.push(ToastMessage::info("Exec not yet implemented"));
+            }
         }
     }
 
@@ -480,6 +578,7 @@ impl App {
         if self.tab_manager.close_tab(tab_id) {
             for id in pane_ids {
                 self.panes.remove(&id);
+                self.active_watchers.remove(&id);
             }
         }
     }
@@ -563,6 +662,7 @@ impl App {
         let was_focused = target == focused;
         if self.tab_manager.active_mut().pane_tree.close(target) {
             self.panes.remove(&target);
+            self.active_watchers.remove(&target);
             if let Some(ref mut fs) = self.tab_manager.active_mut().fullscreen_pane {
                 if *fs == target {
                     self.tab_manager.active_mut().fullscreen_pane = None;
@@ -672,26 +772,97 @@ impl App {
         }
     }
 
+    fn open_detail_pane(&mut self, kind: ResourceKind, name: String, namespace: String) {
+        let sections = vec![DetailSection {
+            title: "Metadata".into(),
+            fields: vec![
+                ("Name".into(), name.clone()),
+                ("Namespace".into(), namespace.clone()),
+                ("Kind".into(), kind.display_name().into()),
+            ],
+        }];
+
+        let detail = ResourceDetailPane::new(kind.clone(), name.clone(), Some(namespace), sections);
+        let focused = self.tab_manager.active().focused_pane;
+        let view = ViewType::Detail(kind, name);
+        if let Some(new_id) = self.tab_manager.split_pane(focused, SplitDirection::Horizontal, view) {
+            self.panes.insert(new_id, Box::new(detail));
+            self.set_focus(new_id);
+        }
+    }
+
+    fn open_yaml_pane(&mut self, pane_id: PaneId, kind: ResourceKind, name: String, content: String) {
+        let yaml_pane = YamlPane::new(kind.clone(), name.clone(), content);
+        let view = ViewType::Yaml(kind, name);
+        if let Some(new_id) = self.tab_manager.split_pane(pane_id, SplitDirection::Horizontal, view) {
+            self.panes.insert(new_id, Box::new(yaml_pane));
+            self.set_focus(new_id);
+        }
+    }
+
+    fn selected_resource_info(&self) -> Option<(ResourceKind, String, String)> {
+        let focused = self.tab_manager.active().focused_pane;
+        let pane = self.panes.get(&focused)?;
+        let rp = pane.as_any().downcast_ref::<ResourceListPane>()?;
+
+        let kind = rp.kind()?.clone();
+
+        let selected_idx = match rp.state.selected {
+            Some(s) => {
+                if rp.filtered_indices.is_empty() {
+                    s
+                } else {
+                    *rp.filtered_indices.get(s)?
+                }
+            }
+            None => return None,
+        };
+
+        let row = rp.state.items.get(selected_idx)?;
+        let name = row.first().cloned().unwrap_or_default();
+        let namespace = if rp.state.headers.iter().any(|h| h == "NAMESPACE") {
+            let ns_idx = rp.state.headers.iter().position(|h| h == "NAMESPACE").unwrap_or(1);
+            row.get(ns_idx).cloned().unwrap_or_default()
+        } else {
+            self.context_resolver.namespace().unwrap_or("default").to_string()
+        };
+
+        Some((kind, name, namespace))
+    }
+
     fn select_namespace(&mut self) {
         let filtered = self.filtered_namespaces();
         if let Some(ns) = filtered.get(self.namespace_selected).cloned() {
             let ns = if ns == "All Namespaces" { "default".to_string() } else { ns };
 
-            // Cancel the current watcher (will be restarted in run loop via pending_namespace_switch)
-            if let Some(token) = self.active_watchers.remove(&self.pods_pane_id) {
-                token.cancel();
-            }
+            // Cancel all active watchers
+            self.active_watchers.drain();
 
             if let Some(ref mut client) = self.kube_client {
                 client.set_namespace(&ns);
             }
             self.context_resolver.set_namespace(&ns);
 
-            self.with_pods_pane(|pane| {
-                let headers = pane.state.headers.clone();
-                pane.state = crate::state::ResourceListState::new(headers);
-            });
-            self.pending_namespace_switch = Some(ns);
+            // Reset all resource list panes and restart their watchers
+            let pane_ids: Vec<PaneId> = self.panes.keys().copied().collect();
+            for pane_id in pane_ids {
+                let kind = {
+                    let Some(pane) = self.panes.get(&pane_id) else { continue };
+                    let Some(rp) = pane.as_any().downcast_ref::<ResourceListPane>() else { continue };
+                    rp.kind().cloned()
+                };
+                if let Some(kind) = kind {
+                    if let Some(pane) = self.panes.get_mut(&pane_id) {
+                        if let Some(rp) = pane.as_any_mut().downcast_mut::<ResourceListPane>() {
+                            let headers = rp.state.headers.clone();
+                            rp.state = crate::state::ResourceListState::new(headers);
+                            rp.filtered_indices.clear();
+                        }
+                    }
+                    let watcher_ns = if kind.is_namespaced() { &ns } else { "" };
+                    self.start_watcher_for_pane(pane_id, &kind, watcher_ns);
+                }
+            }
         }
     }
 
@@ -909,6 +1080,53 @@ impl App {
         };
 
         (ctx, tab_names, hints)
+    }
+}
+
+async fn dispatch_get_yaml(
+    executor: &crystal_core::ActionExecutor,
+    kind: &ResourceKind,
+    name: &str,
+    ns: &str,
+) -> anyhow::Result<String> {
+    match kind {
+        ResourceKind::Pods => executor.get_yaml::<Pod>(name, ns).await,
+        ResourceKind::Deployments => executor.get_yaml::<Deployment>(name, ns).await,
+        ResourceKind::Services => executor.get_yaml::<Service>(name, ns).await,
+        ResourceKind::StatefulSets => executor.get_yaml::<StatefulSet>(name, ns).await,
+        ResourceKind::DaemonSets => executor.get_yaml::<DaemonSet>(name, ns).await,
+        ResourceKind::Jobs => executor.get_yaml::<Job>(name, ns).await,
+        ResourceKind::CronJobs => executor.get_yaml::<CronJob>(name, ns).await,
+        ResourceKind::ConfigMaps => executor.get_yaml::<ConfigMap>(name, ns).await,
+        ResourceKind::Secrets => executor.get_yaml::<Secret>(name, ns).await,
+        ResourceKind::Ingresses => executor.get_yaml::<Ingress>(name, ns).await,
+        ResourceKind::PersistentVolumeClaims => executor.get_yaml::<PersistentVolumeClaim>(name, ns).await,
+        ResourceKind::Nodes => executor.get_yaml_cluster::<Node>(name).await,
+        ResourceKind::Namespaces => executor.get_yaml_cluster::<Namespace>(name).await,
+        ResourceKind::PersistentVolumes => executor.get_yaml_cluster::<PersistentVolume>(name).await,
+        ResourceKind::Custom(_) => Err(anyhow::anyhow!("YAML view not supported for custom resources")),
+    }
+}
+
+async fn dispatch_describe(
+    executor: &crystal_core::ActionExecutor,
+    kind: &ResourceKind,
+    name: &str,
+    ns: &str,
+) -> anyhow::Result<String> {
+    match kind {
+        ResourceKind::Pods => executor.describe::<Pod>(name, ns).await,
+        ResourceKind::Deployments => executor.describe::<Deployment>(name, ns).await,
+        ResourceKind::Services => executor.describe::<Service>(name, ns).await,
+        ResourceKind::StatefulSets => executor.describe::<StatefulSet>(name, ns).await,
+        ResourceKind::DaemonSets => executor.describe::<DaemonSet>(name, ns).await,
+        ResourceKind::Jobs => executor.describe::<Job>(name, ns).await,
+        ResourceKind::CronJobs => executor.describe::<CronJob>(name, ns).await,
+        ResourceKind::ConfigMaps => executor.describe::<ConfigMap>(name, ns).await,
+        ResourceKind::Secrets => executor.describe::<Secret>(name, ns).await,
+        ResourceKind::Ingresses => executor.describe::<Ingress>(name, ns).await,
+        ResourceKind::PersistentVolumeClaims => executor.describe::<PersistentVolumeClaim>(name, ns).await,
+        _ => Err(anyhow::anyhow!("Describe not supported for this resource type")),
     }
 }
 
