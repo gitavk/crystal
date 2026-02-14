@@ -1,8 +1,14 @@
 use std::collections::HashMap;
 use std::io::Read;
 use std::path::Path;
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::Arc;
 
+use futures::channel::mpsc as futures_mpsc;
+use kube::api::TerminalSize;
 use portable_pty::{native_pty_system, Child, CommandBuilder, MasterPty, PtySize};
+
+use crate::exec::ExecSession;
 
 pub type SessionId = u64;
 
@@ -17,9 +23,13 @@ pub struct TerminalManager {
     next_id: u64,
 }
 
+enum SessionBackend {
+    Pty { pty_master: Box<dyn MasterPty + Send>, child: Box<dyn Child + Send + Sync> },
+    Exec { resize_tx: futures_mpsc::Sender<TerminalSize>, exited: Arc<AtomicBool> },
+}
+
 struct TerminalSession {
-    pty_master: Box<dyn MasterPty + Send>,
-    child: Box<dyn Child + Send + Sync>,
+    backend: SessionBackend,
     reader: Box<dyn Read + Send>,
     writer: Box<dyn std::io::Write + Send>,
     vt: vt100::Parser,
@@ -59,8 +69,7 @@ impl TerminalManager {
         self.next_id += 1;
 
         let session = TerminalSession {
-            pty_master: pair.master,
-            child,
+            backend: SessionBackend::Pty { pty_master: pair.master, child },
             reader,
             writer,
             vt: vt100::Parser::new(size.1, size.0, 0),
@@ -69,6 +78,29 @@ impl TerminalManager {
         };
         self.sessions.insert(id, session);
         Ok(id)
+    }
+
+    pub fn spawn_exec(
+        &mut self,
+        exec_session: ExecSession,
+        pod: String,
+        container: String,
+        namespace: String,
+        size: (u16, u16),
+    ) -> SessionId {
+        let id = self.next_id;
+        self.next_id += 1;
+
+        let session = TerminalSession {
+            backend: SessionBackend::Exec { resize_tx: exec_session.resize_tx, exited: exec_session.exited },
+            reader: Box::new(exec_session.reader),
+            writer: Box::new(exec_session.writer),
+            vt: vt100::Parser::new(size.1, size.0, 0),
+            title: format!("[exec:{pod}/{container} @ {namespace}]"),
+            kind: SessionKind::Exec { pod: pod.clone(), container: container.clone(), namespace: namespace.clone() },
+        };
+        self.sessions.insert(id, session);
+        id
     }
 
     pub fn write_input(&mut self, id: SessionId, data: &[u8]) -> anyhow::Result<()> {
@@ -81,7 +113,14 @@ impl TerminalManager {
 
     pub fn resize(&mut self, id: SessionId, cols: u16, rows: u16) -> anyhow::Result<()> {
         let session = self.sessions.get_mut(&id).ok_or_else(|| anyhow::anyhow!("unknown session {id}"))?;
-        session.pty_master.resize(PtySize { cols, rows, pixel_width: 0, pixel_height: 0 })?;
+        match &mut session.backend {
+            SessionBackend::Pty { pty_master, .. } => {
+                pty_master.resize(PtySize { cols, rows, pixel_width: 0, pixel_height: 0 })?;
+            }
+            SessionBackend::Exec { resize_tx, .. } => {
+                let _ = resize_tx.try_send(TerminalSize { height: rows, width: cols });
+            }
+        }
         session.vt.set_size(rows, cols);
         Ok(())
     }
@@ -103,10 +142,17 @@ impl TerminalManager {
     pub fn poll_all(&mut self) -> Vec<SessionId> {
         let mut exited = Vec::new();
         for (&id, session) in &mut self.sessions {
-            match session.child.try_wait() {
-                Ok(Some(_)) => exited.push(id),
-                Ok(None) => {}
-                Err(_) => exited.push(id),
+            match &mut session.backend {
+                SessionBackend::Pty { child, .. } => match child.try_wait() {
+                    Ok(Some(_)) => exited.push(id),
+                    Ok(None) => {}
+                    Err(_) => exited.push(id),
+                },
+                SessionBackend::Exec { exited: flag, .. } => {
+                    if flag.load(Ordering::Acquire) {
+                        exited.push(id);
+                    }
+                }
             }
         }
         exited
@@ -114,8 +160,15 @@ impl TerminalManager {
 
     pub fn close(&mut self, id: SessionId) -> anyhow::Result<()> {
         let mut session = self.sessions.remove(&id).ok_or_else(|| anyhow::anyhow!("unknown session {id}"))?;
-        let _ = session.child.kill();
-        let _ = session.child.wait();
+        match &mut session.backend {
+            SessionBackend::Pty { child, .. } => {
+                let _ = child.kill();
+                let _ = child.wait();
+            }
+            SessionBackend::Exec { .. } => {
+                // Dropping the writer/reader closes the channels, which terminates the bridge tasks.
+            }
+        }
         Ok(())
     }
 
@@ -229,6 +282,62 @@ mod tests {
         let (kind, title) = mgr.session_info(id).unwrap();
         assert_eq!(*kind, SessionKind::Shell);
         assert!(title.starts_with("shell-"));
+
+        mgr.close(id).unwrap();
+    }
+
+    fn mock_exec_session() -> (ExecSession, Arc<AtomicBool>) {
+        let (_stdout_tx, stdout_rx) = std::sync::mpsc::channel::<Vec<u8>>();
+        let (stdin_tx, _stdin_rx) = tokio::sync::mpsc::unbounded_channel::<Vec<u8>>();
+        let (resize_tx, _resize_rx) = futures::channel::mpsc::channel::<TerminalSize>(1);
+        let exited = Arc::new(AtomicBool::new(false));
+        let exited_clone = exited.clone();
+        (ExecSession::mock(stdout_rx, stdin_tx, resize_tx, exited), exited_clone)
+    }
+
+    #[test]
+    fn spawn_exec_creates_session_with_exec_kind() {
+        let (exec_session, _exited) = mock_exec_session();
+        let mut mgr = TerminalManager::new();
+        let id = mgr.spawn_exec(exec_session, "my-pod".into(), "main".into(), "default".into(), (80, 24));
+
+        assert!(mgr.has_session(id));
+        let (kind, title) = mgr.session_info(id).unwrap();
+        assert_eq!(
+            *kind,
+            SessionKind::Exec { pod: "my-pod".into(), container: "main".into(), namespace: "default".into() }
+        );
+        assert_eq!(title, "[exec:my-pod/main @ default]");
+        mgr.close(id).unwrap();
+    }
+
+    #[test]
+    fn poll_all_detects_exited_exec_sessions() {
+        let (exec_session, exited_flag) = mock_exec_session();
+        let mut mgr = TerminalManager::new();
+        let id = mgr.spawn_exec(exec_session, "pod".into(), "main".into(), "default".into(), (80, 24));
+
+        assert!(mgr.poll_all().is_empty());
+
+        exited_flag.store(true, Ordering::Release);
+        let exited_ids = mgr.poll_all();
+        assert!(exited_ids.contains(&id));
+
+        mgr.close(id).unwrap();
+    }
+
+    #[test]
+    fn resize_exec_session_updates_vt() {
+        let (exec_session, _exited) = mock_exec_session();
+        let mut mgr = TerminalManager::new();
+        let id = mgr.spawn_exec(exec_session, "pod".into(), "main".into(), "default".into(), (80, 24));
+
+        mgr.resize(id, 120, 40).unwrap();
+
+        let screen = mgr.screen(id).unwrap();
+        let (rows, cols) = screen.size();
+        assert_eq!(rows, 40);
+        assert_eq!(cols, 120);
 
         mgr.close(id).unwrap();
     }
