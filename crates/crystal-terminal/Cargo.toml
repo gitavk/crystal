@@ -9,3 +9,5 @@ tokio.workspace = true
 crossterm.workspace = true
 anyhow.workspace = true
 tracing.workspace = true
+vt100.workspace = true
+ratatui.workspace = true
