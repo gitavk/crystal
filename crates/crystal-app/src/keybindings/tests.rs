@@ -184,6 +184,12 @@ fn parse_shift_tab_becomes_backtab() {
 }
 
 #[test]
+fn shift_tab_dispatches_focus_prev() {
+    let d = default_dispatcher();
+    assert_eq!(d.dispatch(press_mod(KeyCode::Tab, KeyModifiers::SHIFT)), Some(Command::FocusPrevPane));
+}
+
+#[test]
 fn parse_special_keys() {
     assert_eq!(parse_key_string("enter").unwrap().code, KeyCode::Enter);
     assert_eq!(parse_key_string("esc").unwrap().code, KeyCode::Esc);
@@ -260,8 +266,8 @@ fn focus_direction_dispatch() {
 #[test]
 fn resize_dispatch() {
     let d = default_dispatcher();
-    assert_eq!(d.dispatch(press_mod(KeyCode::Char(']'), KeyModifiers::ALT)), Some(Command::ResizeGrow));
-    assert_eq!(d.dispatch(press_mod(KeyCode::Char('['), KeyModifiers::ALT)), Some(Command::ResizeShrink));
+    assert_eq!(d.dispatch(press_mod(KeyCode::Char('k'), KeyModifiers::ALT)), Some(Command::ResizeGrow));
+    assert_eq!(d.dispatch(press_mod(KeyCode::Char('j'), KeyModifiers::ALT)), Some(Command::ResizeShrink));
 }
 
 #[test]

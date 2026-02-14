@@ -75,7 +75,9 @@ impl HelpPane {
 
             numbers.sort_unstable();
             numbers.dedup();
-            if numbers.len() >= 2 && numbers.last().copied() == numbers.first().copied().map(|v| v + numbers.len() as u8 - 1) {
+            if numbers.len() >= 2
+                && numbers.last().copied() == numbers.first().copied().map(|v| v + numbers.len() as u8 - 1)
+            {
                 return format!("{}-{}", numbers[0], numbers[numbers.len() - 1]);
             }
         }
@@ -130,7 +132,10 @@ impl Pane for HelpPane {
             lines.push(Line::from(""));
             for (key, desc) in Self::normalize_shortcuts(&self.pane_shortcuts) {
                 lines.push(Line::from(vec![
-                    Span::styled(format!("  {:<16}", Self::format_key(&key)), Style::default().fg(theme::HEADER_FG).bold()),
+                    Span::styled(
+                        format!("  {:<16}", Self::format_key(&key)),
+                        Style::default().fg(theme::HEADER_FG).bold(),
+                    ),
                     Span::styled(desc, Style::default().fg(theme::STATUS_FG)),
                 ]));
             }
@@ -152,7 +157,10 @@ impl Pane for HelpPane {
 
             for (key, desc) in normalized_resource {
                 lines.push(Line::from(vec![
-                    Span::styled(format!("  {:<16}", Self::format_key(&key)), Style::default().fg(theme::HEADER_FG).bold()),
+                    Span::styled(
+                        format!("  {:<16}", Self::format_key(&key)),
+                        Style::default().fg(theme::HEADER_FG).bold(),
+                    ),
                     Span::styled(desc.clone(), Style::default().fg(theme::STATUS_FG)),
                 ]));
             }
@@ -163,7 +171,10 @@ impl Pane for HelpPane {
                     continue;
                 }
                 lines.push(Line::from(vec![
-                    Span::styled(format!("  {:<16}", Self::format_key(key)), Style::default().fg(theme::HEADER_FG).bold()),
+                    Span::styled(
+                        format!("  {:<16}", Self::format_key(key)),
+                        Style::default().fg(theme::HEADER_FG).bold(),
+                    ),
                     Span::styled(desc, Style::default().fg(theme::STATUS_FG)),
                 ]));
             }

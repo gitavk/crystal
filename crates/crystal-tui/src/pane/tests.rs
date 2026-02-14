@@ -164,13 +164,13 @@ fn resize_clamps_ratio() {
     tree.split(1, SplitDirection::Vertical, logs_view());
 
     // Resize far positive - should clamp to 0.9
-    tree.resize(1, 10.0);
+    tree.resize(1, 10.0, true);
     let rects = tree.layout(area(100, 50));
     assert_eq!(rects[0].1.width, 90);
     assert_eq!(rects[1].1.width, 10);
 
     // Resize far negative - should clamp to 0.1
-    tree.resize(1, -10.0);
+    tree.resize(1, 10.0, false);
     let rects = tree.layout(area(100, 50));
     assert_eq!(rects[0].1.width, 10);
     assert_eq!(rects[1].1.width, 90);
@@ -181,7 +181,7 @@ fn resize_adjusts_ratio() {
     let mut tree = PaneTree::new(pods_view());
     tree.split(1, SplitDirection::Vertical, logs_view());
 
-    tree.resize(1, 0.1);
+    tree.resize(1, 0.1, true);
     let rects = tree.layout(area(100, 50));
     // 0.5 + 0.1 = 0.6 -> 60 width
     assert_eq!(rects[0].1.width, 60);

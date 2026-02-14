@@ -221,9 +221,9 @@ impl PaneTree {
     }
 
     /// Resize: adjust the ratio of the split containing the target pane.
-    /// Delta is clamped so ratio stays within 0.1..0.9.
-    pub fn resize(&mut self, target: PaneId, delta: f32) {
-        self.root.resize_at(target, delta);
+    /// Amount is clamped so ratio stays within 0.1..0.9.
+    pub fn resize(&mut self, target: PaneId, amount: f32, grow: bool) {
+        self.root.resize_at(target, amount, grow);
     }
 
     /// Get all leaf pane IDs in depth-first order (for focus cycling).
@@ -304,21 +304,27 @@ impl PaneNode {
         }
     }
 
-    fn resize_at(&mut self, target: PaneId, delta: f32) -> bool {
+    fn resize_at(&mut self, target: PaneId, amount: f32, grow: bool) -> bool {
         match self {
             PaneNode::Split { first, second, ratio, .. } => {
-                let is_direct_child = matches!(first.as_ref(), PaneNode::Leaf { id, .. } if *id == target)
-                    || matches!(second.as_ref(), PaneNode::Leaf { id, .. } if *id == target);
+                let is_direct_first = matches!(first.as_ref(), PaneNode::Leaf { id, .. } if *id == target);
+                let is_direct_second = matches!(second.as_ref(), PaneNode::Leaf { id, .. } if *id == target);
 
-                if is_direct_child {
-                    *ratio = (*ratio + delta).clamp(0.1, 0.9);
+                if is_direct_first || is_direct_second {
+                    let applied = match (is_direct_first, grow) {
+                        (true, true) => amount,
+                        (true, false) => -amount,
+                        (false, true) => -amount,
+                        (false, false) => amount,
+                    };
+                    *ratio = (*ratio + applied).clamp(0.1, 0.9);
                     return true;
                 }
 
-                if first.resize_at(target, delta) {
+                if first.resize_at(target, amount, grow) {
                     return true;
                 }
-                second.resize_at(target, delta)
+                second.resize_at(target, amount, grow)
             }
             _ => false,
         }

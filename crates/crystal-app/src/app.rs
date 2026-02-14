@@ -308,11 +308,11 @@ impl App {
             Command::ToggleFullscreen => self.toggle_fullscreen(),
             Command::ResizeGrow => {
                 let focused = self.tab_manager.active().focused_pane;
-                self.tab_manager.active_mut().pane_tree.resize(focused, 0.05);
+                self.tab_manager.active_mut().pane_tree.resize(focused, 0.05, true);
             }
             Command::ResizeShrink => {
                 let focused = self.tab_manager.active().focused_pane;
-                self.tab_manager.active_mut().pane_tree.resize(focused, -0.05);
+                self.tab_manager.active_mut().pane_tree.resize(focused, 0.05, false);
             }
             Command::Pane(ref pane_cmd) if self.dispatcher.mode() == InputMode::NamespaceSelector => {
                 self.handle_namespace_nav(pane_cmd);

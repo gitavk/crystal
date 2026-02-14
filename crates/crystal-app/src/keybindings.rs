@@ -83,6 +83,8 @@ impl KeybindingDispatcher {
     }
 
     pub fn dispatch(&self, key: KeyEvent) -> Option<Command> {
+        let key = normalize_key_event(key);
+
         match self.mode {
             InputMode::Insert => {
                 if key.code == KeyCode::Esc {
@@ -181,6 +183,20 @@ impl KeybindingDispatcher {
         sorted.sort_by(|a, b| a.0.cmp(&b.0));
         sorted.into_iter().map(|(_, key_str, desc)| (format_key_display(&key_str), desc)).collect()
     }
+}
+
+fn normalize_key_event(key: KeyEvent) -> KeyEvent {
+    if key.code == KeyCode::Tab && key.modifiers.contains(KeyModifiers::SHIFT) {
+        let mut modifiers = key.modifiers;
+        modifiers -= KeyModifiers::SHIFT;
+        return KeyEvent::new(KeyCode::BackTab, modifiers);
+    }
+    if key.code == KeyCode::BackTab && key.modifiers.contains(KeyModifiers::SHIFT) {
+        let mut modifiers = key.modifiers;
+        modifiers -= KeyModifiers::SHIFT;
+        return KeyEvent::new(KeyCode::BackTab, modifiers);
+    }
+    key
 }
 
 fn format_key_display(key_str: &str) -> String {
