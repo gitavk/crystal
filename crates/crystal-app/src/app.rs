@@ -559,6 +559,18 @@ impl App {
             Command::ExecInto => {
                 self.toasts.push(ToastMessage::info("Exec not yet implemented"));
             }
+
+            // Terminal lifecycle (handled in future step)
+            Command::TerminalSpawn
+            | Command::TerminalClose { .. }
+            | Command::TerminalResize { .. }
+            | Command::TerminalInput { .. }
+            | Command::ExecStart { .. }
+            | Command::ExecClose { .. }
+            | Command::LogsStart { .. }
+            | Command::LogsStop { .. }
+            | Command::PortForwardStart { .. }
+            | Command::PortForwardStop { .. } => {}
         }
     }
 

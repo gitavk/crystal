@@ -5,6 +5,7 @@ pub mod error;
 pub mod informer;
 pub mod resource;
 pub mod resources;
+pub mod terminal_manager;
 
 pub use actions::{ActionExecutor, ResourceAction, ResourceKind};
 pub use client::KubeClient;
@@ -12,3 +13,4 @@ pub use context::{ClusterContext, ContextResolver};
 pub use error::KubeError;
 pub use resource::{DetailSection, ResourceSummary};
 pub use resources::*;
+pub use terminal_manager::{SessionId, SessionKind, TerminalManager};

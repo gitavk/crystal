@@ -300,12 +300,14 @@ dependencies = [
  "jiff",
  "k8s-openapi",
  "kube",
+ "portable-pty",
  "serde",
  "serde_json",
  "serde_yaml",
  "tokio",
  "tokio-util",
  "tracing",
+ "vt100",
 ]
 
 [[package]]
