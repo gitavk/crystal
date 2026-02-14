@@ -14,10 +14,14 @@ impl<'a> StatusBarWidget<'a> {
     pub fn render(&self, frame: &mut Frame, area: Rect) {
         let mut spans = Vec::new();
 
-        spans.push(Span::styled(
-            format!(" {} ", self.mode.to_uppercase()),
-            Style::default().fg(theme::HEADER_BG).bg(theme::ACCENT).add_modifier(Modifier::BOLD),
-        ));
+        let is_insert = self.mode.eq_ignore_ascii_case("insert");
+        let mode_style = if is_insert {
+            Style::default().fg(theme::INSERT_MODE_FG).bg(theme::INSERT_MODE_BG).add_modifier(Modifier::BOLD)
+        } else {
+            Style::default().fg(theme::HEADER_BG).bg(theme::ACCENT).add_modifier(Modifier::BOLD)
+        };
+
+        spans.push(Span::styled(format!(" {} ", self.mode.to_uppercase()), mode_style));
 
         for (key, desc) in self.hints {
             spans.push(Span::styled(" │ ", Style::default().fg(theme::BORDER_COLOR).bg(theme::STATUS_BG)));

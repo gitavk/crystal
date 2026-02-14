@@ -1045,6 +1045,9 @@ impl App {
             InputMode::FilterInput => {
                 vec![("Enter".into(), "Keep filter".into()), ("Esc".into(), "Clear & exit".into())]
             }
+            InputMode::Insert => {
+                vec![("Esc".into(), "Normal mode".into())]
+            }
             _ => vec![],
         }
     }

@@ -76,16 +76,83 @@ fn mode_switch_changes_active_bindings() {
 }
 
 #[test]
-fn insert_mode_forwards_non_global_as_send_input() {
+fn insert_mode_forwards_all_keys_as_send_input() {
     let mut d = default_dispatcher();
     d.set_mode(InputMode::Insert);
 
-    // global binding still works
-    assert_eq!(d.dispatch(press(KeyCode::Char('q'))), Some(Command::Quit));
+    // global bindings are NOT active in Insert mode — 'q' goes to terminal
+    assert_eq!(d.dispatch(press(KeyCode::Char('q'))), Some(Command::Pane(PaneCommand::SendInput("q".into()))));
 
-    // non-global key forwarded as SendInput
     let result = d.dispatch(press(KeyCode::Char('a')));
     assert_eq!(result, Some(Command::Pane(PaneCommand::SendInput("a".into()))));
+}
+
+#[test]
+fn insert_mode_esc_exits_to_normal() {
+    let mut d = default_dispatcher();
+    d.set_mode(InputMode::Insert);
+    assert_eq!(d.dispatch(press(KeyCode::Esc)), Some(Command::ExitMode));
+}
+
+#[test]
+fn insert_mode_ctrl_c_sends_interrupt() {
+    let mut d = default_dispatcher();
+    d.set_mode(InputMode::Insert);
+    let result = d.dispatch(press_mod(KeyCode::Char('c'), KeyModifiers::CONTROL));
+    assert_eq!(result, Some(Command::Pane(PaneCommand::SendInput("\x03".into()))));
+}
+
+#[test]
+fn insert_mode_ctrl_d_sends_eof() {
+    let mut d = default_dispatcher();
+    d.set_mode(InputMode::Insert);
+    let result = d.dispatch(press_mod(KeyCode::Char('d'), KeyModifiers::CONTROL));
+    assert_eq!(result, Some(Command::Pane(PaneCommand::SendInput("\x04".into()))));
+}
+
+#[test]
+fn insert_mode_arrow_keys_send_escape_sequences() {
+    let mut d = default_dispatcher();
+    d.set_mode(InputMode::Insert);
+
+    assert_eq!(d.dispatch(press(KeyCode::Up)), Some(Command::Pane(PaneCommand::SendInput("\x1b[A".into()))));
+    assert_eq!(d.dispatch(press(KeyCode::Down)), Some(Command::Pane(PaneCommand::SendInput("\x1b[B".into()))));
+    assert_eq!(d.dispatch(press(KeyCode::Right)), Some(Command::Pane(PaneCommand::SendInput("\x1b[C".into()))));
+    assert_eq!(d.dispatch(press(KeyCode::Left)), Some(Command::Pane(PaneCommand::SendInput("\x1b[D".into()))));
+}
+
+#[test]
+fn insert_mode_enter_sends_carriage_return() {
+    let mut d = default_dispatcher();
+    d.set_mode(InputMode::Insert);
+    assert_eq!(d.dispatch(press(KeyCode::Enter)), Some(Command::Pane(PaneCommand::SendInput("\r".into()))));
+}
+
+#[test]
+fn insert_mode_backspace_sends_del() {
+    let mut d = default_dispatcher();
+    d.set_mode(InputMode::Insert);
+    assert_eq!(d.dispatch(press(KeyCode::Backspace)), Some(Command::Pane(PaneCommand::SendInput("\x7f".into()))));
+}
+
+#[test]
+fn insert_mode_special_keys() {
+    let mut d = default_dispatcher();
+    d.set_mode(InputMode::Insert);
+
+    assert_eq!(d.dispatch(press(KeyCode::Home)), Some(Command::Pane(PaneCommand::SendInput("\x1b[H".into()))));
+    assert_eq!(d.dispatch(press(KeyCode::End)), Some(Command::Pane(PaneCommand::SendInput("\x1b[F".into()))));
+    assert_eq!(d.dispatch(press(KeyCode::PageUp)), Some(Command::Pane(PaneCommand::SendInput("\x1b[5~".into()))));
+    assert_eq!(d.dispatch(press(KeyCode::PageDown)), Some(Command::Pane(PaneCommand::SendInput("\x1b[6~".into()))));
+    assert_eq!(d.dispatch(press(KeyCode::Delete)), Some(Command::Pane(PaneCommand::SendInput("\x1b[3~".into()))));
+}
+
+#[test]
+fn normal_mode_arrow_keys_not_terminal_input() {
+    let d = default_dispatcher();
+    // In Normal mode, arrow keys should NOT produce SendInput
+    let result = d.dispatch(press(KeyCode::Up));
+    assert_ne!(result, Some(Command::Pane(PaneCommand::SendInput("\x1b[A".into()))));
 }
 
 #[test]

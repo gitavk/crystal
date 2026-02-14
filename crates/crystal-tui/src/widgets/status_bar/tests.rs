@@ -57,3 +57,31 @@ fn mode_label_is_uppercased() {
     let text = buf_text(&buf);
     assert!(text.contains("NORMAL"));
 }
+
+#[test]
+fn shows_insert_mode_label() {
+    let hints = vec![("Esc".into(), "Normal mode".into())];
+    let buf = render_status_bar("Insert", &hints, Some("minikube"), Some("default"), 120);
+    let text = buf_text(&buf);
+    assert!(text.contains("INSERT"));
+    assert!(text.contains("<Esc>"));
+    assert!(text.contains("Normal mode"));
+}
+
+#[test]
+fn insert_mode_has_distinct_style() {
+    let buf_normal = render_status_bar("Normal", &[], Some("ctx"), Some("ns"), 80);
+    let buf_insert = render_status_bar("Insert", &[], Some("ctx"), Some("ns"), 80);
+
+    let normal_bg = buf_normal.cell((1, 0)).unwrap().bg;
+    let insert_bg = buf_insert.cell((1, 0)).unwrap().bg;
+    assert_ne!(normal_bg, insert_bg, "Insert mode should have a different background color");
+}
+
+#[test]
+fn shows_normal_mode_label() {
+    let buf = render_status_bar("Normal", &[], Some("ctx"), Some("ns"), 80);
+    let text = buf_text(&buf);
+    assert!(text.contains("NORMAL"));
+    assert!(!text.contains("INSERT"));
+}

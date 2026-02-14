@@ -84,6 +84,16 @@ impl KeybindingDispatcher {
 
     pub fn dispatch(&self, key: KeyEvent) -> Option<Command> {
         match self.mode {
+            InputMode::Insert => {
+                if key.code == KeyCode::Esc {
+                    return Some(Command::ExitMode);
+                }
+                let s = key_to_input_string(key);
+                if s.is_empty() {
+                    return None;
+                }
+                return Some(Command::Pane(PaneCommand::SendInput(s)));
+            }
             InputMode::ResourceSwitcher => match key.code {
                 KeyCode::Enter => return Some(Command::ResourceSwitcherConfirm),
                 KeyCode::Esc => return Some(Command::DenyAction),
@@ -113,7 +123,7 @@ impl KeybindingDispatcher {
         }
 
         match self.mode {
-            InputMode::Insert => Some(Command::Pane(PaneCommand::SendInput(key_to_input_string(key)))),
+            InputMode::Insert => unreachable!("handled above"),
             InputMode::Normal => {
                 self.resource_bindings.get(&key).cloned().or_else(|| self.pane_bindings.get(&key).cloned())
             }
@@ -191,11 +201,43 @@ fn format_key_display(key_str: &str) -> String {
 }
 
 fn key_to_input_string(key: KeyEvent) -> String {
+    if key.modifiers.contains(KeyModifiers::CONTROL) {
+        if let KeyCode::Char(c) = key.code {
+            let byte = (c as u8).wrapping_sub(b'a').wrapping_add(1);
+            return String::from(byte as char);
+        }
+    }
+
     match key.code {
         KeyCode::Char(c) => c.to_string(),
-        KeyCode::Enter => "\n".to_string(),
-        KeyCode::Tab => "\t".to_string(),
-        KeyCode::Backspace => "\x08".to_string(),
+        KeyCode::Enter => "\r".into(),
+        KeyCode::Tab => "\t".into(),
+        KeyCode::Backspace => "\x7f".into(),
+        KeyCode::Esc => "\x1b".into(),
+        KeyCode::Up => "\x1b[A".into(),
+        KeyCode::Down => "\x1b[B".into(),
+        KeyCode::Right => "\x1b[C".into(),
+        KeyCode::Left => "\x1b[D".into(),
+        KeyCode::Home => "\x1b[H".into(),
+        KeyCode::End => "\x1b[F".into(),
+        KeyCode::PageUp => "\x1b[5~".into(),
+        KeyCode::PageDown => "\x1b[6~".into(),
+        KeyCode::Delete => "\x1b[3~".into(),
+        KeyCode::F(n) => match n {
+            1 => "\x1bOP".into(),
+            2 => "\x1bOQ".into(),
+            3 => "\x1bOR".into(),
+            4 => "\x1bOS".into(),
+            5 => "\x1b[15~".into(),
+            6 => "\x1b[17~".into(),
+            7 => "\x1b[18~".into(),
+            8 => "\x1b[19~".into(),
+            9 => "\x1b[20~".into(),
+            10 => "\x1b[21~".into(),
+            11 => "\x1b[23~".into(),
+            12 => "\x1b[24~".into(),
+            _ => String::new(),
+        },
         _ => String::new(),
     }
 }

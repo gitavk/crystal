@@ -14,3 +14,5 @@ pub const TABLE_HEADER_FG: Color = Color::Rgb(137, 180, 250);
 pub const OVERLAY_BG: Color = Color::Rgb(30, 30, 46);
 pub const BORDER_COLOR: Color = Color::Rgb(88, 91, 112);
 pub const TEXT_DIM: Color = Color::Rgb(108, 112, 134);
+pub const INSERT_MODE_BG: Color = Color::Rgb(166, 227, 161);
+pub const INSERT_MODE_FG: Color = Color::Rgb(30, 30, 46);

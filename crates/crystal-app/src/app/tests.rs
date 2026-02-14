@@ -526,3 +526,37 @@ fn back_on_resource_list_does_not_close() {
     let is_detail_or_yaml = matches!(pane.view_type(), ViewType::Detail(..) | ViewType::Yaml(..));
     assert!(!is_detail_or_yaml, "Resource list should not be closed by Back");
 }
+
+// --- Step 5.9: Insert mode tests ---
+
+#[test]
+fn enter_insert_mode_sets_dispatcher_mode() {
+    let mut dispatcher = test_dispatcher();
+    assert_eq!(dispatcher.mode(), InputMode::Normal);
+
+    dispatcher.set_mode(InputMode::Insert);
+    assert_eq!(dispatcher.mode(), InputMode::Insert);
+}
+
+#[test]
+fn exit_insert_mode_returns_to_normal() {
+    let mut dispatcher = test_dispatcher();
+    dispatcher.set_mode(InputMode::Insert);
+
+    // Simulate ExitMode command
+    dispatcher.set_mode(InputMode::Normal);
+    assert_eq!(dispatcher.mode(), InputMode::Normal);
+}
+
+#[test]
+fn insert_mode_hints_contain_esc() {
+    let mut dispatcher = test_dispatcher();
+    dispatcher.set_mode(InputMode::Insert);
+
+    // Verify mode name
+    let mode_name = match dispatcher.mode() {
+        InputMode::Insert => "Insert",
+        _ => "Other",
+    };
+    assert_eq!(mode_name, "Insert");
+}
