@@ -3,4 +3,5 @@ pub mod pane;
 pub mod tab;
 pub mod theme;
 pub mod view_registry;
+pub mod views;
 pub mod widgets;

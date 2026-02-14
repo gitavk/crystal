@@ -6,3 +6,5 @@ edition = "2021"
 [dependencies]
 ratatui.workspace = true
 crossterm.workspace = true
+vt100.workspace = true
+crystal-terminal = { path = "../crystal-terminal" }

@@ -328,7 +328,9 @@ name = "crystal-tui"
 version = "0.1.0"
 dependencies = [
  "crossterm",
+ "crystal-terminal",
  "ratatui",
+ "vt100",
 ]
 
 [[package]]
