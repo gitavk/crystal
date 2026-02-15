@@ -174,6 +174,7 @@ impl App {
             app_tx: tx,
         };
         app.sync_active_scope();
+        app.update_active_tab_title();
         app
     }
 
@@ -570,6 +571,7 @@ impl App {
                         }
                     }
                 }
+                self.update_active_tab_title();
             }
 
             Command::EnterResourceSwitcher => {
@@ -739,6 +741,7 @@ impl App {
         let ns = self.context_resolver.namespace().unwrap_or("default").to_string();
         self.start_watcher_for_pane(pane_id, &ResourceKind::Pods, &ns);
         self.sync_active_scope();
+        self.update_active_tab_title();
     }
 
     fn close_tab(&mut self) {
@@ -754,6 +757,7 @@ impl App {
                 self.active_watchers.remove(&id);
             }
             self.load_active_scope();
+            self.update_active_tab_title();
         }
     }
 
@@ -761,18 +765,21 @@ impl App {
         self.sync_active_scope();
         self.tab_manager.switch_tab(index);
         self.load_active_scope();
+        self.update_active_tab_title();
     }
 
     fn switch_to_next_tab(&mut self) {
         self.sync_active_scope();
         self.tab_manager.next_tab();
         self.load_active_scope();
+        self.update_active_tab_title();
     }
 
     fn switch_to_prev_tab(&mut self) {
         self.sync_active_scope();
         self.tab_manager.prev_tab();
         self.load_active_scope();
+        self.update_active_tab_title();
     }
 
     fn sync_active_scope(&mut self) {
@@ -861,6 +868,7 @@ impl App {
         if let Some(pane) = self.panes.get_mut(&new_id) {
             pane.on_focus_change(prev_view.as_ref());
         }
+        self.update_active_tab_title();
     }
 
     fn split_focused(&mut self, direction: SplitDirection) {
@@ -940,6 +948,7 @@ impl App {
             String::new()
         };
         self.start_watcher_for_pane(focused, &kind, &ns);
+        self.update_active_tab_title();
     }
 
     fn handle_namespace_confirm(&mut self) {
@@ -1481,6 +1490,7 @@ impl App {
             self.context_resolver.set_namespace(&ns);
             self.restart_watchers_for_active_panes();
             self.sync_active_scope();
+            self.update_active_tab_title();
         }
     }
 
@@ -1547,6 +1557,7 @@ impl App {
         self.namespace_selected = 0;
         self.restart_watchers_for_active_panes();
         self.sync_active_scope();
+        self.update_active_tab_title();
     }
 
     fn restart_watchers_for_active_panes(&mut self) {
@@ -1831,6 +1842,66 @@ impl App {
         };
 
         (ctx, tab_names, hints)
+    }
+
+    fn update_active_tab_title(&mut self) {
+        let tab_id = self.tab_manager.active().id;
+        let ctx = self.context_resolver.context_name().unwrap_or("noctx");
+        let ns = self.active_namespace_label();
+        let alias = self.active_view_alias();
+        let title = format!("{ctx}:{ns}|{alias}");
+        self.tab_manager.rename_tab(tab_id, &title);
+    }
+
+    fn active_namespace_label(&self) -> String {
+        let focused = self.tab_manager.active().focused_pane;
+        if let Some(pane) = self.panes.get(&focused) {
+            if let Some(rp) = pane.as_any().downcast_ref::<ResourceListPane>() {
+                if rp.all_namespaces {
+                    return "*".into();
+                }
+            }
+        }
+        self.context_resolver.namespace().unwrap_or("n/a").to_string()
+    }
+
+    fn active_view_alias(&self) -> String {
+        let focused = self.tab_manager.active().focused_pane;
+        let Some(pane) = self.panes.get(&focused) else { return "UNK".into() };
+        match pane.view_type() {
+            ViewType::ResourceList(kind) => resource_alias(kind),
+            ViewType::Detail(kind, _) => resource_alias(kind),
+            ViewType::Yaml(kind, _) => resource_alias(kind),
+            ViewType::Logs(_) => "LOG".into(),
+            ViewType::Exec(_) => "EXE".into(),
+            ViewType::Terminal => "TER".into(),
+            ViewType::Help => "HLP".into(),
+            ViewType::Empty => "EMP".into(),
+            ViewType::Plugin(_) => "PLG".into(),
+        }
+    }
+}
+
+fn resource_alias(kind: &ResourceKind) -> String {
+    match kind {
+        ResourceKind::Pods => "POD".into(),
+        ResourceKind::Deployments => "DEP".into(),
+        ResourceKind::Services => "SVC".into(),
+        ResourceKind::StatefulSets => "STS".into(),
+        ResourceKind::DaemonSets => "DMS".into(),
+        ResourceKind::Jobs => "JOB".into(),
+        ResourceKind::CronJobs => "CRN".into(),
+        ResourceKind::ConfigMaps => "CFG".into(),
+        ResourceKind::Secrets => "SEC".into(),
+        ResourceKind::Ingresses => "ING".into(),
+        ResourceKind::Nodes => "NOD".into(),
+        ResourceKind::Namespaces => "NSP".into(),
+        ResourceKind::PersistentVolumes => "PVS".into(),
+        ResourceKind::PersistentVolumeClaims => "PVC".into(),
+        ResourceKind::Custom(name) => {
+            let up = name.to_uppercase();
+            up.chars().take(3).collect()
+        }
     }
 }
 
