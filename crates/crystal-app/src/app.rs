@@ -678,9 +678,21 @@ impl App {
     fn new_tab(&mut self) {
         let tab_count = self.tab_manager.tabs().len();
         let name = format!("Tab {}", tab_count + 1);
-        let tab_id = self.tab_manager.new_tab(&name, ViewType::Empty);
+        let pod_headers = vec![
+            "PF".into(),
+            "NAME".into(),
+            "NAMESPACE".into(),
+            "STATUS".into(),
+            "READY".into(),
+            "RESTARTS".into(),
+            "AGE".into(),
+            "NODE".into(),
+        ];
+        let tab_id = self.tab_manager.new_tab(&name, ViewType::ResourceList(ResourceKind::Pods));
         let pane_id = self.tab_manager.tabs().iter().find(|t| t.id == tab_id).unwrap().focused_pane;
-        self.panes.insert(pane_id, Box::new(EmptyPane(ViewType::Empty)));
+        self.panes.insert(pane_id, Box::new(ResourceListPane::new(ResourceKind::Pods, pod_headers)));
+        let ns = self.context_resolver.namespace().unwrap_or("default").to_string();
+        self.start_watcher_for_pane(pane_id, &ResourceKind::Pods, &ns);
     }
 
     fn close_tab(&mut self) {
