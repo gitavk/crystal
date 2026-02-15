@@ -67,6 +67,18 @@ struct PendingPortForward {
     active_field: PortForwardField,
 }
 
+#[derive(Clone)]
+struct TabScope {
+    kube_client: Option<KubeClient>,
+    context_resolver: ContextResolver,
+    contexts: Vec<String>,
+    namespaces: Vec<String>,
+    namespace_filter: String,
+    namespace_selected: usize,
+    context_filter: String,
+    context_selected: usize,
+}
+
 pub struct App {
     running: bool,
     tick_rate: Duration,
@@ -79,6 +91,7 @@ pub struct App {
     namespace_selected: usize,
     context_filter: String,
     context_selected: usize,
+    tab_scopes: HashMap<u32, TabScope>,
     /// Active watchers keyed by pane ID.
     /// Each pane showing a resource list has its own watcher.
     /// When a pane switches resource type, its watcher is cancelled and a new one spawned.
@@ -134,7 +147,7 @@ impl App {
         // Create a temporary channel to get the sender
         let (tx, _rx) = mpsc::unbounded_channel();
 
-        Self {
+        let mut app = Self {
             running: true,
             tick_rate: Duration::from_millis(tick_rate_ms),
             kube_client,
@@ -146,6 +159,7 @@ impl App {
             namespace_selected: 0,
             context_filter: String::new(),
             context_selected: 0,
+            tab_scopes: HashMap::new(),
             active_watchers: HashMap::new(),
             active_forwards: HashMap::new(),
             pod_forward_index: HashMap::new(),
@@ -158,7 +172,9 @@ impl App {
             panes,
             pods_pane_id,
             app_tx: tx,
-        }
+        };
+        app.sync_active_scope();
+        app
     }
 
     pub async fn run(&mut self, terminal: &mut Terminal<impl Backend>) -> anyhow::Result<()> {
@@ -171,7 +187,10 @@ impl App {
 
             if let Some(client) = &self.kube_client {
                 match client.list_namespaces().await {
-                    Ok(ns_list) => self.namespaces = ns_list,
+                    Ok(ns_list) => {
+                        self.namespaces = ns_list;
+                        self.sync_active_scope();
+                    }
                     Err(e) => tracing::warn!("Failed to list namespaces: {e}"),
                 }
             }
@@ -384,11 +403,11 @@ impl App {
             Command::FocusDirection(dir) => self.focus_direction(dir),
             Command::NewTab => self.new_tab(),
             Command::CloseTab => self.close_tab(),
-            Command::NextTab => self.tab_manager.next_tab(),
-            Command::PrevTab => self.tab_manager.prev_tab(),
+            Command::NextTab => self.switch_to_next_tab(),
+            Command::PrevTab => self.switch_to_prev_tab(),
             Command::GoToTab(n) => {
                 if n > 0 {
-                    self.tab_manager.switch_tab(n - 1);
+                    self.switch_to_tab_index(n - 1);
                 }
             }
             Command::ToggleFullscreen => self.toggle_fullscreen(),
@@ -701,6 +720,7 @@ impl App {
     }
 
     fn new_tab(&mut self) {
+        self.sync_active_scope();
         let tab_count = self.tab_manager.tabs().len();
         let name = format!("Tab {}", tab_count + 1);
         let pod_headers = vec![
@@ -718,18 +738,73 @@ impl App {
         self.panes.insert(pane_id, Box::new(ResourceListPane::new(ResourceKind::Pods, pod_headers)));
         let ns = self.context_resolver.namespace().unwrap_or("default").to_string();
         self.start_watcher_for_pane(pane_id, &ResourceKind::Pods, &ns);
+        self.sync_active_scope();
     }
 
     fn close_tab(&mut self) {
+        self.sync_active_scope();
         let tab = self.tab_manager.active();
         let tab_id = tab.id;
         let pane_ids: Vec<PaneId> = tab.pane_tree.leaf_ids();
 
         if self.tab_manager.close_tab(tab_id) {
+            self.tab_scopes.remove(&tab_id);
             for id in pane_ids {
                 self.panes.remove(&id);
                 self.active_watchers.remove(&id);
             }
+            self.load_active_scope();
+        }
+    }
+
+    fn switch_to_tab_index(&mut self, index: usize) {
+        self.sync_active_scope();
+        self.tab_manager.switch_tab(index);
+        self.load_active_scope();
+    }
+
+    fn switch_to_next_tab(&mut self) {
+        self.sync_active_scope();
+        self.tab_manager.next_tab();
+        self.load_active_scope();
+    }
+
+    fn switch_to_prev_tab(&mut self) {
+        self.sync_active_scope();
+        self.tab_manager.prev_tab();
+        self.load_active_scope();
+    }
+
+    fn sync_active_scope(&mut self) {
+        let tab_id = self.tab_manager.active().id;
+        self.tab_scopes.insert(
+            tab_id,
+            TabScope {
+                kube_client: self.kube_client.clone(),
+                context_resolver: self.context_resolver.clone(),
+                contexts: self.contexts.clone(),
+                namespaces: self.namespaces.clone(),
+                namespace_filter: self.namespace_filter.clone(),
+                namespace_selected: self.namespace_selected,
+                context_filter: self.context_filter.clone(),
+                context_selected: self.context_selected,
+            },
+        );
+    }
+
+    fn load_active_scope(&mut self) {
+        let tab_id = self.tab_manager.active().id;
+        if let Some(scope) = self.tab_scopes.get(&tab_id).cloned() {
+            self.kube_client = scope.kube_client;
+            self.context_resolver = scope.context_resolver;
+            self.contexts = scope.contexts;
+            self.namespaces = scope.namespaces;
+            self.namespace_filter = scope.namespace_filter;
+            self.namespace_selected = scope.namespace_selected;
+            self.context_filter = scope.context_filter;
+            self.context_selected = scope.context_selected;
+        } else {
+            self.sync_active_scope();
         }
     }
 
@@ -1405,6 +1480,7 @@ impl App {
             }
             self.context_resolver.set_namespace(&ns);
             self.restart_watchers_for_active_panes();
+            self.sync_active_scope();
         }
     }
 
@@ -1442,6 +1518,7 @@ impl App {
         };
         if self.context_resolver.context_name() == Some(context.as_str()) {
             self.dispatcher.set_mode(InputMode::Normal);
+            self.sync_active_scope();
             return;
         }
 
@@ -1469,12 +1546,14 @@ impl App {
         self.namespace_filter.clear();
         self.namespace_selected = 0;
         self.restart_watchers_for_active_panes();
+        self.sync_active_scope();
     }
 
     fn restart_watchers_for_active_panes(&mut self) {
-        self.active_watchers.drain();
-
-        let pane_ids: Vec<PaneId> = self.panes.keys().copied().collect();
+        let pane_ids: Vec<PaneId> = self.tab_manager.active().pane_tree.leaf_ids();
+        for pane_id in &pane_ids {
+            self.active_watchers.remove(pane_id);
+        }
         for pane_id in pane_ids {
             let (kind, all_namespaces, headers) = {
                 let Some(pane) = self.panes.get(&pane_id) else { continue };

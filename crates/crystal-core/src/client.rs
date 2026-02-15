@@ -9,6 +9,7 @@ use kube::{Api, Client, Config};
 use crate::context::ClusterContext;
 use crate::resources::PodSummary;
 
+#[derive(Clone)]
 pub struct KubeClient {
     client: Client,
     current_namespace: String,

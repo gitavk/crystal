@@ -4,6 +4,7 @@ pub struct ClusterContext {
     pub namespace: String,
 }
 
+#[derive(Clone)]
 pub struct ContextResolver {
     active: Option<ClusterContext>,
 }
