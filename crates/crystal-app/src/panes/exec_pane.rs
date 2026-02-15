@@ -3,6 +3,7 @@ use std::cell::RefCell;
 use std::io::{Read, Write};
 use std::sync::atomic::Ordering;
 
+use kube::api::TerminalSize;
 use ratatui::prelude::*;
 use ratatui::widgets::{Block, Borders, Paragraph};
 
@@ -18,6 +19,8 @@ pub struct ExecPane {
     namespace: String,
     session: Option<ExecSession>,
     vt: RefCell<vt100::Parser>,
+    desired_size: RefCell<Option<(u16, u16)>>,
+    applied_size: Option<(u16, u16)>,
     status: String,
     exited: bool,
 }
@@ -31,6 +34,8 @@ impl ExecPane {
             namespace,
             session: None,
             vt: RefCell::new(vt100::Parser::new(48, 160, 10_000)),
+            desired_size: RefCell::new(None),
+            applied_size: None,
             status: "Connecting...".into(),
             exited: false,
         }
@@ -38,6 +43,7 @@ impl ExecPane {
 
     pub fn attach_session(&mut self, session: ExecSession) {
         self.session = Some(session);
+        self.applied_size = None;
         self.status = "Connected".into();
         self.exited = false;
     }
@@ -56,6 +62,14 @@ impl ExecPane {
         let Some(session) = self.session.as_mut() else {
             return;
         };
+
+        if let Some((cols, rows)) = *self.desired_size.borrow() {
+            if self.applied_size != Some((cols, rows))
+                && session.resize_tx.try_send(TerminalSize { width: cols, height: rows }).is_ok()
+            {
+                self.applied_size = Some((cols, rows));
+            }
+        }
 
         let mut buf = [0u8; 4096];
         loop {
@@ -108,6 +122,7 @@ impl Pane for ExecPane {
         let rows = content_area.height.max(1);
         let cols = content_area.width.max(1);
         vt.set_size(rows, cols);
+        self.desired_size.replace(Some((cols, rows)));
         render_terminal_screen(vt.screen(), content_area, frame.buffer_mut());
         if self.status == "Connecting..." {
             frame.render_widget(Paragraph::new("Waiting for exec output..."), content_area);
