@@ -19,6 +19,7 @@ fn embedded_defaults_parse() {
     assert_eq!(config.keybindings.global.get("quit").unwrap(), "q");
     assert_eq!(config.keybindings.global.get("help").unwrap(), "?");
     assert_eq!(config.keybindings.global.get("context_selector").unwrap(), "ctrl+o");
+    assert_eq!(config.keybindings.global.get("close_tab").unwrap(), "alt+c");
     assert_eq!(config.keybindings.global.get("split_vertical").unwrap(), "alt+v");
     assert_eq!(config.keybindings.pane.get("select").unwrap(), "enter");
     assert_eq!(config.keybindings.pane.get("back").unwrap(), "esc");

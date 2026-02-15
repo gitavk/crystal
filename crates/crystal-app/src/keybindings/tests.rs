@@ -27,6 +27,7 @@ fn dispatch_configured_keys_to_commands() {
     assert_eq!(d.dispatch(press_mod(KeyCode::Char('v'), KeyModifiers::ALT)), Some(Command::SplitVertical));
     assert_eq!(d.dispatch(press_mod(KeyCode::Char('h'), KeyModifiers::ALT)), Some(Command::SplitHorizontal));
     assert_eq!(d.dispatch(press_mod(KeyCode::Char('w'), KeyModifiers::ALT)), Some(Command::ClosePane));
+    assert_eq!(d.dispatch(press_mod(KeyCode::Char('c'), KeyModifiers::ALT)), Some(Command::CloseTab));
 }
 
 #[test]

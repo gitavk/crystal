@@ -126,18 +126,7 @@ impl App {
         };
         let contexts = KubeClient::list_contexts().unwrap_or_default();
 
-        let pod_headers = vec![
-            "PF".into(),
-            "NAME".into(),
-            "NAMESPACE".into(),
-            "STATUS".into(),
-            "READY".into(),
-            "RESTARTS".into(),
-            "AGE".into(),
-            "NODE".into(),
-        ];
-
-        let pods_pane = ResourceListPane::new(ResourceKind::Pods, pod_headers);
+        let pods_pane = ResourceListPane::new(ResourceKind::Pods, pods_headers());
         let tab_manager = TabManager::new(ViewType::ResourceList(ResourceKind::Pods));
         let pods_pane_id = 1;
 
@@ -725,19 +714,9 @@ impl App {
         self.sync_active_scope();
         let tab_count = self.tab_manager.tabs().len();
         let name = format!("Tab {}", tab_count + 1);
-        let pod_headers = vec![
-            "PF".into(),
-            "NAME".into(),
-            "NAMESPACE".into(),
-            "STATUS".into(),
-            "READY".into(),
-            "RESTARTS".into(),
-            "AGE".into(),
-            "NODE".into(),
-        ];
         let tab_id = self.tab_manager.new_tab(&name, ViewType::ResourceList(ResourceKind::Pods));
         let pane_id = self.tab_manager.tabs().iter().find(|t| t.id == tab_id).unwrap().focused_pane;
-        self.panes.insert(pane_id, Box::new(ResourceListPane::new(ResourceKind::Pods, pod_headers)));
+        self.panes.insert(pane_id, Box::new(ResourceListPane::new(ResourceKind::Pods, pods_headers())));
         let ns = self.context_resolver.namespace().unwrap_or("default").to_string();
         self.start_watcher_for_pane(pane_id, &ResourceKind::Pods, &ns);
         self.sync_active_scope();
@@ -750,6 +729,11 @@ impl App {
         let tab_id = tab.id;
         let pane_ids: Vec<PaneId> = tab.pane_tree.leaf_ids();
 
+        if self.tab_manager.tabs().len() <= 1 {
+            self.reset_last_tab_to_pods(tab_id, pane_ids);
+            return;
+        }
+
         if self.tab_manager.close_tab(tab_id) {
             self.tab_scopes.remove(&tab_id);
             for id in pane_ids {
@@ -759,6 +743,29 @@ impl App {
             self.load_active_scope();
             self.update_active_tab_title();
         }
+    }
+
+    fn reset_last_tab_to_pods(&mut self, old_tab_id: u32, old_pane_ids: Vec<PaneId>) {
+        let ns = self.context_resolver.namespace().unwrap_or("default").to_string();
+        let old_scope = self.tab_scopes.get(&old_tab_id).cloned();
+
+        let new_tab_id = self.tab_manager.new_tab("Main", ViewType::ResourceList(ResourceKind::Pods));
+        let new_pane_id = self.tab_manager.tabs().iter().find(|t| t.id == new_tab_id).unwrap().focused_pane;
+        self.panes.insert(new_pane_id, Box::new(ResourceListPane::new(ResourceKind::Pods, pods_headers())));
+        self.start_watcher_for_pane(new_pane_id, &ResourceKind::Pods, &ns);
+
+        let _ = self.tab_manager.close_tab(old_tab_id);
+        for id in old_pane_ids {
+            self.panes.remove(&id);
+            self.active_watchers.remove(&id);
+        }
+
+        self.tab_scopes.remove(&old_tab_id);
+        if let Some(scope) = old_scope {
+            self.tab_scopes.insert(new_tab_id, scope);
+        }
+        self.load_active_scope();
+        self.update_active_tab_title();
     }
 
     fn switch_to_tab_index(&mut self, index: usize) {
@@ -882,7 +889,12 @@ impl App {
 
     fn close_focused(&mut self) {
         let focused = self.tab_manager.active().focused_pane;
-        self.close_pane(focused);
+        let pane_count = self.tab_manager.active().pane_tree.leaf_ids().len();
+        if pane_count <= 1 {
+            self.close_tab();
+        } else {
+            self.close_pane(focused);
+        }
     }
 
     fn close_pane(&mut self, target: PaneId) {
@@ -1903,6 +1915,19 @@ fn resource_alias(kind: &ResourceKind) -> String {
             up.chars().take(3).collect()
         }
     }
+}
+
+fn pods_headers() -> Vec<String> {
+    vec![
+        "PF".into(),
+        "NAME".into(),
+        "NAMESPACE".into(),
+        "STATUS".into(),
+        "READY".into(),
+        "RESTARTS".into(),
+        "AGE".into(),
+        "NODE".into(),
+    ]
 }
 
 async fn dispatch_get_yaml(
