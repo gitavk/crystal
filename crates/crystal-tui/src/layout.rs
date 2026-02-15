@@ -4,6 +4,7 @@ use ratatui::prelude::*;
 
 use crate::pane::{Pane, PaneId, PaneTree, ResourceKind};
 use crate::widgets::confirm_dialog::ConfirmDialogWidget;
+use crate::widgets::context_selector::ContextSelectorWidget;
 use crate::widgets::namespace_selector::NamespaceSelectorWidget;
 use crate::widgets::port_forward_dialog::PortForwardDialogWidget;
 use crate::widgets::resource_switcher::ResourceSwitcherWidget;
@@ -13,6 +14,12 @@ use crate::widgets::toast::{ToastMessage, ToastWidget};
 
 pub struct NamespaceSelectorView<'a> {
     pub namespaces: &'a [String],
+    pub filter: &'a str,
+    pub selected: usize,
+}
+
+pub struct ContextSelectorView<'a> {
+    pub contexts: &'a [String],
     pub filter: &'a str,
     pub selected: usize,
 }
@@ -45,6 +52,7 @@ pub struct RenderContext<'a> {
     pub cluster_name: Option<&'a str>,
     pub namespace: Option<&'a str>,
     pub namespace_selector: Option<NamespaceSelectorView<'a>>,
+    pub context_selector: Option<ContextSelectorView<'a>>,
     pub resource_switcher: Option<ResourceSwitcherView<'a>>,
     pub confirm_dialog: Option<ConfirmDialogView<'a>>,
     pub port_forward_dialog: Option<PortForwardDialogView<'a>>,
@@ -92,6 +100,11 @@ fn render_body(frame: &mut Frame, area: Rect, ctx: &RenderContext) {
 
     if let Some(ref ns) = ctx.namespace_selector {
         let widget = NamespaceSelectorWidget { namespaces: ns.namespaces, filter: ns.filter, selected: ns.selected };
+        widget.render(frame, area);
+    }
+
+    if let Some(ref cs) = ctx.context_selector {
+        let widget = ContextSelectorWidget { contexts: cs.contexts, filter: cs.filter, selected: cs.selected };
         widget.render(frame, area);
     }
 

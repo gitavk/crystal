@@ -17,6 +17,7 @@ pub enum InputMode {
     Command,
     Insert,
     NamespaceSelector,
+    ContextSelector,
     ResourceSwitcher,
     ConfirmDialog,
     FilterInput,
@@ -149,6 +150,15 @@ impl KeybindingDispatcher {
                 KeyCode::Backspace => Some(Command::NamespaceBackspace),
                 _ => None,
             },
+            InputMode::ContextSelector => match key.code {
+                KeyCode::Enter => Some(Command::ContextConfirm),
+                KeyCode::Esc => Some(Command::ExitMode),
+                KeyCode::Up => Some(Command::Pane(PaneCommand::SelectPrev)),
+                KeyCode::Down => Some(Command::Pane(PaneCommand::SelectNext)),
+                KeyCode::Char(c) => Some(Command::ContextInput(c)),
+                KeyCode::Backspace => Some(Command::ContextBackspace),
+                _ => None,
+            },
             InputMode::Search | InputMode::Command => None,
             InputMode::Pane | InputMode::Tab => None,
             InputMode::ResourceSwitcher
@@ -169,8 +179,16 @@ impl KeybindingDispatcher {
     }
 
     pub fn global_hints(&self) -> Vec<(String, String)> {
-        let priority =
-            ["split_vertical", "split_horizontal", "focus_next", "close_pane", "namespace_selector", "help", "quit"];
+        let priority = [
+            "split_vertical",
+            "split_horizontal",
+            "focus_next",
+            "close_pane",
+            "namespace_selector",
+            "context_selector",
+            "help",
+            "quit",
+        ];
         let mut hints = Vec::new();
         for name in &priority {
             if let Some((_, key_str, desc)) = self.reverse_global.iter().find(|(n, _, _)| n == name) {
@@ -344,6 +362,7 @@ fn command_from_name(name: &str) -> Option<Command> {
         "resize_grow" => Some(Command::ResizeGrow),
         "resize_shrink" => Some(Command::ResizeShrink),
         "namespace_selector" => Some(Command::EnterMode(InputMode::NamespaceSelector)),
+        "context_selector" => Some(Command::EnterMode(InputMode::ContextSelector)),
         s if s.starts_with("goto_tab_") => s["goto_tab_".len()..].parse::<usize>().ok().map(Command::GoToTab),
         _ => None,
     }
@@ -419,6 +438,7 @@ fn command_description(name: &str) -> String {
         "resize_grow" => "Grow",
         "resize_shrink" => "Shrink",
         "namespace_selector" => "Namespace",
+        "context_selector" => "Context",
         s if s.starts_with("goto_tab_") => "Go to tab",
         _ => "Unknown",
     }

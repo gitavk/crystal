@@ -19,6 +19,10 @@ fn dispatch_configured_keys_to_commands() {
     let d = default_dispatcher();
     assert_eq!(d.dispatch(press(KeyCode::Char('q'))), Some(Command::Quit));
     assert_eq!(d.dispatch(press(KeyCode::Char('?'))), Some(Command::ShowHelp));
+    assert_eq!(
+        d.dispatch(press_mod(KeyCode::Char('o'), KeyModifiers::CONTROL)),
+        Some(Command::EnterMode(InputMode::ContextSelector))
+    );
     assert_eq!(d.dispatch(press(KeyCode::Tab)), Some(Command::FocusNextPane));
     assert_eq!(d.dispatch(press_mod(KeyCode::Char('v'), KeyModifiers::ALT)), Some(Command::SplitVertical));
     assert_eq!(d.dispatch(press_mod(KeyCode::Char('h'), KeyModifiers::ALT)), Some(Command::SplitHorizontal));
@@ -287,6 +291,19 @@ fn namespace_mode_dispatches_nav_and_input() {
     assert_eq!(d.dispatch(press(KeyCode::Down)), Some(Command::Pane(PaneCommand::SelectNext)));
     assert_eq!(d.dispatch(press(KeyCode::Char('a'))), Some(Command::NamespaceInput('a')));
     assert_eq!(d.dispatch(press(KeyCode::Backspace)), Some(Command::NamespaceBackspace));
+}
+
+#[test]
+fn context_mode_dispatches_nav_and_input() {
+    let mut d = default_dispatcher();
+    d.set_mode(InputMode::ContextSelector);
+
+    assert_eq!(d.dispatch(press(KeyCode::Enter)), Some(Command::ContextConfirm));
+    assert_eq!(d.dispatch(press(KeyCode::Esc)), Some(Command::ExitMode));
+    assert_eq!(d.dispatch(press(KeyCode::Up)), Some(Command::Pane(PaneCommand::SelectPrev)));
+    assert_eq!(d.dispatch(press(KeyCode::Down)), Some(Command::Pane(PaneCommand::SelectNext)));
+    assert_eq!(d.dispatch(press(KeyCode::Char('a'))), Some(Command::ContextInput('a')));
+    assert_eq!(d.dispatch(press(KeyCode::Backspace)), Some(Command::ContextBackspace));
 }
 
 #[test]

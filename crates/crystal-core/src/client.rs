@@ -16,12 +16,16 @@ pub struct KubeClient {
 }
 
 impl KubeClient {
-    pub async fn from_kubeconfig() -> Result<Self> {
-        let kubeconfig = Kubeconfig::read().or_else(|_| {
+    fn read_kubeconfig_with_fallback() -> Result<Kubeconfig> {
+        Kubeconfig::read().or_else(|_| {
             let home = std::env::var("HOME").unwrap_or_else(|_| "/root".into());
             let default_path = std::path::PathBuf::from(home).join(".kube").join("config");
             Kubeconfig::read_from(&default_path).map_err(|e| anyhow::anyhow!(e))
-        })?;
+        })
+    }
+
+    pub async fn from_kubeconfig() -> Result<Self> {
+        let kubeconfig = Self::read_kubeconfig_with_fallback()?;
         let current_context = kubeconfig.current_context.clone().unwrap_or_else(|| "unknown".into());
 
         let config = Config::from_custom_kubeconfig(kubeconfig, &KubeConfigOptions::default()).await?;
@@ -41,6 +45,15 @@ impl KubeClient {
         Ok(Self { client, current_namespace: default_ns, current_context: context.to_string() })
     }
 
+    pub async fn from_context(context: &str) -> Result<Self> {
+        let kubeconfig = Self::read_kubeconfig_with_fallback()?;
+        let opts = KubeConfigOptions { context: Some(context.to_string()), ..Default::default() };
+        let config = Config::from_custom_kubeconfig(kubeconfig, &opts).await?;
+        let default_ns = config.default_namespace.clone();
+        let client = Client::try_from(config)?;
+        Ok(Self { client, current_namespace: default_ns, current_context: context.to_string() })
+    }
+
     pub fn cluster_context(&self) -> ClusterContext {
         ClusterContext { name: self.current_context.clone(), namespace: self.current_namespace.clone() }
     }
@@ -52,7 +65,7 @@ impl KubeClient {
     }
 
     pub fn list_contexts() -> Result<Vec<String>> {
-        let kubeconfig = Kubeconfig::read()?;
+        let kubeconfig = Self::read_kubeconfig_with_fallback()?;
         Ok(kubeconfig.contexts.iter().map(|c| c.name.clone()).collect())
     }
 

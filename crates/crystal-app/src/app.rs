@@ -19,7 +19,8 @@ use crystal_core::resource::{DetailSection, ResourceSummary};
 use crystal_core::*;
 use crystal_core::{ContextResolver, KubeClient};
 use crystal_tui::layout::{
-    ConfirmDialogView, NamespaceSelectorView, PortForwardDialogView, RenderContext, ResourceSwitcherView,
+    ConfirmDialogView, ContextSelectorView, NamespaceSelectorView, PortForwardDialogView, RenderContext,
+    ResourceSwitcherView,
 };
 use crystal_tui::pane::{
     find_pane_in_direction, Direction, Pane, PaneCommand, PaneId, ResourceKind, SplitDirection, ViewType,
@@ -72,9 +73,12 @@ pub struct App {
     kube_client: Option<KubeClient>,
     context_resolver: ContextResolver,
     dispatcher: KeybindingDispatcher,
+    contexts: Vec<String>,
     namespaces: Vec<String>,
     namespace_filter: String,
     namespace_selected: usize,
+    context_filter: String,
+    context_selected: usize,
     /// Active watchers keyed by pane ID.
     /// Each pane showing a resource list has its own watcher.
     /// When a pane switches resource type, its watcher is cancelled and a new one spawned.
@@ -107,6 +111,7 @@ impl App {
                 None
             }
         };
+        let contexts = KubeClient::list_contexts().unwrap_or_default();
 
         let pod_headers = vec![
             "PF".into(),
@@ -135,9 +140,12 @@ impl App {
             kube_client,
             context_resolver,
             dispatcher,
+            contexts,
             namespaces: Vec::new(),
             namespace_filter: String::new(),
             namespace_selected: 0,
+            context_filter: String::new(),
+            context_selected: 0,
             active_watchers: HashMap::new(),
             active_forwards: HashMap::new(),
             pod_forward_index: HashMap::new(),
@@ -219,6 +227,12 @@ impl App {
                 }
                 AppEvent::PortForwardPromptReady { pod, namespace, suggested_remote } => {
                     self.open_port_forward_prompt(pod, namespace, suggested_remote);
+                }
+                AppEvent::ContextSwitchReady { client, namespaces } => {
+                    self.apply_context_switch(client, namespaces);
+                }
+                AppEvent::ContextSwitchError { context, error } => {
+                    self.toasts.push(ToastMessage::error(format!("Failed to switch context {context}: {error}")));
                 }
             }
         }
@@ -345,6 +359,11 @@ impl App {
                     self.namespace_filter.clear();
                     self.namespace_selected = 0;
                 }
+                if mode == InputMode::ContextSelector {
+                    self.context_filter.clear();
+                    self.context_selected = 0;
+                    self.contexts = KubeClient::list_contexts().unwrap_or_default();
+                }
                 if mode == InputMode::FilterInput {
                     self.filter_input_buffer.clear();
                     let focused = self.tab_manager.active().focused_pane;
@@ -359,6 +378,9 @@ impl App {
             Command::NamespaceConfirm => self.handle_namespace_confirm(),
             Command::NamespaceInput(c) => self.handle_namespace_input(c),
             Command::NamespaceBackspace => self.handle_namespace_backspace(),
+            Command::ContextConfirm => self.handle_context_confirm(),
+            Command::ContextInput(c) => self.handle_context_input(c),
+            Command::ContextBackspace => self.handle_context_backspace(),
             Command::FocusDirection(dir) => self.focus_direction(dir),
             Command::NewTab => self.new_tab(),
             Command::CloseTab => self.close_tab(),
@@ -380,6 +402,9 @@ impl App {
             }
             Command::Pane(ref pane_cmd) if self.dispatcher.mode() == InputMode::NamespaceSelector => {
                 self.handle_namespace_nav(pane_cmd);
+            }
+            Command::Pane(ref pane_cmd) if self.dispatcher.mode() == InputMode::ContextSelector => {
+                self.handle_context_nav(pane_cmd);
             }
             Command::Pane(ref pane_cmd) if self.dispatcher.mode() == InputMode::ResourceSwitcher => {
                 if let Some(ref mut sw) = self.resource_switcher {
@@ -857,6 +882,20 @@ impl App {
         self.namespace_selected = 0;
     }
 
+    fn handle_context_confirm(&mut self) {
+        self.select_context();
+    }
+
+    fn handle_context_input(&mut self, c: char) {
+        self.context_filter.push(c);
+        self.context_selected = 0;
+    }
+
+    fn handle_context_backspace(&mut self) {
+        self.context_filter.pop();
+        self.context_selected = 0;
+    }
+
     fn handle_namespace_nav(&mut self, cmd: &PaneCommand) {
         match cmd {
             PaneCommand::SelectPrev => {
@@ -866,6 +905,21 @@ impl App {
                 let count = self.filtered_namespaces().len();
                 if self.namespace_selected + 1 < count {
                     self.namespace_selected += 1;
+                }
+            }
+            _ => {}
+        }
+    }
+
+    fn handle_context_nav(&mut self, cmd: &PaneCommand) {
+        match cmd {
+            PaneCommand::SelectPrev => {
+                self.context_selected = self.context_selected.saturating_sub(1);
+            }
+            PaneCommand::SelectNext => {
+                let count = self.filtered_contexts().len();
+                if self.context_selected + 1 < count {
+                    self.context_selected += 1;
                 }
             }
             _ => {}
@@ -1346,34 +1400,11 @@ impl App {
         if let Some(ns) = filtered.get(self.namespace_selected).cloned() {
             let ns = if ns == "All Namespaces" { "default".to_string() } else { ns };
 
-            // Cancel all active watchers
-            self.active_watchers.drain();
-
             if let Some(ref mut client) = self.kube_client {
                 client.set_namespace(&ns);
             }
             self.context_resolver.set_namespace(&ns);
-
-            // Reset all resource list panes and restart their watchers
-            let pane_ids: Vec<PaneId> = self.panes.keys().copied().collect();
-            for pane_id in pane_ids {
-                let kind = {
-                    let Some(pane) = self.panes.get(&pane_id) else { continue };
-                    let Some(rp) = pane.as_any().downcast_ref::<ResourceListPane>() else { continue };
-                    rp.kind().cloned()
-                };
-                if let Some(kind) = kind {
-                    if let Some(pane) = self.panes.get_mut(&pane_id) {
-                        if let Some(rp) = pane.as_any_mut().downcast_mut::<ResourceListPane>() {
-                            let headers = rp.state.headers.clone();
-                            rp.state = crate::state::ResourceListState::new(headers);
-                            rp.filtered_indices.clear();
-                        }
-                    }
-                    let watcher_ns = if kind.is_namespaced() { &ns } else { "" };
-                    self.start_watcher_for_pane(pane_id, &kind, watcher_ns);
-                }
-            }
+            self.restart_watchers_for_active_panes();
         }
     }
 
@@ -1392,6 +1423,84 @@ impl App {
         }
 
         result
+    }
+
+    fn filtered_contexts(&self) -> Vec<String> {
+        let filter_lower = self.context_filter.to_lowercase();
+        self.contexts
+            .iter()
+            .filter(|ctx| filter_lower.is_empty() || ctx.to_lowercase().contains(&filter_lower))
+            .cloned()
+            .collect()
+    }
+
+    fn select_context(&mut self) {
+        let filtered = self.filtered_contexts();
+        let Some(context) = filtered.get(self.context_selected).cloned() else {
+            self.dispatcher.set_mode(InputMode::Normal);
+            return;
+        };
+        if self.context_resolver.context_name() == Some(context.as_str()) {
+            self.dispatcher.set_mode(InputMode::Normal);
+            return;
+        }
+
+        let app_tx = self.app_tx.clone();
+        tokio::spawn(async move {
+            match KubeClient::from_context(&context).await {
+                Ok(client) => {
+                    let namespaces = client.list_namespaces().await.unwrap_or_default();
+                    let _ = app_tx.send(AppEvent::ContextSwitchReady { client, namespaces });
+                }
+                Err(e) => {
+                    let _ =
+                        app_tx.send(AppEvent::ContextSwitchError { context: context.clone(), error: e.to_string() });
+                }
+            }
+        });
+        self.dispatcher.set_mode(InputMode::Normal);
+    }
+
+    fn apply_context_switch(&mut self, client: KubeClient, namespaces: Vec<String>) {
+        self.stop_all_port_forwards();
+        self.context_resolver.set_context(client.cluster_context());
+        self.kube_client = Some(client);
+        self.namespaces = namespaces;
+        self.namespace_filter.clear();
+        self.namespace_selected = 0;
+        self.restart_watchers_for_active_panes();
+    }
+
+    fn restart_watchers_for_active_panes(&mut self) {
+        self.active_watchers.drain();
+
+        let pane_ids: Vec<PaneId> = self.panes.keys().copied().collect();
+        for pane_id in pane_ids {
+            let (kind, all_namespaces, headers) = {
+                let Some(pane) = self.panes.get(&pane_id) else { continue };
+                let Some(rp) = pane.as_any().downcast_ref::<ResourceListPane>() else { continue };
+                (rp.kind().cloned(), rp.all_namespaces, rp.state.headers.clone())
+            };
+            let Some(kind) = kind else { continue };
+
+            if let Some(pane) = self.panes.get_mut(&pane_id) {
+                if let Some(rp) = pane.as_any_mut().downcast_mut::<ResourceListPane>() {
+                    rp.state = crate::state::ResourceListState::new(headers);
+                    rp.filtered_indices.clear();
+                }
+            }
+
+            let ns = if kind.is_namespaced() {
+                if all_namespaces {
+                    String::new()
+                } else {
+                    self.context_resolver.namespace().unwrap_or("default").to_string()
+                }
+            } else {
+                String::new()
+            };
+            self.start_watcher_for_pane(pane_id, &kind, &ns);
+        }
     }
 
     fn initiate_delete(&mut self) {
@@ -1506,6 +1615,7 @@ impl App {
         match self.dispatcher.mode() {
             InputMode::Normal => "Normal",
             InputMode::NamespaceSelector => "Namespace",
+            InputMode::ContextSelector => "Context",
             InputMode::Pane => "Pane",
             InputMode::Tab => "Tab",
             InputMode::Search => "Search",
@@ -1522,6 +1632,13 @@ impl App {
         let mut hints = match self.dispatcher.mode() {
             InputMode::Normal => self.dispatcher.global_hints(),
             InputMode::NamespaceSelector => {
+                vec![
+                    ("Up/Down".into(), "Navigate".into()),
+                    ("Enter".into(), "Select".into()),
+                    ("Esc".into(), "Cancel".into()),
+                ]
+            }
+            InputMode::ContextSelector => {
                 vec![
                     ("Up/Down".into(), "Navigate".into()),
                     ("Enter".into(), "Select".into()),
@@ -1581,6 +1698,15 @@ impl App {
         } else {
             None
         };
+        let context_selector = if self.dispatcher.mode() == InputMode::ContextSelector {
+            Some(ContextSelectorView {
+                contexts: &self.contexts,
+                filter: &self.context_filter,
+                selected: self.context_selected,
+            })
+        } else {
+            None
+        };
 
         let resource_switcher = self.resource_switcher.as_ref().map(|sw| ResourceSwitcherView {
             input: sw.input(),
@@ -1610,6 +1736,7 @@ impl App {
             cluster_name: self.context_resolver.context_name(),
             namespace: self.context_resolver.namespace(),
             namespace_selector,
+            context_selector,
             resource_switcher,
             confirm_dialog,
             port_forward_dialog,

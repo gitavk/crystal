@@ -18,6 +18,7 @@ fn embedded_defaults_parse() {
     let config: Config = toml::from_str(DEFAULT_CONFIG).unwrap();
     assert_eq!(config.keybindings.global.get("quit").unwrap(), "q");
     assert_eq!(config.keybindings.global.get("help").unwrap(), "?");
+    assert_eq!(config.keybindings.global.get("context_selector").unwrap(), "ctrl+o");
     assert_eq!(config.keybindings.global.get("split_vertical").unwrap(), "alt+v");
     assert_eq!(config.keybindings.pane.get("select").unwrap(), "enter");
     assert_eq!(config.keybindings.pane.get("back").unwrap(), "esc");

@@ -38,6 +38,9 @@ pub enum Command {
     NamespaceConfirm,
     NamespaceInput(char),
     NamespaceBackspace,
+    ContextConfirm,
+    ContextInput(char),
+    ContextBackspace,
     Pane(PaneCommand),
 
     // Resource actions
