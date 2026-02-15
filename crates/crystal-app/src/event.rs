@@ -1,11 +1,11 @@
 use std::time::Duration;
 
 use crossterm::event::{self, Event, KeyEvent};
+use crystal_core::LogStream;
 use crystal_tui::pane::{PaneId, ResourceKind};
 use crystal_tui::widgets::toast::ToastMessage;
 use tokio::sync::mpsc;
 
-#[derive(Debug)]
 pub enum AppEvent {
     Key(KeyEvent),
     Tick,
@@ -30,6 +30,18 @@ pub enum AppEvent {
         kind: ResourceKind,
         name: String,
         content: String,
+    },
+    LogsStreamReady {
+        pane_id: PaneId,
+        stream: LogStream,
+    },
+    LogsSnapshotReady {
+        pane_id: PaneId,
+        lines: Vec<String>,
+    },
+    LogsStreamError {
+        pane_id: PaneId,
+        error: String,
     },
 }
 

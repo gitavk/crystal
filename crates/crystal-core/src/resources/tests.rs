@@ -218,7 +218,7 @@ fn pod_phase_display() {
 fn pod_summary_columns_and_row_length() {
     let s = PodSummary::from(&default_pod());
     assert_eq!(s.columns().len(), 7);
-    assert_eq!(s.row().len(), 6);
+    assert_eq!(s.row().len(), 7);
 }
 
 #[test]
@@ -244,7 +244,7 @@ fn pod_summary_row_values() {
         node: Some("node-1".into()),
     };
     let row = s.row();
-    assert_eq!(row, vec!["nginx", "1/1", "Running", "0", "5m", "node-1"]);
+    assert_eq!(row, vec!["nginx", "default", "1/1", "Running", "0", "5m", "node-1"]);
 }
 
 #[test]
@@ -303,7 +303,7 @@ fn resource_summary_trait_is_object_safe() {
 }
 
 #[test]
-fn pod_summary_row_returns_six_cells() {
+fn pod_summary_row_includes_namespace_column() {
     let summary = PodSummary {
         name: "nginx".into(),
         namespace: "default".into(),
@@ -314,13 +314,14 @@ fn pod_summary_row_returns_six_cells() {
         node: Some("node-1".into()),
     };
     let row = summary.row();
-    assert_eq!(row.len(), 6);
+    assert_eq!(row.len(), 7);
     assert_eq!(row[0], "nginx");
-    assert_eq!(row[1], "1/1");
-    assert_eq!(row[2], "Running");
-    assert_eq!(row[3], "3");
-    assert_eq!(row[4], "2h");
-    assert_eq!(row[5], "node-1");
+    assert_eq!(row[1], "default");
+    assert_eq!(row[2], "1/1");
+    assert_eq!(row[3], "Running");
+    assert_eq!(row[4], "3");
+    assert_eq!(row[5], "2h");
+    assert_eq!(row[6], "node-1");
 }
 
 #[test]

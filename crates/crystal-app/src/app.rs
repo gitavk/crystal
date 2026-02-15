@@ -28,7 +28,7 @@ use crystal_tui::widgets::toast::ToastMessage;
 use crate::command::{Command, InputMode};
 use crate::event::{AppEvent, EventHandler};
 use crate::keybindings::KeybindingDispatcher;
-use crate::panes::{HelpPane, ResourceDetailPane, ResourceListPane, YamlPane};
+use crate::panes::{HelpPane, LogsPane, ResourceDetailPane, ResourceListPane, YamlPane};
 use crate::resource_switcher::ResourceSwitcher;
 
 #[derive(Debug, Clone)]
@@ -153,6 +153,7 @@ impl App {
             match events.next().await? {
                 AppEvent::Key(key) => self.handle_key(key),
                 AppEvent::Tick => {
+                    self.poll_runtime_panes();
                     self.toasts.retain(|t| !t.is_expired());
                 }
                 AppEvent::Resize(_, _) => {}
@@ -161,6 +162,15 @@ impl App {
                 AppEvent::Toast(toast) => self.toasts.push(toast),
                 AppEvent::YamlReady { pane_id, kind, name, content } => {
                     self.open_yaml_pane(pane_id, kind, name, content);
+                }
+                AppEvent::LogsStreamReady { pane_id, stream } => {
+                    self.attach_logs_stream(pane_id, stream);
+                }
+                AppEvent::LogsSnapshotReady { pane_id, lines } => {
+                    self.attach_logs_snapshot(pane_id, lines);
+                }
+                AppEvent::LogsStreamError { pane_id, error } => {
+                    self.attach_logs_error(pane_id, error);
                 }
             }
         }
@@ -553,7 +563,7 @@ impl App {
             }
 
             Command::ViewLogs => {
-                self.toasts.push(ToastMessage::info("Logs not yet implemented"));
+                self.open_logs_pane();
             }
 
             Command::ExecInto => {
@@ -809,6 +819,133 @@ impl App {
         if let Some(new_id) = self.tab_manager.split_pane(pane_id, SplitDirection::Horizontal, view) {
             self.panes.insert(new_id, Box::new(yaml_pane));
             self.set_focus(new_id);
+        }
+    }
+
+    fn open_logs_pane(&mut self) {
+        let Some((kind, name, namespace)) = self.selected_resource_info() else {
+            return;
+        };
+        if kind != ResourceKind::Pods {
+            self.toasts.push(ToastMessage::info("Logs are only available for Pods"));
+            return;
+        }
+
+        let focused = self.tab_manager.active().focused_pane;
+        let pane = LogsPane::new(name.clone(), namespace.clone());
+        let view = ViewType::Logs(name.clone());
+        let Some(new_id) = self.tab_manager.split_pane(focused, SplitDirection::Horizontal, view) else {
+            return;
+        };
+        self.panes.insert(new_id, Box::new(pane));
+        self.set_focus(new_id);
+
+        let Some(client) = &self.kube_client else {
+            self.toasts.push(ToastMessage::error("No cluster connection"));
+            return;
+        };
+        let kube_client = client.inner_client();
+        let app_tx = self.app_tx.clone();
+
+        tokio::spawn(async move {
+            let mut request = crystal_core::LogRequest {
+                pod_name: name.clone(),
+                namespace: namespace.clone(),
+                container: None,
+                follow: true,
+                tail_lines: None,
+                since_seconds: None,
+                previous: false,
+                timestamps: false,
+            };
+
+            let pods: Api<Pod> = Api::namespaced(kube_client.clone(), &namespace);
+            let mut snapshot_params = kube::api::LogParams {
+                follow: false,
+                previous: request.previous,
+                timestamps: false,
+                tail_lines: None,
+                container: request.container.clone(),
+                ..Default::default()
+            };
+            let mut snapshot_result = pods.logs(&name, &snapshot_params).await;
+            if let Err(err) = &snapshot_result {
+                let msg = err.to_string();
+                if msg.contains("container") && msg.contains("must be specified") {
+                    let detected_container = detect_container_name(&pods, &name, &msg).await;
+                    if let Some(container_name) = detected_container {
+                        snapshot_params.container = Some(container_name.clone());
+                        request.container = Some(container_name);
+                        snapshot_result = pods.logs(&name, &snapshot_params).await;
+                    }
+                }
+            }
+            if let Ok(snapshot) = snapshot_result {
+                let lines = snapshot.lines().map(ToString::to_string).collect::<Vec<_>>();
+                let _ = app_tx.send(AppEvent::LogsSnapshotReady { pane_id: new_id, lines });
+            } else if let Err(e) = snapshot_result {
+                let _ =
+                    app_tx.send(AppEvent::LogsStreamError { pane_id: new_id, error: format!("snapshot failed: {e}") });
+                return;
+            }
+
+            let mut start_result = crystal_core::LogStream::start(&kube_client, request.clone()).await;
+
+            // Multi-container pods can require an explicit container for logs.
+            if let Err(err) = &start_result {
+                let msg = err.to_string();
+                if msg.contains("container") && msg.contains("must be specified") {
+                    let pods: Api<Pod> = Api::namespaced(kube_client.clone(), &namespace);
+                    let detected_container = detect_container_name(&pods, &name, &msg).await;
+                    if let Some(container_name) = detected_container {
+                        request.container = Some(container_name);
+                        start_result = crystal_core::LogStream::start(&kube_client, request).await;
+                    }
+                }
+            }
+
+            match start_result {
+                Ok(stream) => {
+                    let _ = app_tx.send(AppEvent::LogsStreamReady { pane_id: new_id, stream });
+                }
+                Err(e) => {
+                    let error = e.to_string();
+                    let _ = app_tx.send(AppEvent::LogsStreamError { pane_id: new_id, error: error.clone() });
+                    let _ = app_tx.send(AppEvent::Toast(ToastMessage::error(format!("Failed to start logs: {error}"))));
+                }
+            }
+        });
+    }
+
+    fn attach_logs_stream(&mut self, pane_id: PaneId, stream: crystal_core::LogStream) {
+        if let Some(pane) = self.panes.get_mut(&pane_id) {
+            if let Some(logs_pane) = pane.as_any_mut().downcast_mut::<LogsPane>() {
+                logs_pane.attach_stream(stream);
+            }
+        }
+    }
+
+    fn attach_logs_snapshot(&mut self, pane_id: PaneId, lines: Vec<String>) {
+        if let Some(pane) = self.panes.get_mut(&pane_id) {
+            if let Some(logs_pane) = pane.as_any_mut().downcast_mut::<LogsPane>() {
+                logs_pane.append_snapshot(lines);
+            }
+        }
+    }
+
+    fn attach_logs_error(&mut self, pane_id: PaneId, error: String) {
+        if let Some(pane) = self.panes.get_mut(&pane_id) {
+            if let Some(logs_pane) = pane.as_any_mut().downcast_mut::<LogsPane>() {
+                logs_pane.set_error(error);
+            }
+        }
+    }
+
+    fn poll_runtime_panes(&mut self) {
+        for pane in self.panes.values_mut() {
+            if let Some(logs_pane) = pane.as_any_mut().downcast_mut::<LogsPane>() {
+                logs_pane.poll();
+            }
         }
     }
 
@@ -1143,6 +1280,31 @@ async fn dispatch_describe(
         ResourceKind::PersistentVolumeClaims => executor.describe::<PersistentVolumeClaim>(name, ns).await,
         _ => Err(anyhow::anyhow!("Describe not supported for this resource type")),
     }
+}
+
+async fn detect_container_name(pods: &Api<Pod>, pod_name: &str, error_msg: &str) -> Option<String> {
+    if let Some(name) = first_container_from_logs_error(error_msg) {
+        return Some(name);
+    }
+    pods.get(pod_name)
+        .await
+        .ok()
+        .and_then(|pod| pod.spec.as_ref().and_then(|s| s.containers.first()).map(|c| c.name.clone()))
+}
+
+fn first_container_from_logs_error(error_msg: &str) -> Option<String> {
+    let marker = "choose one of:";
+    let (_, right) = error_msg.split_once(marker)?;
+    let candidates = if let (Some(start), Some(end_rel)) = (right.find('['), right.find(']')) {
+        &right[start + 1..end_rel]
+    } else {
+        right
+    };
+    candidates
+        .split([',', ' ', '\n', '\t'])
+        .map(str::trim)
+        .find(|s| !s.is_empty() && *s != "or")
+        .map(|s| s.trim_matches('"').to_string())
 }
 
 struct EmptyPane(ViewType);

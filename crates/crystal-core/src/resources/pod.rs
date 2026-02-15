@@ -69,6 +69,7 @@ impl ResourceSummary for PodSummary {
     fn row(&self) -> Vec<String> {
         vec![
             self.name.clone(),
+            self.namespace.clone(),
             self.ready.clone(),
             self.status.to_string(),
             self.restarts.to_string(),

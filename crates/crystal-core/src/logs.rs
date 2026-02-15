@@ -108,7 +108,7 @@ async fn stream_logs(
     let pods: Api<Pod> = Api::namespaced(client, &request.namespace);
     let container = request.container.clone().unwrap_or_default();
     let mut consecutive_failures: u32 = 0;
-    let mut since_seconds = request.since_seconds;
+    let mut last_line_seen_at: Option<std::time::Instant> = None;
 
     loop {
         if *cancel_rx.borrow() {
@@ -133,7 +133,9 @@ async fn stream_logs(
             params.container = Some(container.clone());
         }
 
-        if let Some(since) = since_seconds {
+        let reconnect_since = reconnect_since_seconds(request.since_seconds, last_line_seen_at.map(|t| t.elapsed()));
+
+        if let Some(since) = reconnect_since {
             params.since_seconds = Some(since);
         }
 
@@ -152,7 +154,7 @@ async fn stream_logs(
                                     if tx.send(log_line).is_err() {
                                         return;
                                     }
-                                    since_seconds = Some(1);
+                                    last_line_seen_at = Some(std::time::Instant::now());
                                 }
                                 Some(Err(e)) => {
                                     warn!("Log stream error: {e}");
@@ -200,6 +202,13 @@ async fn stream_logs(
     }
 }
 
+fn reconnect_since_seconds(request_since_seconds: Option<i64>, since_last_line: Option<Duration>) -> Option<i64> {
+    if request_since_seconds.is_some() {
+        return request_since_seconds;
+    }
+    since_last_line.map(|d| d.as_secs().saturating_add(1) as i64)
+}
+
 fn backoff_duration(attempt: u32) -> Duration {
     let secs = (1u64 << attempt.min(5)).min(30);
     Duration::from_secs(secs)
@@ -228,6 +237,7 @@ fn try_parse_timestamp_prefix(line: &str) -> Option<(Option<jiff::Timestamp>, St
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::time::Duration;
 
     #[test]
     fn parse_log_line_with_timestamp() {
@@ -275,6 +285,24 @@ mod tests {
         assert!(req.timestamps);
         assert!(!req.previous);
         assert!(req.container.is_none());
+    }
+
+    #[test]
+    fn reconnect_since_prefers_request_value() {
+        let computed = reconnect_since_seconds(Some(42), Some(Duration::from_secs(3)));
+        assert_eq!(computed, Some(42));
+    }
+
+    #[test]
+    fn reconnect_since_uses_elapsed_plus_one_second() {
+        let computed = reconnect_since_seconds(None, Some(Duration::from_secs(3)));
+        assert_eq!(computed, Some(4));
+    }
+
+    #[test]
+    fn reconnect_since_none_when_no_signal() {
+        let computed = reconnect_since_seconds(None, None);
+        assert_eq!(computed, None);
     }
 
     #[test]
