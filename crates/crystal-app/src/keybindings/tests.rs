@@ -304,6 +304,7 @@ fn resource_bindings_map_in_normal_mode() {
     assert_eq!(d.dispatch(press_mod(KeyCode::Char('d'), KeyModifiers::CONTROL)), Some(Command::DeleteResource));
     assert_eq!(d.dispatch(press(KeyCode::Char('l'))), Some(Command::ViewLogs));
     assert_eq!(d.dispatch(press(KeyCode::Char('e'))), Some(Command::ExecInto));
+    assert_eq!(d.dispatch(press(KeyCode::Char('p'))), Some(Command::PortForward));
     assert_eq!(d.dispatch(press(KeyCode::Char('a'))), Some(Command::ToggleAllNamespaces));
     assert_eq!(d.dispatch(press(KeyCode::Char('s'))), Some(Command::SortByColumn));
     assert_eq!(d.dispatch(press(KeyCode::Char('/'))), Some(Command::EnterMode(InputMode::FilterInput)));
@@ -380,6 +381,25 @@ fn filter_input_mode_ignores_global_bindings() {
 }
 
 #[test]
+fn port_forward_input_mode_handles_edit_confirm_cancel() {
+    let mut d = default_dispatcher();
+    d.set_mode(InputMode::PortForwardInput);
+
+    assert_eq!(d.dispatch(press(KeyCode::Char('3'))), Some(Command::PortForwardInput('3')));
+    assert_eq!(d.dispatch(press(KeyCode::Backspace)), Some(Command::PortForwardBackspace));
+    assert_eq!(d.dispatch(press(KeyCode::Tab)), Some(Command::PortForwardToggleField));
+    assert_eq!(d.dispatch(press(KeyCode::Enter)), Some(Command::PortForwardConfirm));
+    assert_eq!(d.dispatch(press(KeyCode::Esc)), Some(Command::PortForwardCancel));
+}
+
+#[test]
+fn port_forward_input_mode_ignores_non_digits() {
+    let mut d = default_dispatcher();
+    d.set_mode(InputMode::PortForwardInput);
+    assert_eq!(d.dispatch(press(KeyCode::Char('q'))), None);
+}
+
+#[test]
 fn resource_command_config_names_map_correctly() {
     let mut config = KeybindingsConfig::default();
     config.resource.insert("view_yaml".into(), "f1".into());
@@ -389,10 +409,11 @@ fn resource_command_config_names_map_correctly() {
     config.resource.insert("restart".into(), "f5".into());
     config.resource.insert("view_logs".into(), "f6".into());
     config.resource.insert("exec".into(), "f7".into());
-    config.resource.insert("toggle_all_namespaces".into(), "f8".into());
-    config.resource.insert("sort".into(), "f9".into());
-    config.resource.insert("filter".into(), "f10".into());
-    config.resource.insert("resource_switcher".into(), "f11".into());
+    config.resource.insert("port_forward".into(), "f8".into());
+    config.resource.insert("toggle_all_namespaces".into(), "f9".into());
+    config.resource.insert("sort".into(), "f10".into());
+    config.resource.insert("filter".into(), "f11".into());
+    config.resource.insert("resource_switcher".into(), "f12".into());
 
     let d = KeybindingDispatcher::from_config(&config);
     assert_eq!(d.dispatch(press(KeyCode::F(1))), Some(Command::ViewYaml));
@@ -402,8 +423,9 @@ fn resource_command_config_names_map_correctly() {
     assert_eq!(d.dispatch(press(KeyCode::F(5))), Some(Command::RestartRollout));
     assert_eq!(d.dispatch(press(KeyCode::F(6))), Some(Command::ViewLogs));
     assert_eq!(d.dispatch(press(KeyCode::F(7))), Some(Command::ExecInto));
-    assert_eq!(d.dispatch(press(KeyCode::F(8))), Some(Command::ToggleAllNamespaces));
-    assert_eq!(d.dispatch(press(KeyCode::F(9))), Some(Command::SortByColumn));
-    assert_eq!(d.dispatch(press(KeyCode::F(10))), Some(Command::EnterMode(InputMode::FilterInput)));
-    assert_eq!(d.dispatch(press(KeyCode::F(11))), Some(Command::EnterResourceSwitcher));
+    assert_eq!(d.dispatch(press(KeyCode::F(8))), Some(Command::PortForward));
+    assert_eq!(d.dispatch(press(KeyCode::F(9))), Some(Command::ToggleAllNamespaces));
+    assert_eq!(d.dispatch(press(KeyCode::F(10))), Some(Command::SortByColumn));
+    assert_eq!(d.dispatch(press(KeyCode::F(11))), Some(Command::EnterMode(InputMode::FilterInput)));
+    assert_eq!(d.dispatch(press(KeyCode::F(12))), Some(Command::EnterResourceSwitcher));
 }

@@ -20,6 +20,7 @@ pub enum InputMode {
     ResourceSwitcher,
     ConfirmDialog,
     FilterInput,
+    PortForwardInput,
 }
 
 #[allow(dead_code)]
@@ -117,6 +118,16 @@ impl KeybindingDispatcher {
                 KeyCode::Backspace => return Some(Command::FilterBackspace),
                 _ => return None,
             },
+            InputMode::PortForwardInput => match key.code {
+                KeyCode::Esc => return Some(Command::PortForwardCancel),
+                KeyCode::Enter => return Some(Command::PortForwardConfirm),
+                KeyCode::Tab | KeyCode::BackTab | KeyCode::Left | KeyCode::Right | KeyCode::Up | KeyCode::Down => {
+                    return Some(Command::PortForwardToggleField);
+                }
+                KeyCode::Char(c) if c.is_ascii_digit() => return Some(Command::PortForwardInput(c)),
+                KeyCode::Backspace => return Some(Command::PortForwardBackspace),
+                _ => return None,
+            },
             _ => {}
         }
 
@@ -140,7 +151,10 @@ impl KeybindingDispatcher {
             },
             InputMode::Search | InputMode::Command => None,
             InputMode::Pane | InputMode::Tab => None,
-            InputMode::ResourceSwitcher | InputMode::ConfirmDialog | InputMode::FilterInput => {
+            InputMode::ResourceSwitcher
+            | InputMode::ConfirmDialog
+            | InputMode::FilterInput
+            | InputMode::PortForwardInput => {
                 unreachable!("handled above")
             }
         }
@@ -355,6 +369,7 @@ fn resource_command_from_name(name: &str) -> Option<Command> {
         "restart" => Some(Command::RestartRollout),
         "view_logs" => Some(Command::ViewLogs),
         "exec" => Some(Command::ExecInto),
+        "port_forward" => Some(Command::PortForward),
         "toggle_all_namespaces" => Some(Command::ToggleAllNamespaces),
         "sort" => Some(Command::SortByColumn),
         "filter" => Some(Command::EnterMode(InputMode::FilterInput)),
@@ -372,6 +387,7 @@ fn resource_command_description(name: &str) -> String {
         "restart" => "Restart",
         "view_logs" => "Logs",
         "exec" => "Exec",
+        "port_forward" => "Port Forward",
         "toggle_all_namespaces" => "All NS",
         "sort" => "Sort",
         "filter" => "Filter",

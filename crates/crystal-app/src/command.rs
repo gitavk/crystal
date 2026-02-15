@@ -48,6 +48,7 @@ pub enum Command {
     RestartRollout,
     ViewLogs,
     ExecInto,
+    PortForward,
     ToggleAllNamespaces,
 
     // Resource switcher
@@ -67,6 +68,11 @@ pub enum Command {
     FilterInput(char),
     FilterBackspace,
     FilterCancel,
+    PortForwardInput(char),
+    PortForwardBackspace,
+    PortForwardToggleField,
+    PortForwardConfirm,
+    PortForwardCancel,
 
     // Terminal lifecycle
     TerminalSpawn,

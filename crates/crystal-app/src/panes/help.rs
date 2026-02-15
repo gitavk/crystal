@@ -25,7 +25,7 @@ impl HelpPane {
 
     fn resource_specific_entries(kind: &ResourceKind) -> Vec<(&'static str, &'static str)> {
         match kind {
-            ResourceKind::Pods => vec![("L", "Logs"), ("E", "Exec")],
+            ResourceKind::Pods => vec![("L", "Logs"), ("E", "Exec"), ("P", "Port Forward")],
             ResourceKind::Deployments => vec![("S", "Scale"), ("R", "Restart")],
             ResourceKind::StatefulSets => vec![("S", "Scale")],
             _ => vec![],
@@ -233,6 +233,7 @@ mod tests {
         let entries = HelpPane::resource_specific_entries(&ResourceKind::Pods);
         assert!(entries.iter().any(|(_, d)| *d == "Logs"));
         assert!(entries.iter().any(|(_, d)| *d == "Exec"));
+        assert!(entries.iter().any(|(_, d)| *d == "Port Forward"));
         assert_eq!(help.view_type(), &ViewType::Help);
     }
 

@@ -96,6 +96,7 @@ impl<'a> ResourceListWidget<'a> {
             .collect();
         let header = Row::new(header_cells).height(1);
 
+        let status_col = self.headers.iter().position(|h| h == "STATUS");
         let rows: Vec<Row> = self
             .items
             .iter()
@@ -104,8 +105,11 @@ impl<'a> ResourceListWidget<'a> {
                     .iter()
                     .enumerate()
                     .map(|(col_idx, val)| {
-                        let style =
-                            if col_idx == 2 { Style::default().fg(status_color(val)) } else { Style::default() };
+                        let style = if Some(col_idx) == status_col {
+                            Style::default().fg(status_color(val))
+                        } else {
+                            Style::default()
+                        };
                         Cell::from(val.as_str()).style(style)
                     })
                     .collect();
@@ -117,7 +121,15 @@ impl<'a> ResourceListWidget<'a> {
             .headers
             .iter()
             .enumerate()
-            .map(|(i, _)| if i == 0 { Constraint::Min(20) } else { Constraint::Min(12) })
+            .map(|(i, h)| {
+                if h == "PF" {
+                    Constraint::Length(3)
+                } else if i == 0 || (i == 1 && self.headers.first().is_some_and(|x| x == "PF")) {
+                    Constraint::Min(20)
+                } else {
+                    Constraint::Min(12)
+                }
+            })
             .collect();
 
         let table = Table::new(rows, &widths)

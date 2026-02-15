@@ -18,7 +18,9 @@ use crystal_core::informer::{ResourceEvent, ResourceWatcher};
 use crystal_core::resource::{DetailSection, ResourceSummary};
 use crystal_core::*;
 use crystal_core::{ContextResolver, KubeClient};
-use crystal_tui::layout::{ConfirmDialogView, NamespaceSelectorView, RenderContext, ResourceSwitcherView};
+use crystal_tui::layout::{
+    ConfirmDialogView, NamespaceSelectorView, PortForwardDialogView, RenderContext, ResourceSwitcherView,
+};
 use crystal_tui::pane::{
     find_pane_in_direction, Direction, Pane, PaneCommand, PaneId, ResourceKind, SplitDirection, ViewType,
 };
@@ -41,6 +43,29 @@ pub struct PendingConfirmation {
     pub action: PendingAction,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum PortForwardField {
+    Local,
+    Remote,
+}
+
+impl PortForwardField {
+    fn toggle(self) -> Self {
+        match self {
+            Self::Local => Self::Remote,
+            Self::Remote => Self::Local,
+        }
+    }
+}
+
+struct PendingPortForward {
+    pod: String,
+    namespace: String,
+    local_input: String,
+    remote_input: String,
+    active_field: PortForwardField,
+}
+
 pub struct App {
     running: bool,
     tick_rate: Duration,
@@ -55,9 +80,12 @@ pub struct App {
     /// When a pane switches resource type, its watcher is cancelled and a new one spawned.
     /// Dropping a ResourceWatcher cancels its background task automatically.
     active_watchers: HashMap<PaneId, ResourceWatcher>,
+    active_forwards: HashMap<ForwardId, crystal_core::PortForward>,
+    pod_forward_index: HashMap<(String, String), ForwardId>,
     filter_input_buffer: String,
     resource_switcher: Option<ResourceSwitcher>,
     pending_confirmation: Option<PendingConfirmation>,
+    pending_port_forward: Option<PendingPortForward>,
     toasts: Vec<ToastMessage>,
     tab_manager: TabManager,
     panes: HashMap<PaneId, Box<dyn Pane>>,
@@ -81,6 +109,7 @@ impl App {
         };
 
         let pod_headers = vec![
+            "PF".into(),
             "NAME".into(),
             "NAMESPACE".into(),
             "STATUS".into(),
@@ -110,9 +139,12 @@ impl App {
             namespace_filter: String::new(),
             namespace_selected: 0,
             active_watchers: HashMap::new(),
+            active_forwards: HashMap::new(),
+            pod_forward_index: HashMap::new(),
             filter_input_buffer: String::new(),
             resource_switcher: None,
             pending_confirmation: None,
+            pending_port_forward: None,
             toasts: Vec::new(),
             tab_manager,
             panes,
@@ -157,7 +189,9 @@ impl App {
                     self.toasts.retain(|t| !t.is_expired());
                 }
                 AppEvent::Resize(_, _) => {}
-                AppEvent::ResourceUpdate { pane_id, headers: _, rows } => self.handle_resource_update(pane_id, rows),
+                AppEvent::ResourceUpdate { pane_id, headers, rows } => {
+                    self.handle_resource_update(pane_id, headers, rows)
+                }
                 AppEvent::ResourceError { pane_id, error } => self.handle_resource_error(pane_id, error),
                 AppEvent::Toast(toast) => self.toasts.push(toast),
                 AppEvent::YamlReady { pane_id, kind, name, content } => {
@@ -179,6 +213,12 @@ impl App {
                 AppEvent::ExecSessionError { pane_id, error } => {
                     self.attach_exec_error(pane_id, error);
                     self.dispatcher.set_mode(InputMode::Normal);
+                }
+                AppEvent::PortForwardReady { forward } => {
+                    self.attach_port_forward(forward);
+                }
+                AppEvent::PortForwardPromptReady { pod, namespace, suggested_remote } => {
+                    self.open_port_forward_prompt(pod, namespace, suggested_remote);
                 }
             }
         }
@@ -286,7 +326,10 @@ impl App {
 
     fn handle_command(&mut self, cmd: Command) {
         match cmd {
-            Command::Quit => self.running = false,
+            Command::Quit => {
+                self.stop_all_port_forwards();
+                self.running = false;
+            }
             Command::ShowHelp => self.toggle_help(),
             Command::FocusNextPane => self.focus_next(),
             Command::FocusPrevPane => self.focus_prev(),
@@ -404,6 +447,39 @@ impl App {
                 }
                 self.dispatcher.set_mode(InputMode::Normal);
             }
+            Command::PortForwardInput(c) => {
+                if let Some(ref mut pending) = self.pending_port_forward {
+                    let target = match pending.active_field {
+                        PortForwardField::Local => &mut pending.local_input,
+                        PortForwardField::Remote => &mut pending.remote_input,
+                    };
+                    if target == "0" {
+                        target.clear();
+                    }
+                    target.push(c);
+                }
+            }
+            Command::PortForwardBackspace => {
+                if let Some(ref mut pending) = self.pending_port_forward {
+                    let target = match pending.active_field {
+                        PortForwardField::Local => &mut pending.local_input,
+                        PortForwardField::Remote => &mut pending.remote_input,
+                    };
+                    target.pop();
+                }
+            }
+            Command::PortForwardToggleField => {
+                if let Some(ref mut pending) = self.pending_port_forward {
+                    pending.active_field = pending.active_field.toggle();
+                }
+            }
+            Command::PortForwardConfirm => {
+                self.confirm_port_forward();
+            }
+            Command::PortForwardCancel => {
+                self.pending_port_forward = None;
+                self.dispatcher.set_mode(InputMode::Normal);
+            }
             Command::SortByColumn => {
                 let focused = self.tab_manager.active().focused_pane;
                 if let Some(pane) = self.panes.get_mut(&focused) {
@@ -477,6 +553,7 @@ impl App {
             Command::DenyAction => {
                 self.resource_switcher = None;
                 self.pending_confirmation = None;
+                self.pending_port_forward = None;
                 self.dispatcher.set_mode(InputMode::Normal);
             }
 
@@ -579,6 +656,9 @@ impl App {
 
             Command::ExecInto => {
                 self.open_exec_pane();
+            }
+            Command::PortForward => {
+                self.toggle_port_forward_for_selected();
             }
 
             // Terminal lifecycle (handled in future step)
@@ -780,10 +860,25 @@ impl App {
         }
     }
 
-    fn handle_resource_update(&mut self, pane_id: PaneId, rows: Vec<Vec<String>>) {
+    fn handle_resource_update(&mut self, pane_id: PaneId, headers: Vec<String>, rows: Vec<Vec<String>>) {
+        let pod_forward_index = self.pod_forward_index.clone();
         if let Some(pane) = self.panes.get_mut(&pane_id) {
             if let Some(resource_pane) = pane.as_any_mut().downcast_mut::<ResourceListPane>() {
-                resource_pane.state.set_items(rows);
+                let mut effective_headers = headers;
+                let mut effective_rows = rows;
+
+                if matches!(resource_pane.kind(), Some(ResourceKind::Pods)) {
+                    effective_headers = with_pod_forward_header(&effective_headers);
+                    effective_rows = effective_rows
+                        .into_iter()
+                        .map(|row| with_pod_forward_cell(row, &pod_forward_index, &effective_headers))
+                        .collect();
+                }
+
+                if !effective_headers.is_empty() {
+                    resource_pane.state.headers = effective_headers;
+                }
+                resource_pane.state.set_items(effective_rows);
                 resource_pane.refresh_filter_and_sort();
             }
         }
@@ -1060,6 +1155,149 @@ impl App {
         }
     }
 
+    fn toggle_port_forward_for_selected(&mut self) {
+        let Some((kind, pod, namespace)) = self.selected_resource_info() else {
+            return;
+        };
+        if kind != ResourceKind::Pods {
+            self.toasts.push(ToastMessage::info("Port forward is only available for Pods"));
+            return;
+        }
+
+        let key = (namespace.clone(), pod.clone());
+        if let Some(forward_id) = self.pod_forward_index.remove(&key) {
+            if let Some(forward) = self.active_forwards.remove(&forward_id) {
+                let app_tx = self.app_tx.clone();
+                let pod_name = pod.clone();
+                tokio::spawn(async move {
+                    let _ = forward.stop().await;
+                    let _ = app_tx
+                        .send(AppEvent::Toast(ToastMessage::success(format!("Stopped port-forward for {pod_name}"))));
+                });
+                self.refresh_pod_forward_indicators();
+                return;
+            }
+        }
+
+        let Some(client) = &self.kube_client else {
+            self.toasts.push(ToastMessage::error("No cluster connection"));
+            return;
+        };
+        let kube_client = client.inner_client();
+        let app_tx = self.app_tx.clone();
+
+        tokio::spawn(async move {
+            let suggested_remote = detect_remote_port(&kube_client, &pod, &namespace).await.unwrap_or(80);
+            let _ = app_tx.send(AppEvent::PortForwardPromptReady { pod, namespace, suggested_remote });
+        });
+    }
+
+    fn open_port_forward_prompt(&mut self, pod: String, namespace: String, suggested_remote: u16) {
+        self.pending_port_forward = Some(PendingPortForward {
+            pod,
+            namespace,
+            local_input: "0".into(),
+            remote_input: suggested_remote.to_string(),
+            active_field: PortForwardField::Local,
+        });
+        self.dispatcher.set_mode(InputMode::PortForwardInput);
+    }
+
+    fn confirm_port_forward(&mut self) {
+        let Some(pending) = self.pending_port_forward.take() else {
+            return;
+        };
+
+        let local_input = pending.local_input.trim();
+        let remote_input = pending.remote_input.trim();
+
+        let local_port = if local_input.is_empty() {
+            0
+        } else {
+            match local_input.parse::<u16>() {
+                Ok(port) => port,
+                Err(_) => {
+                    self.toasts.push(ToastMessage::error("Local port must be 0-65535"));
+                    self.pending_port_forward = Some(pending);
+                    return;
+                }
+            }
+        };
+
+        let remote_port = match remote_input.parse::<u16>() {
+            Ok(0) | Err(_) => {
+                self.toasts.push(ToastMessage::error("Remote port must be 1-65535"));
+                self.pending_port_forward = Some(pending);
+                return;
+            }
+            Ok(port) => port,
+        };
+
+        let pod = pending.pod;
+        let namespace = pending.namespace;
+        self.dispatcher.set_mode(InputMode::Normal);
+
+        let Some(client) = &self.kube_client else {
+            self.toasts.push(ToastMessage::error("No cluster connection"));
+            return;
+        };
+        let kube_client = client.inner_client();
+        let app_tx = self.app_tx.clone();
+
+        tokio::spawn(async move {
+            match crystal_core::PortForward::start(&kube_client, &pod, &namespace, local_port, remote_port).await {
+                Ok(forward) => {
+                    let _ = app_tx.send(AppEvent::PortForwardReady { forward });
+                }
+                Err(e) => {
+                    let _ = app_tx
+                        .send(AppEvent::Toast(ToastMessage::error(format!("Port-forward failed for {pod}: {e}"))));
+                }
+            }
+        });
+    }
+
+    fn attach_port_forward(&mut self, forward: crystal_core::PortForward) {
+        let pod = forward.pod_name().to_string();
+        let ns = forward.namespace().to_string();
+        let remote = forward.remote_port();
+        let local = forward.local_port();
+        let id = forward.id();
+        self.pod_forward_index.insert((ns, pod.clone()), id);
+        self.active_forwards.insert(id, forward);
+        self.refresh_pod_forward_indicators();
+        self.toasts.push(ToastMessage::success(format!("Forwarding {pod}:{remote} -> 127.0.0.1:{local}")));
+    }
+
+    fn stop_all_port_forwards(&mut self) {
+        let forwards: Vec<crystal_core::PortForward> = self.active_forwards.drain().map(|(_, f)| f).collect();
+        self.pod_forward_index.clear();
+        self.refresh_pod_forward_indicators();
+        for forward in forwards {
+            tokio::spawn(async move {
+                let _ = forward.stop().await;
+            });
+        }
+    }
+
+    fn refresh_pod_forward_indicators(&mut self) {
+        let pod_forward_index = self.pod_forward_index.clone();
+        if let Some(pane) = self.panes.get_mut(&self.pods_pane_id) {
+            if let Some(rp) = pane.as_any_mut().downcast_mut::<ResourceListPane>() {
+                if rp.state.headers.is_empty() {
+                    return;
+                }
+                let headers = with_pod_forward_header(&rp.state.headers);
+                rp.state.headers = headers.clone();
+                for row in &mut rp.state.items {
+                    let updated = with_pod_forward_cell(std::mem::take(row), &pod_forward_index, &headers);
+                    *row = updated;
+                }
+                rp.refresh_filter_and_sort();
+            }
+        }
+    }
+
     fn focused_supports_insert_mode(&self) -> bool {
         let focused = self.tab_manager.active().focused_pane;
         self.panes.get(&focused).is_some_and(|pane| matches!(pane.view_type(), ViewType::Exec(_) | ViewType::Terminal))
@@ -1084,13 +1322,9 @@ impl App {
         };
 
         let row = rp.state.items.get(selected_idx)?;
-        let name = row.first().cloned().unwrap_or_default();
-        let namespace = if rp.state.headers.iter().any(|h| h == "NAMESPACE") {
-            let ns_idx = rp.state.headers.iter().position(|h| h == "NAMESPACE").unwrap_or(1);
-            row.get(ns_idx).cloned().unwrap_or_default()
-        } else {
-            self.context_resolver.namespace().unwrap_or("default").to_string()
-        };
+        let name = header_value(&rp.state.headers, row, "NAME", 0).unwrap_or_default();
+        let namespace = header_value(&rp.state.headers, row, "NAMESPACE", 1)
+            .unwrap_or_else(|| self.context_resolver.namespace().unwrap_or("default").to_string());
 
         Some((kind, name, namespace))
     }
@@ -1177,13 +1411,9 @@ impl App {
             None => return,
         };
 
-        let name = row.first().cloned().unwrap_or_default();
-        let namespace = if rp.state.headers.iter().any(|h| h == "NAMESPACE") {
-            let ns_idx = rp.state.headers.iter().position(|h| h == "NAMESPACE").unwrap_or(1);
-            row.get(ns_idx).cloned().unwrap_or_default()
-        } else {
-            self.context_resolver.namespace().unwrap_or("default").to_string()
-        };
+        let name = header_value(&rp.state.headers, row, "NAME", 0).unwrap_or_default();
+        let namespace = header_value(&rp.state.headers, row, "NAMESPACE", 1)
+            .unwrap_or_else(|| self.context_resolver.namespace().unwrap_or("default").to_string());
 
         let message = format!("Delete {} {}\nin namespace {}?", kind.display_name(), name, namespace);
 
@@ -1272,11 +1502,12 @@ impl App {
             InputMode::ResourceSwitcher => "Resource",
             InputMode::ConfirmDialog => "Confirm",
             InputMode::FilterInput => "Filter",
+            InputMode::PortForwardInput => "PortForward",
         }
     }
 
     fn mode_hints(&self) -> Vec<(String, String)> {
-        match self.dispatcher.mode() {
+        let mut hints = match self.dispatcher.mode() {
             InputMode::Normal => self.dispatcher.global_hints(),
             InputMode::NamespaceSelector => {
                 vec![
@@ -1298,11 +1529,34 @@ impl App {
             InputMode::FilterInput => {
                 vec![("Enter".into(), "Keep filter".into()), ("Esc".into(), "Clear & exit".into())]
             }
+            InputMode::PortForwardInput => {
+                vec![
+                    ("Tab".into(), "Switch field".into()),
+                    ("Enter".into(), "Start".into()),
+                    ("Esc".into(), "Cancel".into()),
+                ]
+            }
             InputMode::Insert => {
                 vec![("Esc".into(), "Normal mode".into())]
             }
             _ => vec![],
+        };
+
+        if let Some((_pod, local, remote)) = self.selected_pod_forward_mapping() {
+            hints.push(("PF".into(), format!("127.0.0.1:{local}->{remote}")));
         }
+
+        hints
+    }
+
+    fn selected_pod_forward_mapping(&self) -> Option<(String, u16, u16)> {
+        let (kind, pod, namespace) = self.selected_resource_info()?;
+        if kind != ResourceKind::Pods {
+            return None;
+        }
+        let forward_id = self.pod_forward_index.get(&(namespace, pod.clone()))?;
+        let forward = self.active_forwards.get(forward_id)?;
+        Some((pod, forward.local_port(), forward.remote_port()))
     }
 
     fn build_render_context(&self) -> (RenderContext<'_>, Vec<String>, Vec<(String, String)>) {
@@ -1323,6 +1577,16 @@ impl App {
         });
 
         let confirm_dialog = self.pending_confirmation.as_ref().map(|pc| ConfirmDialogView { message: &pc.message });
+        let port_forward_dialog = self.pending_port_forward.as_ref().map(|pf| PortForwardDialogView {
+            pod: &pf.pod,
+            namespace: &pf.namespace,
+            local_port: &pf.local_input,
+            remote_port: &pf.remote_input,
+            active_field: match pf.active_field {
+                PortForwardField::Local => crystal_tui::layout::PortForwardFieldView::Local,
+                PortForwardField::Remote => crystal_tui::layout::PortForwardFieldView::Remote,
+            },
+        });
 
         let tab_names = self.tab_manager.tab_names();
         let hints = self.mode_hints();
@@ -1336,6 +1600,7 @@ impl App {
             namespace_selector,
             resource_switcher,
             confirm_dialog,
+            port_forward_dialog,
             toasts: &self.toasts,
             pane_tree,
             focused_pane: Some(focused_pane),
@@ -1421,6 +1686,88 @@ fn first_container_from_logs_error(error_msg: &str) -> Option<String> {
         .map(str::trim)
         .find(|s| !s.is_empty() && *s != "or")
         .map(|s| s.trim_matches('"').to_string())
+}
+
+fn with_pod_forward_header(headers: &[String]) -> Vec<String> {
+    if headers.iter().any(|h| h == "PF") {
+        return headers.to_vec();
+    }
+    let mut updated = Vec::with_capacity(headers.len() + 1);
+    updated.push("PF".to_string());
+    updated.extend(headers.iter().cloned());
+    updated
+}
+
+fn with_pod_forward_cell(
+    mut row: Vec<String>,
+    pod_forward_index: &HashMap<(String, String), ForwardId>,
+    headers: &[String],
+) -> Vec<String> {
+    let name = header_value(headers, &row, "NAME", 0).unwrap_or_default();
+    let namespace = header_value(headers, &row, "NAMESPACE", 1).unwrap_or_default();
+    let active = pod_forward_index.contains_key(&(namespace, name));
+    set_pod_forward_cell(&mut row, active);
+    row
+}
+
+fn set_pod_forward_cell(row: &mut Vec<String>, active: bool) {
+    if row.is_empty() {
+        row.push(if active { "ON".into() } else { String::new() });
+        return;
+    }
+    if row[0] == "ON" || row[0].is_empty() {
+        row[0] = if active { "ON".into() } else { String::new() };
+    } else {
+        row.insert(0, if active { "ON".into() } else { String::new() });
+    }
+}
+
+fn header_value(headers: &[String], row: &[String], header: &str, fallback_idx: usize) -> Option<String> {
+    if let Some(idx) = headers.iter().position(|h| h == header) {
+        return row.get(idx).cloned();
+    }
+    row.get(fallback_idx).cloned()
+}
+
+async fn detect_remote_port(client: &kube::Client, pod_name: &str, namespace: &str) -> Option<u16> {
+    let pods: Api<Pod> = Api::namespaced(client.clone(), namespace);
+    let pod = pods.get(pod_name).await.ok()?;
+    let spec = pod.spec?;
+
+    let mut all_ports: Vec<(u16, Option<String>)> = Vec::new();
+    for container in spec.containers {
+        if let Some(ports) = container.ports {
+            for p in ports {
+                if p.container_port <= 0 {
+                    continue;
+                }
+                if let Ok(port) = u16::try_from(p.container_port) {
+                    all_ports.push((port, p.name));
+                }
+            }
+        }
+    }
+
+    if all_ports.is_empty() {
+        return None;
+    }
+
+    // Prefer explicitly named HTTP ports first.
+    for (port, name) in &all_ports {
+        if name.as_deref().is_some_and(|n| n.contains("http") || n.contains("web")) {
+            return Some(*port);
+        }
+    }
+
+    // Then prefer common HTTP ports.
+    for preferred in [80u16, 8080, 8000, 3000, 5000] {
+        if all_ports.iter().any(|(p, _)| *p == preferred) {
+            return Some(preferred);
+        }
+    }
+
+    // Fall back to the first declared container port.
+    Some(all_ports[0].0)
 }
 
 struct EmptyPane(ViewType);

@@ -5,6 +5,7 @@ use ratatui::prelude::*;
 use crate::pane::{Pane, PaneId, PaneTree, ResourceKind};
 use crate::widgets::confirm_dialog::ConfirmDialogWidget;
 use crate::widgets::namespace_selector::NamespaceSelectorWidget;
+use crate::widgets::port_forward_dialog::PortForwardDialogWidget;
 use crate::widgets::resource_switcher::ResourceSwitcherWidget;
 use crate::widgets::status_bar::StatusBarWidget;
 use crate::widgets::tab_bar::TabBarWidget;
@@ -26,12 +27,27 @@ pub struct ConfirmDialogView<'a> {
     pub message: &'a str,
 }
 
+#[derive(Clone, Copy)]
+pub enum PortForwardFieldView {
+    Local,
+    Remote,
+}
+
+pub struct PortForwardDialogView<'a> {
+    pub pod: &'a str,
+    pub namespace: &'a str,
+    pub local_port: &'a str,
+    pub remote_port: &'a str,
+    pub active_field: PortForwardFieldView,
+}
+
 pub struct RenderContext<'a> {
     pub cluster_name: Option<&'a str>,
     pub namespace: Option<&'a str>,
     pub namespace_selector: Option<NamespaceSelectorView<'a>>,
     pub resource_switcher: Option<ResourceSwitcherView<'a>>,
     pub confirm_dialog: Option<ConfirmDialogView<'a>>,
+    pub port_forward_dialog: Option<PortForwardDialogView<'a>>,
     pub toasts: &'a [ToastMessage],
     pub pane_tree: &'a PaneTree,
     pub focused_pane: Option<PaneId>,
@@ -86,6 +102,17 @@ fn render_body(frame: &mut Frame, area: Rect, ctx: &RenderContext) {
 
     if let Some(ref cd) = ctx.confirm_dialog {
         let widget = ConfirmDialogWidget { message: cd.message };
+        widget.render(frame, area);
+    }
+
+    if let Some(ref pf) = ctx.port_forward_dialog {
+        let widget = PortForwardDialogWidget {
+            pod: pf.pod,
+            namespace: pf.namespace,
+            local_port: pf.local_port,
+            remote_port: pf.remote_port,
+            active_field: pf.active_field,
+        };
         widget.render(frame, area);
     }
 
