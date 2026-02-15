@@ -1,6 +1,7 @@
 [keybindings.global]
 quit = "q"
 help = "?"
+app_logs = "alt+l"
 enter_insert = "i"
 focus_next = "tab"
 focus_prev = "shift+tab"

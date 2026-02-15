@@ -19,6 +19,7 @@ fn dispatch_configured_keys_to_commands() {
     let d = default_dispatcher();
     assert_eq!(d.dispatch(press(KeyCode::Char('q'))), Some(Command::Quit));
     assert_eq!(d.dispatch(press(KeyCode::Char('?'))), Some(Command::ShowHelp));
+    assert_eq!(d.dispatch(press_mod(KeyCode::Char('l'), KeyModifiers::ALT)), Some(Command::ToggleAppLogsTab));
     assert_eq!(
         d.dispatch(press_mod(KeyCode::Char('o'), KeyModifiers::CONTROL)),
         Some(Command::EnterMode(InputMode::ContextSelector))

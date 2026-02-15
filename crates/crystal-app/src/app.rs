@@ -26,12 +26,12 @@ use crystal_tui::pane::{
     find_pane_in_direction, Direction, Pane, PaneCommand, PaneId, ResourceKind, SplitDirection, ViewType,
 };
 use crystal_tui::tab::TabManager;
-use crystal_tui::widgets::toast::ToastMessage;
+use crystal_tui::widgets::toast::{ToastLevel, ToastMessage};
 
 use crate::command::{Command, InputMode};
 use crate::event::{AppEvent, EventHandler};
 use crate::keybindings::KeybindingDispatcher;
-use crate::panes::{ExecPane, HelpPane, LogsPane, ResourceDetailPane, ResourceListPane, YamlPane};
+use crate::panes::{AppLogsPane, ExecPane, HelpPane, LogsPane, ResourceDetailPane, ResourceListPane, YamlPane};
 use crate::resource_switcher::ResourceSwitcher;
 
 #[derive(Debug, Clone)]
@@ -210,7 +210,14 @@ impl App {
                     self.handle_resource_update(pane_id, headers, rows)
                 }
                 AppEvent::ResourceError { pane_id, error } => self.handle_resource_error(pane_id, error),
-                AppEvent::Toast(toast) => self.toasts.push(toast),
+                AppEvent::Toast(toast) => {
+                    match toast.level {
+                        ToastLevel::Success => tracing::info!("{}", toast.text),
+                        ToastLevel::Error => tracing::error!("{}", toast.text),
+                        ToastLevel::Info => tracing::info!("{}", toast.text),
+                    }
+                    self.toasts.push(toast);
+                }
                 AppEvent::YamlReady { pane_id, kind, name, content } => {
                     self.open_yaml_pane(pane_id, kind, name, content);
                 }
@@ -354,6 +361,7 @@ impl App {
                 self.running = false;
             }
             Command::ShowHelp => self.toggle_help(),
+            Command::ToggleAppLogsTab => self.toggle_app_logs_tab(),
             Command::FocusNextPane => self.focus_next(),
             Command::FocusPrevPane => self.focus_prev(),
             Command::SplitVertical => self.split_focused(SplitDirection::Vertical),
@@ -743,6 +751,41 @@ impl App {
             self.load_active_scope();
             self.update_active_tab_title();
         }
+    }
+
+    fn toggle_app_logs_tab(&mut self) {
+        let active_tab_id = self.tab_manager.active().id;
+        if self.is_app_logs_tab(active_tab_id) {
+            self.close_tab();
+            return;
+        }
+
+        if let Some(idx) = self.find_app_logs_tab_index() {
+            self.switch_to_tab_index(idx);
+            return;
+        }
+
+        self.sync_active_scope();
+        let tab_id = self.tab_manager.new_tab("App Logs", ViewType::Plugin("AppLogs".into()));
+        let pane_id = self.tab_manager.tabs().iter().find(|t| t.id == tab_id).unwrap().focused_pane;
+        self.panes.insert(pane_id, Box::new(AppLogsPane::new()));
+        self.sync_active_scope();
+        self.update_active_tab_title();
+    }
+
+    fn is_app_logs_tab(&self, tab_id: u32) -> bool {
+        let Some(tab) = self.tab_manager.tabs().iter().find(|t| t.id == tab_id) else {
+            return false;
+        };
+        tab.pane_tree.leaf_ids().iter().all(|pane_id| {
+            self.panes
+                .get(pane_id)
+                .is_some_and(|p| matches!(p.view_type(), ViewType::Plugin(name) if name == "AppLogs"))
+        })
+    }
+
+    fn find_app_logs_tab_index(&self) -> Option<usize> {
+        self.tab_manager.tabs().iter().position(|tab| self.is_app_logs_tab(tab.id))
     }
 
     fn reset_last_tab_to_pods(&mut self, old_tab_id: u32, old_pane_ids: Vec<PaneId>) {
@@ -1212,6 +1255,8 @@ impl App {
 
         let app_tx = self.app_tx.clone();
         tokio::spawn(async move {
+            let mut exec_container = detect_first_container_name(&kube_client, &name, &namespace).await;
+
             // Kubernetes exec with TTY already provides interactive mode.
             // Run shell fallback chain similar to: zsh || bash || sh, but without noisy errors.
             let shell_fallback = r#"if command -v zsh >/dev/null 2>&1; then exec zsh -i; fi; if command -v bash >/dev/null 2>&1; then exec bash -i; fi; exec sh -i"#;
@@ -1224,12 +1269,44 @@ impl App {
             let mut started = None;
 
             for command in shell_candidates {
-                match crystal_core::ExecSession::start(kube_client.clone(), &name, &namespace, None, command).await {
+                match crystal_core::ExecSession::start(
+                    kube_client.clone(),
+                    &name,
+                    &namespace,
+                    exec_container.as_deref(),
+                    command.clone(),
+                )
+                .await
+                {
                     Ok(session) => {
                         started = Some(session);
                         break;
                     }
                     Err(err) => {
+                        let msg = err.to_string();
+                        if exec_container.is_none() && msg.contains("container") && msg.contains("must be specified") {
+                            exec_container = detect_first_container_name(&kube_client, &name, &namespace).await;
+                            if exec_container.is_some() {
+                                match crystal_core::ExecSession::start(
+                                    kube_client.clone(),
+                                    &name,
+                                    &namespace,
+                                    exec_container.as_deref(),
+                                    command,
+                                )
+                                .await
+                                {
+                                    Ok(session) => {
+                                        started = Some(session);
+                                        break;
+                                    }
+                                    Err(retry_err) => {
+                                        last_error = Some(retry_err);
+                                        continue;
+                                    }
+                                }
+                            }
+                        }
                         last_error = Some(err);
                     }
                 }
@@ -1298,6 +1375,9 @@ impl App {
         for (pane_id, pane) in self.panes.iter_mut() {
             if let Some(logs_pane) = pane.as_any_mut().downcast_mut::<LogsPane>() {
                 logs_pane.poll();
+            }
+            if let Some(app_logs_pane) = pane.as_any_mut().downcast_mut::<AppLogsPane>() {
+                app_logs_pane.poll();
             }
             if let Some(exec_pane) = pane.as_any_mut().downcast_mut::<ExecPane>() {
                 exec_pane.poll();
@@ -1889,6 +1969,7 @@ impl App {
             ViewType::Terminal => "TER".into(),
             ViewType::Help => "HLP".into(),
             ViewType::Empty => "EMP".into(),
+            ViewType::Plugin(name) if name == "AppLogs" => "ALG".into(),
             ViewType::Plugin(_) => "PLG".into(),
         }
     }
@@ -1985,6 +2066,11 @@ async fn detect_container_name(pods: &Api<Pod>, pod_name: &str, error_msg: &str)
         .await
         .ok()
         .and_then(|pod| pod.spec.as_ref().and_then(|s| s.containers.first()).map(|c| c.name.clone()))
+}
+
+async fn detect_first_container_name(client: &kube::Client, pod_name: &str, namespace: &str) -> Option<String> {
+    let pods: Api<Pod> = Api::namespaced(client.clone(), namespace);
+    pods.get(pod_name).await.ok().and_then(|pod| pod.spec.and_then(|s| s.containers.first().map(|c| c.name.clone())))
 }
 
 fn first_container_from_logs_error(error_msg: &str) -> Option<String> {

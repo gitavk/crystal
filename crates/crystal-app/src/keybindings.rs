@@ -186,6 +186,7 @@ impl KeybindingDispatcher {
             "close_pane",
             "namespace_selector",
             "context_selector",
+            "app_logs",
             "help",
             "quit",
         ];
@@ -344,6 +345,7 @@ fn command_from_name(name: &str) -> Option<Command> {
     match name {
         "quit" => Some(Command::Quit),
         "help" => Some(Command::ShowHelp),
+        "app_logs" => Some(Command::ToggleAppLogsTab),
         "enter_insert" => Some(Command::EnterMode(InputMode::Insert)),
         "focus_next" => Some(Command::FocusNextPane),
         "focus_prev" => Some(Command::FocusPrevPane),
@@ -420,6 +422,7 @@ fn command_description(name: &str) -> String {
     match name {
         "quit" => "Quit",
         "help" => "Help",
+        "app_logs" => "App logs",
         "enter_insert" => "Insert mode",
         "focus_next" => "Focus next",
         "focus_prev" => "Focus prev",

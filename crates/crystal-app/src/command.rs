@@ -19,6 +19,7 @@ pub struct LogRequest {
 pub enum Command {
     Quit,
     ShowHelp,
+    ToggleAppLogsTab,
     FocusNextPane,
     FocusPrevPane,
     FocusDirection(Direction),

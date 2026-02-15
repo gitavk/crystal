@@ -1,4 +1,5 @@
 mod app;
+mod app_log;
 mod command;
 mod event;
 mod keybindings;
@@ -20,7 +21,7 @@ use crate::keybindings::KeybindingDispatcher;
 async fn main() -> anyhow::Result<()> {
     tracing_subscriber::fmt()
         .with_env_filter(tracing_subscriber::EnvFilter::from_default_env())
-        .with_writer(io::stderr)
+        .with_writer(crate::app_log::AppLogMakeWriter)
         .init();
 
     install_panic_hook();
