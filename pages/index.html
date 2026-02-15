@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Crystal</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <header>
+        <h1>Crystal</h1>
+        <nav>
+            <a href="index.html">Home</a>
+            <a href="downloads.html">Downloads</a>
+            <a href="help.html">Help</a>
+        </nav>
+    </header>
+    <main>
+        <h2>About</h2>
+        <p>Crystal is a terminal-based Kubernetes workspace focused on fast, keyboard-driven navigation and a flexible pane-and-tab layout. It aims to make everyday cluster inspection feel like working in a tiled, multi-view console without leaving the terminal.</p>
+        <h3>What it does today</h3>
+        <ul>
+            <li>Connects to your current Kubernetes context and shows live resource lists across multiple Kubernetes kinds (including Pods, Deployments, Services, StatefulSets, DaemonSets, Jobs, CronJobs, ConfigMaps, Secrets, Ingresses, Nodes, Namespaces, PVs, and PVCs).</li>
+            <li>Lets you split the screen into multiple panes, move focus between them, and work with tabs including fullscreen and close operations.</li>
+            <li>Provides resource-list workflows like filter input, column sorting, and all-namespaces toggling.</li>
+            <li>Opens detail-oriented views from selections, including YAML and describe output in dedicated panes.</li>
+            <li>Streams pod logs and opens interactive exec sessions in dedicated panes.</li>
+            <li>Opens embedded terminal panes for general shell work.</li>
+            <li>Supports port forwarding to pods so local tools can reach in-cluster services.</li>
+            <li>Includes overlays for namespace switching, confirmation dialogs, transient toast notifications, context-sensitive help, and a resource switcher command palette.</li>
+            <li>Supports resource actions such as delete with confirmation and deployment rollout restart.</li>
+            <li>Shows a status bar with mode hints plus current cluster and namespace.</li>
+            <li>Works even without a cluster connection by showing a clear error state in the resource view.</li>
+        </ul>
+        <h3>What it does not do yet</h3>
+        <ul>
+            <li>No interactive scale workflow yet (scale action scaffolding exists but is not wired through the UI).</li>
+            <li>No plugin system.</li>
+        </ul>
+        <p>Crystal is under active development as an incremental learning project, so the feature set is intentionally focused on the foundation of the UI and core Kubernetes browsing flow.</p>
+    </main>
+    <footer>
+        <p>&copy; 2026 Crystal Project</p>
+    </footer>
+</body>
+</html>
