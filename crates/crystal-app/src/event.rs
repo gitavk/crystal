@@ -1,7 +1,7 @@
 use std::time::Duration;
 
 use crossterm::event::{self, Event, KeyEvent};
-use crystal_core::LogStream;
+use crystal_core::{ExecSession, LogStream};
 use crystal_tui::pane::{PaneId, ResourceKind};
 use crystal_tui::widgets::toast::ToastMessage;
 use tokio::sync::mpsc;
@@ -40,6 +40,14 @@ pub enum AppEvent {
         lines: Vec<String>,
     },
     LogsStreamError {
+        pane_id: PaneId,
+        error: String,
+    },
+    ExecSessionReady {
+        pane_id: PaneId,
+        session: ExecSession,
+    },
+    ExecSessionError {
         pane_id: PaneId,
         error: String,
     },

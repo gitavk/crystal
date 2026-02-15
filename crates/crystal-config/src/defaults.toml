@@ -1,6 +1,7 @@
 [keybindings.global]
 quit = "q"
 help = "?"
+enter_insert = "i"
 focus_next = "tab"
 focus_prev = "shift+tab"
 split_vertical = "alt+v"

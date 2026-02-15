@@ -560,3 +560,40 @@ fn insert_mode_hints_contain_esc() {
     };
     assert_eq!(mode_name, "Insert");
 }
+
+#[tokio::test]
+async fn enter_insert_mode_is_gated_by_focused_pane_type() {
+    let dispatcher = test_dispatcher();
+    let mut app = App::new(50, dispatcher).await;
+    app.dispatcher.set_mode(InputMode::Normal);
+
+    app.handle_command(Command::EnterMode(InputMode::Insert));
+    assert_eq!(app.dispatcher.mode(), InputMode::Normal);
+
+    let focused = app.tab_manager.active().focused_pane;
+    let exec_id =
+        app.tab_manager.split_pane(focused, SplitDirection::Horizontal, ViewType::Exec("pod-a".into())).unwrap();
+    app.panes.insert(exec_id, Box::new(crate::panes::ExecPane::new("pod-a".into(), "auto".into(), "default".into())));
+    app.set_focus(exec_id);
+
+    app.handle_command(Command::EnterMode(InputMode::Insert));
+    assert_eq!(app.dispatcher.mode(), InputMode::Insert);
+}
+
+#[tokio::test]
+async fn exec_without_cluster_connection_keeps_normal_mode() {
+    let dispatcher = test_dispatcher();
+    let mut app = App::new(50, dispatcher).await;
+    app.kube_client = None;
+    app.dispatcher.set_mode(InputMode::Normal);
+
+    app.with_pods_pane(|pane| {
+        pane.state.headers = vec!["NAME".into(), "NAMESPACE".into(), "STATUS".into()];
+        pane.state.set_items(vec![vec!["pod-a".into(), "default".into(), "Running".into()]]);
+        pane.refresh_filter_and_sort();
+    });
+
+    app.handle_command(Command::ExecInto);
+
+    assert_eq!(app.dispatcher.mode(), InputMode::Normal);
+}

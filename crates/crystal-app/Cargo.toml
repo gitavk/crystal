@@ -11,6 +11,7 @@ path = "src/main.rs"
 crystal-tui = { path = "../crystal-tui" }
 crystal-config = { path = "../crystal-config" }
 crystal-core = { path = "../crystal-core" }
+crystal-terminal = { path = "../crystal-terminal" }
 kube.workspace = true
 k8s-openapi.workspace = true
 tokio.workspace = true
@@ -20,3 +21,4 @@ crossterm.workspace = true
 anyhow.workspace = true
 tracing.workspace = true
 tracing-subscriber.workspace = true
+vt100.workspace = true

@@ -312,6 +312,7 @@ fn command_from_name(name: &str) -> Option<Command> {
     match name {
         "quit" => Some(Command::Quit),
         "help" => Some(Command::ShowHelp),
+        "enter_insert" => Some(Command::EnterMode(InputMode::Insert)),
         "focus_next" => Some(Command::FocusNextPane),
         "focus_prev" => Some(Command::FocusPrevPane),
         "focus_up" => Some(Command::FocusDirection(Direction::Up)),
@@ -384,6 +385,7 @@ fn command_description(name: &str) -> String {
     match name {
         "quit" => "Quit",
         "help" => "Help",
+        "enter_insert" => "Insert mode",
         "focus_next" => "Focus next",
         "focus_prev" => "Focus prev",
         "focus_up" => "Focus up",

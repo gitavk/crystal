@@ -28,7 +28,7 @@ use crystal_tui::widgets::toast::ToastMessage;
 use crate::command::{Command, InputMode};
 use crate::event::{AppEvent, EventHandler};
 use crate::keybindings::KeybindingDispatcher;
-use crate::panes::{HelpPane, LogsPane, ResourceDetailPane, ResourceListPane, YamlPane};
+use crate::panes::{ExecPane, HelpPane, LogsPane, ResourceDetailPane, ResourceListPane, YamlPane};
 use crate::resource_switcher::ResourceSwitcher;
 
 #[derive(Debug, Clone)]
@@ -172,6 +172,14 @@ impl App {
                 AppEvent::LogsStreamError { pane_id, error } => {
                     self.attach_logs_error(pane_id, error);
                 }
+                AppEvent::ExecSessionReady { pane_id, session } => {
+                    self.attach_exec_session(pane_id, session);
+                    self.dispatcher.set_mode(InputMode::Insert);
+                }
+                AppEvent::ExecSessionError { pane_id, error } => {
+                    self.attach_exec_error(pane_id, error);
+                    self.dispatcher.set_mode(InputMode::Normal);
+                }
             }
         }
 
@@ -286,6 +294,9 @@ impl App {
             Command::SplitHorizontal => self.split_focused(SplitDirection::Horizontal),
             Command::ClosePane => self.close_focused(),
             Command::EnterMode(mode) => {
+                if mode == InputMode::Insert && !self.focused_supports_insert_mode() {
+                    return;
+                }
                 self.dispatcher.set_mode(mode);
                 if mode == InputMode::NamespaceSelector {
                     self.namespace_filter.clear();
@@ -567,7 +578,7 @@ impl App {
             }
 
             Command::ExecInto => {
-                self.toasts.push(ToastMessage::info("Exec not yet implemented"));
+                self.open_exec_pane();
             }
 
             // Terminal lifecycle (handled in future step)
@@ -917,6 +928,72 @@ impl App {
         });
     }
 
+    fn open_exec_pane(&mut self) {
+        let Some((kind, name, namespace)) = self.selected_resource_info() else {
+            return;
+        };
+        if kind != ResourceKind::Pods {
+            self.toasts.push(ToastMessage::info("Exec is only available for Pods"));
+            return;
+        }
+        let kube_client = match &self.kube_client {
+            Some(client) => client.inner_client(),
+            None => {
+                self.toasts.push(ToastMessage::error("No cluster connection"));
+                return;
+            }
+        };
+
+        let focused = self.tab_manager.active().focused_pane;
+        let pane = ExecPane::new(name.clone(), "auto".into(), namespace.clone());
+        let view = ViewType::Exec(name.clone());
+        let Some(new_id) = self.tab_manager.split_pane(focused, SplitDirection::Horizontal, view) else {
+            return;
+        };
+        self.panes.insert(new_id, Box::new(pane));
+        self.set_focus(new_id);
+
+        let app_tx = self.app_tx.clone();
+        tokio::spawn(async move {
+            // Kubernetes exec with TTY already provides interactive mode.
+            // Run shell fallback chain similar to: zsh || bash || sh, but without noisy errors.
+            let shell_fallback = r#"if command -v zsh >/dev/null 2>&1; then exec zsh -i; fi; if command -v bash >/dev/null 2>&1; then exec bash -i; fi; exec sh -i"#;
+            let shell_candidates: [Vec<String>; 2] = [
+                vec!["/bin/sh".to_string(), "-c".to_string(), shell_fallback.to_string()],
+                vec!["sh".to_string(), "-c".to_string(), shell_fallback.to_string()],
+            ];
+
+            let mut last_error: Option<anyhow::Error> = None;
+            let mut started = None;
+
+            for command in shell_candidates {
+                match crystal_core::ExecSession::start(kube_client.clone(), &name, &namespace, None, command).await {
+                    Ok(session) => {
+                        started = Some(session);
+                        break;
+                    }
+                    Err(err) => {
+                        last_error = Some(err);
+                    }
+                }
+            }
+
+            match started {
+                Some(session) => {
+                    let _ = app_tx.send(AppEvent::ExecSessionReady { pane_id: new_id, session });
+                }
+                None => {
+                    let error = match last_error {
+                        Some(err) => format!("no supported shell found (zsh, bash, sh): {err}"),
+                        None => "no supported shell found (zsh, bash, sh)".to_string(),
+                    };
+                    let _ = app_tx.send(AppEvent::ExecSessionError { pane_id: new_id, error: error.clone() });
+                    let _ = app_tx.send(AppEvent::Toast(ToastMessage::error(format!("Failed to start exec: {error}"))));
+                }
+            }
+        });
+    }
+
     fn attach_logs_stream(&mut self, pane_id: PaneId, stream: crystal_core::LogStream) {
         if let Some(pane) = self.panes.get_mut(&pane_id) {
             if let Some(logs_pane) = pane.as_any_mut().downcast_mut::<LogsPane>() {
@@ -941,12 +1018,51 @@ impl App {
         }
     }
 
+    fn attach_exec_session(&mut self, pane_id: PaneId, session: crystal_core::ExecSession) {
+        if let Some(pane) = self.panes.get_mut(&pane_id) {
+            if let Some(exec_pane) = pane.as_any_mut().downcast_mut::<ExecPane>() {
+                exec_pane.attach_session(session);
+            }
+        }
+    }
+
+    fn attach_exec_error(&mut self, pane_id: PaneId, error: String) {
+        if let Some(pane) = self.panes.get_mut(&pane_id) {
+            if let Some(exec_pane) = pane.as_any_mut().downcast_mut::<ExecPane>() {
+                exec_pane.set_error(error);
+            }
+        }
+    }
+
     fn poll_runtime_panes(&mut self) {
-        for pane in self.panes.values_mut() {
+        let mut exited_exec_panes: Vec<PaneId> = Vec::new();
+        let focused_before = self.tab_manager.active().focused_pane;
+
+        for (pane_id, pane) in self.panes.iter_mut() {
             if let Some(logs_pane) = pane.as_any_mut().downcast_mut::<LogsPane>() {
                 logs_pane.poll();
             }
+            if let Some(exec_pane) = pane.as_any_mut().downcast_mut::<ExecPane>() {
+                exec_pane.poll();
+                if exec_pane.exited() {
+                    exited_exec_panes.push(*pane_id);
+                }
+            }
         }
+
+        let focused_exec_exited = exited_exec_panes.contains(&focused_before);
+        for pane_id in exited_exec_panes {
+            self.close_pane(pane_id);
+        }
+
+        if focused_exec_exited && self.dispatcher.mode() == InputMode::Insert {
+            self.dispatcher.set_mode(InputMode::Normal);
+        }
+    }
+
+    fn focused_supports_insert_mode(&self) -> bool {
+        let focused = self.tab_manager.active().focused_pane;
+        self.panes.get(&focused).is_some_and(|pane| matches!(pane.view_type(), ViewType::Exec(_) | ViewType::Terminal))
     }
 
     fn selected_resource_info(&self) -> Option<(ResourceKind, String, String)> {
