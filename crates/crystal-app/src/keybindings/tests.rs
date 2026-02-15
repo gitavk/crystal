@@ -14,28 +14,88 @@ fn press_mod(code: KeyCode, modifiers: KeyModifiers) -> KeyEvent {
     KeyEvent::new(code, modifiers)
 }
 
-#[test]
-fn dispatch_configured_keys_to_commands() {
-    let d = default_dispatcher();
-    assert_eq!(d.dispatch(press(KeyCode::Char('q'))), Some(Command::Quit));
-    assert_eq!(d.dispatch(press(KeyCode::Char('?'))), Some(Command::ShowHelp));
-    assert_eq!(d.dispatch(press_mod(KeyCode::Char('l'), KeyModifiers::ALT)), Some(Command::ToggleAppLogsTab));
-    assert_eq!(
-        d.dispatch(press_mod(KeyCode::Char('o'), KeyModifiers::CONTROL)),
-        Some(Command::EnterMode(InputMode::ContextSelector))
-    );
-    assert_eq!(d.dispatch(press(KeyCode::Tab)), Some(Command::FocusNextPane));
-    assert_eq!(d.dispatch(press_mod(KeyCode::Char('v'), KeyModifiers::ALT)), Some(Command::SplitVertical));
-    assert_eq!(d.dispatch(press_mod(KeyCode::Char('h'), KeyModifiers::ALT)), Some(Command::SplitHorizontal));
-    assert_eq!(d.dispatch(press_mod(KeyCode::Char('w'), KeyModifiers::ALT)), Some(Command::ClosePane));
-    assert_eq!(d.dispatch(press_mod(KeyCode::Char('c'), KeyModifiers::ALT)), Some(Command::CloseTab));
+fn ctrl(code: KeyCode) -> KeyEvent {
+    KeyEvent::new(code, KeyModifiers::CONTROL)
+}
+
+fn alt(code: KeyCode) -> KeyEvent {
+    KeyEvent::new(code, KeyModifiers::ALT)
+}
+
+fn ctrl_alt(code: KeyCode) -> KeyEvent {
+    KeyEvent::new(code, KeyModifiers::CONTROL | KeyModifiers::ALT)
 }
 
 #[test]
-fn global_takes_precedence_over_pane() {
+fn dispatch_global_keys() {
+    let d = default_dispatcher();
+    assert_eq!(d.dispatch(ctrl(KeyCode::Char('q'))), Some(Command::Quit));
+    assert_eq!(d.dispatch(press(KeyCode::Char('?'))), Some(Command::ShowHelp));
+    assert_eq!(d.dispatch(ctrl(KeyCode::Char('l'))), Some(Command::ToggleAppLogsTab));
+    assert_eq!(d.dispatch(ctrl(KeyCode::Char('o'))), Some(Command::EnterMode(InputMode::ContextSelector)));
+    assert_eq!(d.dispatch(ctrl(KeyCode::Char('n'))), Some(Command::EnterMode(InputMode::NamespaceSelector)));
+    assert_eq!(d.dispatch(ctrl(KeyCode::Char('e'))), Some(Command::EnterMode(InputMode::Insert)));
+}
+
+#[test]
+fn dispatch_navigation_keys() {
+    let d = default_dispatcher();
+    assert_eq!(d.dispatch(press(KeyCode::Char('j'))), Some(Command::Pane(PaneCommand::SelectNext)));
+    assert_eq!(d.dispatch(press(KeyCode::Char('k'))), Some(Command::Pane(PaneCommand::SelectPrev)));
+    assert_eq!(d.dispatch(press(KeyCode::Down)), Some(Command::Pane(PaneCommand::SelectNext)));
+    assert_eq!(d.dispatch(press(KeyCode::Up)), Some(Command::Pane(PaneCommand::SelectPrev)));
+    assert_eq!(d.dispatch(press(KeyCode::Enter)), Some(Command::Pane(PaneCommand::Select)));
+    assert_eq!(d.dispatch(press(KeyCode::Esc)), Some(Command::Pane(PaneCommand::Back)));
+    assert_eq!(d.dispatch(press(KeyCode::Char('g'))), Some(Command::Pane(PaneCommand::GoToTop)));
+    assert_eq!(
+        d.dispatch(press_mod(KeyCode::Char('G'), KeyModifiers::SHIFT)),
+        Some(Command::Pane(PaneCommand::GoToBottom))
+    );
+    assert_eq!(d.dispatch(press(KeyCode::PageUp)), Some(Command::Pane(PaneCommand::PageUp)));
+    assert_eq!(d.dispatch(press(KeyCode::PageDown)), Some(Command::Pane(PaneCommand::PageDown)));
+}
+
+#[test]
+fn dispatch_browse_keys() {
+    let d = default_dispatcher();
+    assert_eq!(d.dispatch(press(KeyCode::Char('y'))), Some(Command::ViewYaml));
+    assert_eq!(d.dispatch(press(KeyCode::Char('d'))), Some(Command::ViewDescribe));
+    assert_eq!(d.dispatch(press(KeyCode::Char('l'))), Some(Command::ViewLogs));
+    assert_eq!(d.dispatch(press(KeyCode::Char('/'))), Some(Command::EnterMode(InputMode::FilterInput)));
+    assert_eq!(d.dispatch(press(KeyCode::Char(':'))), Some(Command::EnterResourceSwitcher));
+    assert_eq!(d.dispatch(press(KeyCode::Char('s'))), Some(Command::SortByColumn));
+    assert_eq!(d.dispatch(press(KeyCode::Char('a'))), Some(Command::ToggleAllNamespaces));
+    assert_eq!(d.dispatch(press(KeyCode::Char('f'))), Some(Command::Pane(PaneCommand::ToggleFollow)));
+}
+
+#[test]
+fn dispatch_tui_keys() {
+    let d = default_dispatcher();
+    assert_eq!(d.dispatch(alt(KeyCode::Char('v'))), Some(Command::SplitVertical));
+    assert_eq!(d.dispatch(alt(KeyCode::Char('h'))), Some(Command::SplitHorizontal));
+    assert_eq!(d.dispatch(alt(KeyCode::Char('w'))), Some(Command::ClosePane));
+    assert_eq!(d.dispatch(alt(KeyCode::Char('f'))), Some(Command::ToggleFullscreen));
+    assert_eq!(d.dispatch(alt(KeyCode::Char('t'))), Some(Command::NewTab));
+    assert_eq!(d.dispatch(alt(KeyCode::Char('c'))), Some(Command::CloseTab));
+    assert_eq!(d.dispatch(press(KeyCode::Tab)), Some(Command::FocusNextPane));
+    assert_eq!(d.dispatch(press_mod(KeyCode::Tab, KeyModifiers::SHIFT)), Some(Command::FocusPrevPane));
+}
+
+#[test]
+fn dispatch_mutate_keys() {
+    let d = default_dispatcher();
+    assert_eq!(d.dispatch(ctrl_alt(KeyCode::Char('d'))), Some(Command::DeleteResource));
+    assert_eq!(d.dispatch(ctrl_alt(KeyCode::Char('s'))), Some(Command::ScaleResource));
+    assert_eq!(d.dispatch(ctrl_alt(KeyCode::Char('r'))), Some(Command::RestartRollout));
+    assert_eq!(d.dispatch(ctrl_alt(KeyCode::Char('e'))), Some(Command::ExecInto));
+    assert_eq!(d.dispatch(ctrl_alt(KeyCode::Char('p'))), Some(Command::PortForward));
+}
+
+#[test]
+fn global_takes_precedence_over_navigation() {
     let mut config = KeybindingsConfig::default();
     config.global.insert("quit".into(), "j".into());
-    config.pane.insert("select_next".into(), "j".into());
+    config.navigation.insert("scroll_down".into(), "j".into());
 
     let d = KeybindingDispatcher::from_config(&config);
     assert_eq!(d.dispatch(press(KeyCode::Char('j'))), Some(Command::Quit));
@@ -44,11 +104,11 @@ fn global_takes_precedence_over_pane() {
 #[test]
 fn config_merge_overrides() {
     let mut config = crystal_config::Config::load();
-    config.keybindings.global.insert("quit".into(), "x".into());
+    config.keybindings.global.insert("quit".into(), "ctrl+x".into());
     let d = KeybindingDispatcher::from_config(&config.keybindings);
 
-    assert_eq!(d.dispatch(press(KeyCode::Char('x'))), Some(Command::Quit));
-    assert_eq!(d.dispatch(press(KeyCode::Char('q'))), None);
+    assert_eq!(d.dispatch(ctrl(KeyCode::Char('x'))), Some(Command::Quit));
+    assert_eq!(d.dispatch(ctrl(KeyCode::Char('q'))), None);
 }
 
 #[test]
@@ -64,7 +124,7 @@ fn invalid_key_string_skipped() {
 #[test]
 fn missing_config_uses_defaults() {
     let d = default_dispatcher();
-    assert!(d.dispatch(press(KeyCode::Char('q'))).is_some());
+    assert!(d.dispatch(ctrl(KeyCode::Char('q'))).is_some());
     assert!(d.dispatch(press(KeyCode::Enter)).is_some());
 }
 
@@ -75,10 +135,8 @@ fn mode_switch_changes_active_bindings() {
     assert_eq!(d.dispatch(press(KeyCode::Char('j'))), Some(Command::Pane(PaneCommand::SelectNext)));
 
     d.set_mode(InputMode::NamespaceSelector);
-    // pane bindings not active — char forwarded as namespace input
     assert_eq!(d.dispatch(press(KeyCode::Char('j'))), Some(Command::NamespaceInput('j')));
-    // global bindings still active
-    assert_eq!(d.dispatch(press(KeyCode::Char('q'))), Some(Command::Quit));
+    assert_eq!(d.dispatch(ctrl(KeyCode::Char('q'))), Some(Command::Quit));
 }
 
 #[test]
@@ -86,11 +144,8 @@ fn insert_mode_forwards_all_keys_as_send_input() {
     let mut d = default_dispatcher();
     d.set_mode(InputMode::Insert);
 
-    // global bindings are NOT active in Insert mode — 'q' goes to terminal
     assert_eq!(d.dispatch(press(KeyCode::Char('q'))), Some(Command::Pane(PaneCommand::SendInput("q".into()))));
-
-    let result = d.dispatch(press(KeyCode::Char('a')));
-    assert_eq!(result, Some(Command::Pane(PaneCommand::SendInput("a".into()))));
+    assert_eq!(d.dispatch(press(KeyCode::Char('a'))), Some(Command::Pane(PaneCommand::SendInput("a".into()))));
 }
 
 #[test]
@@ -104,7 +159,7 @@ fn insert_mode_esc_exits_to_normal() {
 fn insert_mode_ctrl_c_sends_interrupt() {
     let mut d = default_dispatcher();
     d.set_mode(InputMode::Insert);
-    let result = d.dispatch(press_mod(KeyCode::Char('c'), KeyModifiers::CONTROL));
+    let result = d.dispatch(ctrl(KeyCode::Char('c')));
     assert_eq!(result, Some(Command::Pane(PaneCommand::SendInput("\x03".into()))));
 }
 
@@ -112,7 +167,7 @@ fn insert_mode_ctrl_c_sends_interrupt() {
 fn insert_mode_ctrl_d_sends_eof() {
     let mut d = default_dispatcher();
     d.set_mode(InputMode::Insert);
-    let result = d.dispatch(press_mod(KeyCode::Char('d'), KeyModifiers::CONTROL));
+    let result = d.dispatch(ctrl(KeyCode::Char('d')));
     assert_eq!(result, Some(Command::Pane(PaneCommand::SendInput("\x04".into()))));
 }
 
@@ -156,7 +211,6 @@ fn insert_mode_special_keys() {
 #[test]
 fn normal_mode_arrow_keys_not_terminal_input() {
     let d = default_dispatcher();
-    // In Normal mode, arrow keys should NOT produce SendInput
     let result = d.dispatch(press(KeyCode::Up));
     assert_ne!(result, Some(Command::Pane(PaneCommand::SendInput("\x1b[A".into()))));
 }
@@ -180,6 +234,35 @@ fn parse_ctrl_modifier() {
     let key = parse_key_string("ctrl+c").unwrap();
     assert_eq!(key.code, KeyCode::Char('c'));
     assert!(key.modifiers.contains(KeyModifiers::CONTROL));
+}
+
+#[test]
+fn parse_ctrl_alt_modifier() {
+    let key = parse_key_string("ctrl+alt+d").unwrap();
+    assert_eq!(key.code, KeyCode::Char('d'));
+    assert!(key.modifiers.contains(KeyModifiers::CONTROL));
+    assert!(key.modifiers.contains(KeyModifiers::ALT));
+}
+
+#[test]
+fn parse_uppercase_char_adds_shift() {
+    let key = parse_key_string("G").unwrap();
+    assert_eq!(key.code, KeyCode::Char('G'));
+    assert!(key.modifiers.contains(KeyModifiers::SHIFT));
+}
+
+#[test]
+fn parse_shift_g_produces_uppercase_with_shift() {
+    let key = parse_key_string("shift+g").unwrap();
+    assert_eq!(key.code, KeyCode::Char('G'));
+    assert!(key.modifiers.contains(KeyModifiers::SHIFT));
+}
+
+#[test]
+fn uppercase_and_shift_g_canonicalize_same() {
+    let upper = parse_key_string("G").unwrap();
+    let shift = parse_key_string("shift+g").unwrap();
+    assert_eq!(upper, shift);
 }
 
 #[test]
@@ -237,7 +320,7 @@ fn global_hints_returns_expected_keys() {
     assert!(!hints.is_empty());
     let keys: Vec<&str> = hints.iter().map(|(k, _)| k.as_str()).collect();
     assert!(keys.contains(&"alt+v"));
-    assert!(keys.contains(&"q"));
+    assert!(keys.contains(&"ctrl+q") || keys.contains(&"?"));
 }
 
 #[test]
@@ -260,26 +343,23 @@ fn goto_tab_dispatch() {
 #[test]
 fn focus_direction_dispatch() {
     let d = default_dispatcher();
-    assert_eq!(d.dispatch(press_mod(KeyCode::Up, KeyModifiers::ALT)), Some(Command::FocusDirection(Direction::Up)));
-    assert_eq!(d.dispatch(press_mod(KeyCode::Down, KeyModifiers::ALT)), Some(Command::FocusDirection(Direction::Down)));
-    assert_eq!(d.dispatch(press_mod(KeyCode::Left, KeyModifiers::ALT)), Some(Command::FocusDirection(Direction::Left)));
-    assert_eq!(
-        d.dispatch(press_mod(KeyCode::Right, KeyModifiers::ALT)),
-        Some(Command::FocusDirection(Direction::Right))
-    );
+    assert_eq!(d.dispatch(alt(KeyCode::Up)), Some(Command::FocusDirection(Direction::Up)));
+    assert_eq!(d.dispatch(alt(KeyCode::Down)), Some(Command::FocusDirection(Direction::Down)));
+    assert_eq!(d.dispatch(alt(KeyCode::Left)), Some(Command::FocusDirection(Direction::Left)));
+    assert_eq!(d.dispatch(alt(KeyCode::Right)), Some(Command::FocusDirection(Direction::Right)));
 }
 
 #[test]
 fn resize_dispatch() {
     let d = default_dispatcher();
-    assert_eq!(d.dispatch(press_mod(KeyCode::Char('k'), KeyModifiers::ALT)), Some(Command::ResizeGrow));
-    assert_eq!(d.dispatch(press_mod(KeyCode::Char('j'), KeyModifiers::ALT)), Some(Command::ResizeShrink));
+    assert_eq!(d.dispatch(alt(KeyCode::Char('k'))), Some(Command::ResizeGrow));
+    assert_eq!(d.dispatch(alt(KeyCode::Char('j'))), Some(Command::ResizeShrink));
 }
 
 #[test]
 fn fullscreen_dispatch() {
     let d = default_dispatcher();
-    assert_eq!(d.dispatch(press_mod(KeyCode::Char('f'), KeyModifiers::ALT)), Some(Command::ToggleFullscreen));
+    assert_eq!(d.dispatch(alt(KeyCode::Char('f'))), Some(Command::ToggleFullscreen));
 }
 
 #[test]
@@ -312,29 +392,7 @@ fn context_mode_dispatches_nav_and_input() {
 fn namespace_mode_global_bindings_still_active() {
     let mut d = default_dispatcher();
     d.set_mode(InputMode::NamespaceSelector);
-    assert_eq!(d.dispatch(press(KeyCode::Char('q'))), Some(Command::Quit));
-}
-
-#[test]
-fn resource_bindings_map_in_normal_mode() {
-    let d = default_dispatcher();
-    assert_eq!(d.dispatch(press(KeyCode::Char('y'))), Some(Command::ViewYaml));
-    assert_eq!(d.dispatch(press(KeyCode::Char('d'))), Some(Command::ViewDescribe));
-    assert_eq!(d.dispatch(press_mod(KeyCode::Char('d'), KeyModifiers::CONTROL)), Some(Command::DeleteResource));
-    assert_eq!(d.dispatch(press(KeyCode::Char('l'))), Some(Command::ViewLogs));
-    assert_eq!(d.dispatch(press(KeyCode::Char('e'))), Some(Command::ExecInto));
-    assert_eq!(d.dispatch(press(KeyCode::Char('p'))), Some(Command::PortForward));
-    assert_eq!(d.dispatch(press(KeyCode::Char('a'))), Some(Command::ToggleAllNamespaces));
-    assert_eq!(d.dispatch(press(KeyCode::Char('s'))), Some(Command::SortByColumn));
-    assert_eq!(d.dispatch(press(KeyCode::Char('/'))), Some(Command::EnterMode(InputMode::FilterInput)));
-    assert_eq!(d.dispatch(press(KeyCode::Char(':'))), Some(Command::EnterResourceSwitcher));
-}
-
-#[test]
-fn resource_bindings_shift_keys() {
-    let d = default_dispatcher();
-    assert_eq!(d.dispatch(press_mod(KeyCode::Char('S'), KeyModifiers::SHIFT)), Some(Command::ScaleResource));
-    assert_eq!(d.dispatch(press_mod(KeyCode::Char('R'), KeyModifiers::SHIFT)), Some(Command::RestartRollout));
+    assert_eq!(d.dispatch(ctrl(KeyCode::Char('q'))), Some(Command::Quit));
 }
 
 #[test]
@@ -419,30 +477,37 @@ fn port_forward_input_mode_ignores_non_digits() {
 }
 
 #[test]
-fn resource_command_config_names_map_correctly() {
+fn mutate_command_config_names_map_correctly() {
     let mut config = KeybindingsConfig::default();
-    config.resource.insert("view_yaml".into(), "f1".into());
-    config.resource.insert("view_describe".into(), "f2".into());
-    config.resource.insert("delete".into(), "f3".into());
-    config.resource.insert("scale".into(), "f4".into());
-    config.resource.insert("restart".into(), "f5".into());
-    config.resource.insert("view_logs".into(), "f6".into());
-    config.resource.insert("exec".into(), "f7".into());
-    config.resource.insert("port_forward".into(), "f8".into());
-    config.resource.insert("toggle_all_namespaces".into(), "f9".into());
-    config.resource.insert("sort".into(), "f10".into());
-    config.resource.insert("filter".into(), "f11".into());
-    config.resource.insert("resource_switcher".into(), "f12".into());
+    config.mutate.insert("delete".into(), "f3".into());
+    config.mutate.insert("scale".into(), "f4".into());
+    config.mutate.insert("restart_rollout".into(), "f5".into());
+    config.mutate.insert("exec".into(), "f7".into());
+    config.mutate.insert("port_forward".into(), "f8".into());
+
+    let d = KeybindingDispatcher::from_config(&config);
+    assert_eq!(d.dispatch(press(KeyCode::F(3))), Some(Command::DeleteResource));
+    assert_eq!(d.dispatch(press(KeyCode::F(4))), Some(Command::ScaleResource));
+    assert_eq!(d.dispatch(press(KeyCode::F(5))), Some(Command::RestartRollout));
+    assert_eq!(d.dispatch(press(KeyCode::F(7))), Some(Command::ExecInto));
+    assert_eq!(d.dispatch(press(KeyCode::F(8))), Some(Command::PortForward));
+}
+
+#[test]
+fn browse_command_config_names_map_correctly() {
+    let mut config = KeybindingsConfig::default();
+    config.browse.insert("view_yaml".into(), "f1".into());
+    config.browse.insert("view_describe".into(), "f2".into());
+    config.browse.insert("view_logs".into(), "f6".into());
+    config.browse.insert("toggle_all_namespaces".into(), "f9".into());
+    config.browse.insert("sort_column".into(), "f10".into());
+    config.browse.insert("filter".into(), "f11".into());
+    config.browse.insert("resource_switcher".into(), "f12".into());
 
     let d = KeybindingDispatcher::from_config(&config);
     assert_eq!(d.dispatch(press(KeyCode::F(1))), Some(Command::ViewYaml));
     assert_eq!(d.dispatch(press(KeyCode::F(2))), Some(Command::ViewDescribe));
-    assert_eq!(d.dispatch(press(KeyCode::F(3))), Some(Command::DeleteResource));
-    assert_eq!(d.dispatch(press(KeyCode::F(4))), Some(Command::ScaleResource));
-    assert_eq!(d.dispatch(press(KeyCode::F(5))), Some(Command::RestartRollout));
     assert_eq!(d.dispatch(press(KeyCode::F(6))), Some(Command::ViewLogs));
-    assert_eq!(d.dispatch(press(KeyCode::F(7))), Some(Command::ExecInto));
-    assert_eq!(d.dispatch(press(KeyCode::F(8))), Some(Command::PortForward));
     assert_eq!(d.dispatch(press(KeyCode::F(9))), Some(Command::ToggleAllNamespaces));
     assert_eq!(d.dispatch(press(KeyCode::F(10))), Some(Command::SortByColumn));
     assert_eq!(d.dispatch(press(KeyCode::F(11))), Some(Command::EnterMode(InputMode::FilterInput)));

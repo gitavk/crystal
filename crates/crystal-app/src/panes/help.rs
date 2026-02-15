@@ -10,17 +10,29 @@ pub struct HelpPane {
     context_view: Option<ViewType>,
     scroll_offset: u16,
     global_shortcuts: Vec<(String, String)>,
-    pane_shortcuts: Vec<(String, String)>,
-    resource_shortcuts: Vec<(String, String)>,
+    navigation_shortcuts: Vec<(String, String)>,
+    browse_shortcuts: Vec<(String, String)>,
+    tui_shortcuts: Vec<(String, String)>,
+    mutate_shortcuts: Vec<(String, String)>,
 }
 
 impl HelpPane {
     pub fn new(
         global_shortcuts: Vec<(String, String)>,
-        pane_shortcuts: Vec<(String, String)>,
-        resource_shortcuts: Vec<(String, String)>,
+        navigation_shortcuts: Vec<(String, String)>,
+        browse_shortcuts: Vec<(String, String)>,
+        tui_shortcuts: Vec<(String, String)>,
+        mutate_shortcuts: Vec<(String, String)>,
     ) -> Self {
-        Self { context_view: None, scroll_offset: 0, global_shortcuts, pane_shortcuts, resource_shortcuts }
+        Self {
+            context_view: None,
+            scroll_offset: 0,
+            global_shortcuts,
+            navigation_shortcuts,
+            browse_shortcuts,
+            tui_shortcuts,
+            mutate_shortcuts,
+        }
     }
 
     fn resource_specific_entries(kind: &ResourceKind) -> Vec<(&'static str, &'static str)> {
@@ -108,29 +120,27 @@ impl Pane for HelpPane {
 
         let mut lines: Vec<Line> = Vec::new();
 
-        lines.push(Line::from(Span::styled("Global Shortcuts", Style::default().fg(theme::ACCENT).bold())));
-        lines.push(Line::from(""));
-        for (key, desc) in Self::normalize_shortcuts(&self.global_shortcuts) {
-            lines.push(Line::from(vec![
-                Span::styled(format!("  {:<16}", Self::format_key(&key)), Style::default().fg(theme::HEADER_FG).bold()),
-                Span::styled(desc, Style::default().fg(theme::STATUS_FG)),
-            ]));
-        }
+        let sections: &[(&str, &[(String, String)])] = &[
+            ("Global (Ctrl+)", &self.global_shortcuts),
+            ("Navigation", &self.navigation_shortcuts),
+            ("Browse", &self.browse_shortcuts),
+            ("TUI (Alt+)", &self.tui_shortcuts),
+            ("Mutate (Ctrl+Alt+)", &self.mutate_shortcuts),
+        ];
 
-        if self.context_view.is_some() && !self.pane_shortcuts.is_empty() {
-            let label = match self.context_view.as_ref() {
-                Some(ViewType::ResourceList(_)) => "Navigation",
-                Some(ViewType::Logs(_)) => "Logs",
-                Some(ViewType::Terminal) => "Terminal",
-                _ => "Pane",
-            };
-            lines.push(Line::from(""));
+        for (i, (title, shortcuts)) in sections.iter().enumerate() {
+            if shortcuts.is_empty() {
+                continue;
+            }
+            if i > 0 {
+                lines.push(Line::from(""));
+            }
             lines.push(Line::from(Span::styled(
-                format!("{label} Shortcuts"),
+                format!("{title} Shortcuts"),
                 Style::default().fg(theme::ACCENT).bold(),
             )));
             lines.push(Line::from(""));
-            for (key, desc) in Self::normalize_shortcuts(&self.pane_shortcuts) {
+            for (key, desc) in Self::normalize_shortcuts(shortcuts) {
                 lines.push(Line::from(vec![
                     Span::styled(
                         format!("  {:<16}", Self::format_key(&key)),
@@ -142,41 +152,23 @@ impl Pane for HelpPane {
         }
 
         if let Some(ViewType::ResourceList(ref kind)) = self.context_view {
-            lines.push(Line::from(""));
-            lines.push(Line::from(Span::styled(
-                format!("{} Actions", kind.display_name()),
-                Style::default().fg(theme::ACCENT).bold(),
-            )));
-            lines.push(Line::from(""));
-
-            let normalized_resource = Self::normalize_shortcuts(&self.resource_shortcuts);
-            let mut seen_desc: std::collections::HashSet<String> = std::collections::HashSet::new();
-            for (_, desc) in &normalized_resource {
-                seen_desc.insert(desc.clone());
-            }
-
-            for (key, desc) in normalized_resource {
-                lines.push(Line::from(vec![
-                    Span::styled(
-                        format!("  {:<16}", Self::format_key(&key)),
-                        Style::default().fg(theme::HEADER_FG).bold(),
-                    ),
-                    Span::styled(desc.clone(), Style::default().fg(theme::STATUS_FG)),
-                ]));
-            }
-
             let specific = Self::resource_specific_entries(kind);
-            for (key, desc) in specific {
-                if seen_desc.contains(desc) {
-                    continue;
+            if !specific.is_empty() {
+                lines.push(Line::from(""));
+                lines.push(Line::from(Span::styled(
+                    format!("{} Actions", kind.display_name()),
+                    Style::default().fg(theme::ACCENT).bold(),
+                )));
+                lines.push(Line::from(""));
+                for (key, desc) in specific {
+                    lines.push(Line::from(vec![
+                        Span::styled(
+                            format!("  {:<16}", Self::format_key(key)),
+                            Style::default().fg(theme::HEADER_FG).bold(),
+                        ),
+                        Span::styled(desc, Style::default().fg(theme::STATUS_FG)),
+                    ]));
                 }
-                lines.push(Line::from(vec![
-                    Span::styled(
-                        format!("  {:<16}", Self::format_key(key)),
-                        Style::default().fg(theme::HEADER_FG).bold(),
-                    ),
-                    Span::styled(desc, Style::default().fg(theme::STATUS_FG)),
-                ]));
             }
         }
 
@@ -218,11 +210,12 @@ mod tests {
     use super::*;
 
     fn make_help(context: Option<ViewType>) -> HelpPane {
-        let global = vec![("q".into(), "Quit".into()), ("?".into(), "Help".into())];
-        let pane = vec![("j".into(), "Down".into()), ("k".into(), "Up".into())];
-        let resource =
-            vec![("y".into(), "View YAML".into()), ("d".into(), "Describe".into()), ("Ctrl+d".into(), "Delete".into())];
-        let mut help = HelpPane::new(global, pane, resource);
+        let global = vec![("Ctrl+Q".into(), "Quit".into()), ("?".into(), "Help".into())];
+        let navigation = vec![("J".into(), "Down".into()), ("K".into(), "Up".into())];
+        let browse = vec![("Y".into(), "View YAML".into()), ("D".into(), "Describe".into())];
+        let tui = vec![("Alt+V".into(), "Split V".into())];
+        let mutate = vec![("Ctrl+Alt+D".into(), "Delete".into())];
+        let mut help = HelpPane::new(global, navigation, browse, tui, mutate);
         help.context_view = context;
         help
     }
@@ -258,10 +251,10 @@ mod tests {
     }
 
     #[test]
-    fn help_pane_resource_shortcuts_from_dispatcher() {
+    fn help_pane_shortcuts_from_dispatcher() {
         let help = make_help(Some(ViewType::ResourceList(ResourceKind::Pods)));
-        assert!(help.resource_shortcuts.iter().any(|(_, d)| d == "View YAML"));
-        assert!(help.resource_shortcuts.iter().any(|(_, d)| d == "Describe"));
-        assert!(help.resource_shortcuts.iter().any(|(_, d)| d == "Delete"));
+        assert!(help.browse_shortcuts.iter().any(|(_, d)| d == "View YAML"));
+        assert!(help.browse_shortcuts.iter().any(|(_, d)| d == "Describe"));
+        assert!(help.mutate_shortcuts.iter().any(|(_, d)| d == "Delete"));
     }
 }

@@ -22,11 +22,15 @@ pub struct AppConfig {
 #[derive(Debug, Default, Clone, Deserialize, Serialize)]
 pub struct KeybindingsConfig {
     #[serde(default)]
+    pub navigation: HashMap<String, String>,
+    #[serde(default)]
+    pub browse: HashMap<String, String>,
+    #[serde(default)]
+    pub tui: HashMap<String, String>,
+    #[serde(default)]
     pub global: HashMap<String, String>,
     #[serde(default)]
-    pub pane: HashMap<String, String>,
-    #[serde(default)]
-    pub resource: HashMap<String, String>,
+    pub mutate: HashMap<String, String>,
 }
 
 const DEFAULT_CONFIG: &str = include_str!("defaults.toml");
@@ -96,14 +100,20 @@ impl AppConfig {
         self.features = user.features;
 
         // Keybindings: merge per-key (user overrides, defaults preserved)
+        for (k, v) in user.keybindings.navigation {
+            self.keybindings.navigation.insert(k, v);
+        }
+        for (k, v) in user.keybindings.browse {
+            self.keybindings.browse.insert(k, v);
+        }
+        for (k, v) in user.keybindings.tui {
+            self.keybindings.tui.insert(k, v);
+        }
         for (k, v) in user.keybindings.global {
             self.keybindings.global.insert(k, v);
         }
-        for (k, v) in user.keybindings.pane {
-            self.keybindings.pane.insert(k, v);
-        }
-        for (k, v) in user.keybindings.resource {
-            self.keybindings.resource.insert(k, v);
+        for (k, v) in user.keybindings.mutate {
+            self.keybindings.mutate.insert(k, v);
         }
     }
 

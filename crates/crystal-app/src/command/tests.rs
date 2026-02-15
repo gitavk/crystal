@@ -18,7 +18,7 @@ fn press_mod(code: KeyCode, modifiers: KeyModifiers) -> KeyEvent {
 #[test]
 fn quit_maps_globally() {
     let d = default_dispatcher();
-    assert_eq!(d.dispatch(press(KeyCode::Char('q'))), Some(Command::Quit));
+    assert_eq!(d.dispatch(press_mod(KeyCode::Char('q'), KeyModifiers::CONTROL)), Some(Command::Quit));
 }
 
 #[test]

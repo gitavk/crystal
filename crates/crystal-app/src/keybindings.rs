@@ -28,47 +28,70 @@ pub enum InputMode {
 pub struct KeybindingDispatcher {
     mode: InputMode,
     global_bindings: HashMap<KeyEvent, Command>,
-    pane_bindings: HashMap<KeyEvent, Command>,
-    resource_bindings: HashMap<KeyEvent, Command>,
+    mutate_bindings: HashMap<KeyEvent, Command>,
+    browse_bindings: HashMap<KeyEvent, Command>,
+    navigation_bindings: HashMap<KeyEvent, Command>,
+    tui_bindings: HashMap<KeyEvent, Command>,
     reverse_global: Vec<(String, String, String)>,
-    reverse_pane: Vec<(String, String, String)>,
-    reverse_resource: Vec<(String, String, String)>,
+    reverse_mutate: Vec<(String, String, String)>,
+    reverse_browse: Vec<(String, String, String)>,
+    reverse_navigation: Vec<(String, String, String)>,
+    reverse_tui: Vec<(String, String, String)>,
 }
 
 impl KeybindingDispatcher {
     pub fn from_config(config: &KeybindingsConfig) -> Self {
         let mut global_bindings = HashMap::new();
         let mut reverse_global = Vec::new();
-
         for (name, key_str) in &config.global {
-            if let Some(cmd) = command_from_name(name) {
+            if let Some(cmd) = global_command_from_name(name) {
                 if let Some(key) = parse_key_string(key_str) {
                     global_bindings.insert(key, cmd);
-                    reverse_global.push((name.clone(), key_str.clone(), command_description(name)));
+                    reverse_global.push((name.clone(), key_str.clone(), global_command_description(name)));
                 }
             }
         }
 
-        let mut pane_bindings = HashMap::new();
-        let mut reverse_pane = Vec::new();
-
-        for (name, key_str) in &config.pane {
-            if let Some(cmd) = pane_command_from_name(name) {
+        let mut mutate_bindings = HashMap::new();
+        let mut reverse_mutate = Vec::new();
+        for (name, key_str) in &config.mutate {
+            if let Some(cmd) = mutate_command_from_name(name) {
                 if let Some(key) = parse_key_string(key_str) {
-                    pane_bindings.insert(key, Command::Pane(cmd));
-                    reverse_pane.push((name.clone(), key_str.clone(), pane_command_description(name)));
+                    mutate_bindings.insert(key, cmd);
+                    reverse_mutate.push((name.clone(), key_str.clone(), mutate_command_description(name)));
                 }
             }
         }
 
-        let mut resource_bindings = HashMap::new();
-        let mut reverse_resource = Vec::new();
-
-        for (name, key_str) in &config.resource {
-            if let Some(cmd) = resource_command_from_name(name) {
+        let mut browse_bindings = HashMap::new();
+        let mut reverse_browse = Vec::new();
+        for (name, key_str) in &config.browse {
+            if let Some(cmd) = browse_command_from_name(name) {
                 if let Some(key) = parse_key_string(key_str) {
-                    resource_bindings.insert(key, cmd);
-                    reverse_resource.push((name.clone(), key_str.clone(), resource_command_description(name)));
+                    browse_bindings.insert(key, cmd);
+                    reverse_browse.push((name.clone(), key_str.clone(), browse_command_description(name)));
+                }
+            }
+        }
+
+        let mut navigation_bindings = HashMap::new();
+        let mut reverse_navigation = Vec::new();
+        for (name, key_str) in &config.navigation {
+            if let Some(cmd) = navigation_command_from_name(name) {
+                if let Some(key) = parse_key_string(key_str) {
+                    navigation_bindings.insert(key, cmd);
+                    reverse_navigation.push((name.clone(), key_str.clone(), navigation_command_description(name)));
+                }
+            }
+        }
+
+        let mut tui_bindings = HashMap::new();
+        let mut reverse_tui = Vec::new();
+        for (name, key_str) in &config.tui {
+            if let Some(cmd) = tui_command_from_name(name) {
+                if let Some(key) = parse_key_string(key_str) {
+                    tui_bindings.insert(key, cmd);
+                    reverse_tui.push((name.clone(), key_str.clone(), tui_command_description(name)));
                 }
             }
         }
@@ -76,11 +99,15 @@ impl KeybindingDispatcher {
         Self {
             mode: InputMode::Normal,
             global_bindings,
-            pane_bindings,
-            resource_bindings,
+            mutate_bindings,
+            browse_bindings,
+            navigation_bindings,
+            tui_bindings,
             reverse_global,
-            reverse_pane,
-            reverse_resource,
+            reverse_mutate,
+            reverse_browse,
+            reverse_navigation,
+            reverse_tui,
         }
     }
 
@@ -138,9 +165,13 @@ impl KeybindingDispatcher {
 
         match self.mode {
             InputMode::Insert => unreachable!("handled above"),
-            InputMode::Normal => {
-                self.resource_bindings.get(&key).cloned().or_else(|| self.pane_bindings.get(&key).cloned())
-            }
+            InputMode::Normal => self
+                .mutate_bindings
+                .get(&key)
+                .or_else(|| self.browse_bindings.get(&key))
+                .or_else(|| self.navigation_bindings.get(&key))
+                .or_else(|| self.tui_bindings.get(&key))
+                .cloned(),
             InputMode::NamespaceSelector => match key.code {
                 KeyCode::Enter => Some(Command::NamespaceConfirm),
                 KeyCode::Esc => Some(Command::ExitMode),
@@ -179,6 +210,15 @@ impl KeybindingDispatcher {
     }
 
     pub fn global_hints(&self) -> Vec<(String, String)> {
+        let all_reverse: Vec<_> = self
+            .reverse_global
+            .iter()
+            .chain(&self.reverse_tui)
+            .chain(&self.reverse_browse)
+            .chain(&self.reverse_navigation)
+            .chain(&self.reverse_mutate)
+            .collect();
+
         let priority = [
             "split_vertical",
             "split_horizontal",
@@ -192,7 +232,7 @@ impl KeybindingDispatcher {
         ];
         let mut hints = Vec::new();
         for name in &priority {
-            if let Some((_, key_str, desc)) = self.reverse_global.iter().find(|(n, _, _)| n == name) {
+            if let Some((_, key_str, desc)) = all_reverse.iter().find(|(n, _, _)| n == name) {
                 hints.push((key_str.clone(), desc.clone()));
             }
         }
@@ -205,14 +245,26 @@ impl KeybindingDispatcher {
         sorted.into_iter().map(|(_, key_str, desc)| (format_key_display(&key_str), desc)).collect()
     }
 
-    pub fn pane_shortcuts(&self) -> Vec<(String, String)> {
-        let mut sorted = self.reverse_pane.clone();
+    pub fn navigation_shortcuts(&self) -> Vec<(String, String)> {
+        let mut sorted = self.reverse_navigation.clone();
         sorted.sort_by(|a, b| a.0.cmp(&b.0));
         sorted.into_iter().map(|(_, key_str, desc)| (format_key_display(&key_str), desc)).collect()
     }
 
-    pub fn resource_shortcuts(&self) -> Vec<(String, String)> {
-        let mut sorted = self.reverse_resource.clone();
+    pub fn browse_shortcuts(&self) -> Vec<(String, String)> {
+        let mut sorted = self.reverse_browse.clone();
+        sorted.sort_by(|a, b| a.0.cmp(&b.0));
+        sorted.into_iter().map(|(_, key_str, desc)| (format_key_display(&key_str), desc)).collect()
+    }
+
+    pub fn tui_shortcuts(&self) -> Vec<(String, String)> {
+        let mut sorted = self.reverse_tui.clone();
+        sorted.sort_by(|a, b| a.0.cmp(&b.0));
+        sorted.into_iter().map(|(_, key_str, desc)| (format_key_display(&key_str), desc)).collect()
+    }
+
+    pub fn mutate_shortcuts(&self) -> Vec<(String, String)> {
+        let mut sorted = self.reverse_mutate.clone();
         sorted.sort_by(|a, b| a.0.cmp(&b.0));
         sorted.into_iter().map(|(_, key_str, desc)| (format_key_display(&key_str), desc)).collect()
     }
@@ -228,6 +280,16 @@ fn normalize_key_event(key: KeyEvent) -> KeyEvent {
         let mut modifiers = key.modifiers;
         modifiers -= KeyModifiers::SHIFT;
         return KeyEvent::new(KeyCode::BackTab, modifiers);
+    }
+    // Normalize Shift+char: crossterm may report Shift+'g' or just 'G' with SHIFT.
+    // Canonicalize to uppercase char + SHIFT modifier.
+    if let KeyCode::Char(c) = key.code {
+        if c.is_ascii_lowercase() && key.modifiers.contains(KeyModifiers::SHIFT) {
+            return KeyEvent::new(KeyCode::Char(c.to_ascii_uppercase()), key.modifiers);
+        }
+        if c.is_ascii_uppercase() && !key.modifiers.contains(KeyModifiers::SHIFT) {
+            return KeyEvent::new(key.code, key.modifiers | KeyModifiers::SHIFT);
+        }
     }
     key
 }
@@ -292,16 +354,16 @@ fn key_to_input_string(key: KeyEvent) -> String {
 }
 
 pub fn parse_key_string(s: &str) -> Option<KeyEvent> {
-    let s = s.trim().to_lowercase();
-    let parts: Vec<&str> = s.split('+').collect();
+    let trimmed = s.trim();
+    let parts: Vec<&str> = trimmed.split('+').collect();
 
     let mut modifiers = KeyModifiers::NONE;
 
-    let key_part = if parts.len() == 1 {
+    let key_part_raw = if parts.len() == 1 {
         parts[0]
     } else {
         for &modifier in &parts[..parts.len() - 1] {
-            match modifier {
+            match modifier.to_ascii_lowercase().as_str() {
                 "alt" => modifiers |= KeyModifiers::ALT,
                 "ctrl" => modifiers |= KeyModifiers::CONTROL,
                 "shift" => modifiers |= KeyModifiers::SHIFT,
@@ -311,7 +373,8 @@ pub fn parse_key_string(s: &str) -> Option<KeyEvent> {
         parts[parts.len() - 1]
     };
 
-    let code = match key_part {
+    let key_lower = key_part_raw.to_ascii_lowercase();
+    let code = match key_lower.as_str() {
         "tab" if modifiers.contains(KeyModifiers::SHIFT) => {
             modifiers -= KeyModifiers::SHIFT;
             KeyCode::BackTab
@@ -330,7 +393,17 @@ pub fn parse_key_string(s: &str) -> Option<KeyEvent> {
         "pageup" => KeyCode::PageUp,
         "pagedown" => KeyCode::PageDown,
         "space" => KeyCode::Char(' '),
-        s if s.len() == 1 => KeyCode::Char(s.chars().next().unwrap()),
+        _ if key_part_raw.len() == 1 => {
+            let ch = key_part_raw.chars().next().unwrap();
+            if ch.is_ascii_uppercase() {
+                modifiers |= KeyModifiers::SHIFT;
+                KeyCode::Char(ch)
+            } else if modifiers.contains(KeyModifiers::SHIFT) && ch.is_ascii_lowercase() {
+                KeyCode::Char(ch.to_ascii_uppercase())
+            } else {
+                KeyCode::Char(ch)
+            }
+        }
         s if s.starts_with('f') => {
             let n: u8 = s[1..].parse().ok()?;
             KeyCode::F(n)
@@ -341,120 +414,152 @@ pub fn parse_key_string(s: &str) -> Option<KeyEvent> {
     Some(KeyEvent::new(code, modifiers))
 }
 
-fn command_from_name(name: &str) -> Option<Command> {
+fn global_command_from_name(name: &str) -> Option<Command> {
     match name {
         "quit" => Some(Command::Quit),
         "help" => Some(Command::ShowHelp),
         "app_logs" => Some(Command::ToggleAppLogsTab),
         "enter_insert" => Some(Command::EnterMode(InputMode::Insert)),
-        "focus_next" => Some(Command::FocusNextPane),
-        "focus_prev" => Some(Command::FocusPrevPane),
-        "focus_up" => Some(Command::FocusDirection(Direction::Up)),
-        "focus_down" => Some(Command::FocusDirection(Direction::Down)),
-        "focus_left" => Some(Command::FocusDirection(Direction::Left)),
-        "focus_right" => Some(Command::FocusDirection(Direction::Right)),
-        "split_vertical" => Some(Command::SplitVertical),
-        "split_horizontal" => Some(Command::SplitHorizontal),
-        "close_pane" => Some(Command::ClosePane),
-        "new_tab" => Some(Command::NewTab),
-        "close_tab" => Some(Command::CloseTab),
-        "next_tab" => Some(Command::NextTab),
-        "prev_tab" => Some(Command::PrevTab),
-        "toggle_fullscreen" => Some(Command::ToggleFullscreen),
-        "resize_grow" => Some(Command::ResizeGrow),
-        "resize_shrink" => Some(Command::ResizeShrink),
         "namespace_selector" => Some(Command::EnterMode(InputMode::NamespaceSelector)),
         "context_selector" => Some(Command::EnterMode(InputMode::ContextSelector)),
-        s if s.starts_with("goto_tab_") => s["goto_tab_".len()..].parse::<usize>().ok().map(Command::GoToTab),
         _ => None,
     }
 }
 
-fn pane_command_from_name(name: &str) -> Option<PaneCommand> {
-    match name {
-        "scroll_up" | "select_prev" | "navigate_up" => Some(PaneCommand::SelectPrev),
-        "scroll_down" | "select_next" | "navigate_down" => Some(PaneCommand::SelectNext),
-        "select" => Some(PaneCommand::Select),
-        "back" => Some(PaneCommand::Back),
-        "toggle_follow" => Some(PaneCommand::ToggleFollow),
-        _ => None,
-    }
-}
-
-fn resource_command_from_name(name: &str) -> Option<Command> {
-    match name {
-        "view_yaml" => Some(Command::ViewYaml),
-        "view_describe" => Some(Command::ViewDescribe),
-        "delete" => Some(Command::DeleteResource),
-        "scale" => Some(Command::ScaleResource),
-        "restart" => Some(Command::RestartRollout),
-        "view_logs" => Some(Command::ViewLogs),
-        "exec" => Some(Command::ExecInto),
-        "port_forward" => Some(Command::PortForward),
-        "toggle_all_namespaces" => Some(Command::ToggleAllNamespaces),
-        "sort" => Some(Command::SortByColumn),
-        "filter" => Some(Command::EnterMode(InputMode::FilterInput)),
-        "resource_switcher" => Some(Command::EnterResourceSwitcher),
-        _ => None,
-    }
-}
-
-fn resource_command_description(name: &str) -> String {
-    match name {
-        "view_yaml" => "View YAML",
-        "view_describe" => "Describe",
-        "delete" => "Delete",
-        "scale" => "Scale",
-        "restart" => "Restart",
-        "view_logs" => "Logs",
-        "exec" => "Exec",
-        "port_forward" => "Port Forward",
-        "toggle_all_namespaces" => "All NS",
-        "sort" => "Sort",
-        "filter" => "Filter",
-        "resource_switcher" => "Resources",
-        _ => "Unknown",
-    }
-    .into()
-}
-
-fn command_description(name: &str) -> String {
+fn global_command_description(name: &str) -> String {
     match name {
         "quit" => "Quit",
         "help" => "Help",
         "app_logs" => "App logs",
         "enter_insert" => "Insert mode",
-        "focus_next" => "Focus next",
-        "focus_prev" => "Focus prev",
-        "focus_up" => "Focus up",
-        "focus_down" => "Focus down",
-        "focus_left" => "Focus left",
-        "focus_right" => "Focus right",
-        "split_vertical" => "Split V",
-        "split_horizontal" => "Split H",
-        "close_pane" => "Close",
-        "new_tab" => "New tab",
-        "close_tab" => "Close tab",
-        "next_tab" => "Next tab",
-        "prev_tab" => "Prev tab",
-        "toggle_fullscreen" => "Fullscreen",
-        "resize_grow" => "Grow",
-        "resize_shrink" => "Shrink",
         "namespace_selector" => "Namespace",
         "context_selector" => "Context",
-        s if s.starts_with("goto_tab_") => "Go to tab",
         _ => "Unknown",
     }
     .into()
 }
 
-fn pane_command_description(name: &str) -> String {
+fn mutate_command_from_name(name: &str) -> Option<Command> {
     match name {
-        "scroll_up" | "select_prev" | "navigate_up" => "Up",
-        "scroll_down" | "select_next" | "navigate_down" => "Down",
+        "delete" => Some(Command::DeleteResource),
+        "scale" => Some(Command::ScaleResource),
+        "restart_rollout" => Some(Command::RestartRollout),
+        "exec" => Some(Command::ExecInto),
+        "port_forward" => Some(Command::PortForward),
+        _ => None,
+    }
+}
+
+fn mutate_command_description(name: &str) -> String {
+    match name {
+        "delete" => "Delete",
+        "scale" => "Scale",
+        "restart_rollout" => "Restart",
+        "exec" => "Exec",
+        "port_forward" => "Port Forward",
+        _ => "Unknown",
+    }
+    .into()
+}
+
+fn browse_command_from_name(name: &str) -> Option<Command> {
+    match name {
+        "view_yaml" => Some(Command::ViewYaml),
+        "view_describe" => Some(Command::ViewDescribe),
+        "view_logs" => Some(Command::ViewLogs),
+        "filter" => Some(Command::EnterMode(InputMode::FilterInput)),
+        "resource_switcher" => Some(Command::EnterResourceSwitcher),
+        "sort_column" => Some(Command::SortByColumn),
+        "toggle_all_namespaces" => Some(Command::ToggleAllNamespaces),
+        "toggle_follow" => Some(Command::Pane(PaneCommand::ToggleFollow)),
+        _ => None,
+    }
+}
+
+fn browse_command_description(name: &str) -> String {
+    match name {
+        "view_yaml" => "View YAML",
+        "view_describe" => "Describe",
+        "view_logs" => "Logs",
+        "filter" => "Filter",
+        "resource_switcher" => "Resources",
+        "sort_column" => "Sort",
+        "toggle_all_namespaces" => "All NS",
+        "toggle_follow" => "Follow",
+        _ => "Unknown",
+    }
+    .into()
+}
+
+fn navigation_command_from_name(name: &str) -> Option<Command> {
+    match name {
+        "scroll_up" | "select_prev" => Some(Command::Pane(PaneCommand::SelectPrev)),
+        "scroll_down" | "select_next" => Some(Command::Pane(PaneCommand::SelectNext)),
+        "select" => Some(Command::Pane(PaneCommand::Select)),
+        "back" => Some(Command::Pane(PaneCommand::Back)),
+        "go_to_top" => Some(Command::Pane(PaneCommand::GoToTop)),
+        "go_to_bottom" => Some(Command::Pane(PaneCommand::GoToBottom)),
+        "page_up" => Some(Command::Pane(PaneCommand::PageUp)),
+        "page_down" => Some(Command::Pane(PaneCommand::PageDown)),
+        _ => None,
+    }
+}
+
+fn navigation_command_description(name: &str) -> String {
+    match name {
+        "scroll_up" | "select_prev" => "Up",
+        "scroll_down" | "select_next" => "Down",
         "select" => "Select",
         "back" => "Back",
-        "toggle_follow" => "Follow",
+        "go_to_top" => "Go to top",
+        "go_to_bottom" => "Go to bottom",
+        "page_up" => "Page up",
+        "page_down" => "Page down",
+        _ => "Unknown",
+    }
+    .into()
+}
+
+fn tui_command_from_name(name: &str) -> Option<Command> {
+    match name {
+        "split_vertical" => Some(Command::SplitVertical),
+        "split_horizontal" => Some(Command::SplitHorizontal),
+        "close_pane" => Some(Command::ClosePane),
+        "toggle_fullscreen" => Some(Command::ToggleFullscreen),
+        "focus_up" => Some(Command::FocusDirection(Direction::Up)),
+        "focus_down" => Some(Command::FocusDirection(Direction::Down)),
+        "focus_left" => Some(Command::FocusDirection(Direction::Left)),
+        "focus_right" => Some(Command::FocusDirection(Direction::Right)),
+        "resize_grow" => Some(Command::ResizeGrow),
+        "resize_shrink" => Some(Command::ResizeShrink),
+        "new_tab" => Some(Command::NewTab),
+        "close_tab" => Some(Command::CloseTab),
+        "open_terminal" => Some(Command::TerminalSpawn),
+        "focus_next" => Some(Command::FocusNextPane),
+        "focus_prev" => Some(Command::FocusPrevPane),
+        s if s.starts_with("goto_tab_") => s["goto_tab_".len()..].parse::<usize>().ok().map(Command::GoToTab),
+        _ => None,
+    }
+}
+
+fn tui_command_description(name: &str) -> String {
+    match name {
+        "split_vertical" => "Split V",
+        "split_horizontal" => "Split H",
+        "close_pane" => "Close pane",
+        "toggle_fullscreen" => "Fullscreen",
+        "focus_up" => "Focus up",
+        "focus_down" => "Focus down",
+        "focus_left" => "Focus left",
+        "focus_right" => "Focus right",
+        "resize_grow" => "Grow",
+        "resize_shrink" => "Shrink",
+        "new_tab" => "New tab",
+        "close_tab" => "Close tab",
+        "open_terminal" => "Terminal",
+        "focus_next" => "Focus next",
+        "focus_prev" => "Focus prev",
+        s if s.starts_with("goto_tab_") => "Go to tab",
         _ => "Unknown",
     }
     .into()

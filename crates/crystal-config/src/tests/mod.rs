@@ -42,7 +42,6 @@ default_view = "deployments"
     let config: AppConfig = toml::from_str(raw).unwrap();
     assert_eq!(config.general.tick_rate_ms, 100);
     assert_eq!(config.general.default_view, "deployments");
-    // other fields get defaults
     assert_eq!(config.general.default_namespace, "default");
 }
 
@@ -57,9 +56,8 @@ tick_rate_ms = 500
     base.merge(user);
 
     assert_eq!(base.general.tick_rate_ms, 500);
-    // keybindings preserved from base
     assert!(!base.keybindings.global.is_empty());
-    assert_eq!(base.keybindings.global.get("quit").unwrap(), "q");
+    assert_eq!(base.keybindings.global.get("quit").unwrap(), "ctrl+q");
 }
 
 #[test]
@@ -80,14 +78,23 @@ port_forward = false
 #[test]
 fn embedded_defaults_parse() {
     let config: AppConfig = toml::from_str(DEFAULT_CONFIG).unwrap();
-    assert_eq!(config.keybindings.global.get("quit").unwrap(), "q");
+    // global group
+    assert_eq!(config.keybindings.global.get("quit").unwrap(), "ctrl+q");
     assert_eq!(config.keybindings.global.get("help").unwrap(), "?");
-    assert_eq!(config.keybindings.global.get("app_logs").unwrap(), "alt+l");
+    assert_eq!(config.keybindings.global.get("app_logs").unwrap(), "ctrl+l");
     assert_eq!(config.keybindings.global.get("context_selector").unwrap(), "ctrl+o");
-    assert_eq!(config.keybindings.global.get("close_tab").unwrap(), "alt+c");
-    assert_eq!(config.keybindings.global.get("split_vertical").unwrap(), "alt+v");
-    assert_eq!(config.keybindings.pane.get("select").unwrap(), "enter");
-    assert_eq!(config.keybindings.pane.get("back").unwrap(), "esc");
+    // tui group
+    assert_eq!(config.keybindings.tui.get("close_tab").unwrap(), "alt+c");
+    assert_eq!(config.keybindings.tui.get("split_vertical").unwrap(), "alt+v");
+    // navigation group
+    assert_eq!(config.keybindings.navigation.get("select").unwrap(), "enter");
+    assert_eq!(config.keybindings.navigation.get("back").unwrap(), "esc");
+    // browse group
+    assert_eq!(config.keybindings.browse.get("view_yaml").unwrap(), "y");
+    assert_eq!(config.keybindings.browse.get("filter").unwrap(), "/");
+    // mutate group
+    assert_eq!(config.keybindings.mutate.get("delete").unwrap(), "ctrl+alt+d");
+    assert_eq!(config.keybindings.mutate.get("exec").unwrap(), "ctrl+alt+e");
 }
 
 #[test]
@@ -95,12 +102,12 @@ fn merge_overrides_keybindings() {
     let mut base: AppConfig = toml::from_str(DEFAULT_CONFIG).unwrap();
     let user_toml = r#"
 [keybindings.global]
-quit = "ctrl+q"
+quit = "ctrl+x"
 "#;
     let user: AppConfig = toml::from_str(user_toml).unwrap();
     base.merge(user);
 
-    assert_eq!(base.keybindings.global.get("quit").unwrap(), "ctrl+q");
+    assert_eq!(base.keybindings.global.get("quit").unwrap(), "ctrl+x");
     assert_eq!(base.keybindings.global.get("help").unwrap(), "?");
 }
 
@@ -110,14 +117,17 @@ fn empty_user_config_keeps_defaults() {
     let user: AppConfig = toml::from_str("").unwrap();
     base.merge(user);
     assert!(!base.keybindings.global.is_empty());
-    assert!(!base.keybindings.pane.is_empty());
+    assert!(!base.keybindings.navigation.is_empty());
+    assert!(!base.keybindings.browse.is_empty());
+    assert!(!base.keybindings.tui.is_empty());
+    assert!(!base.keybindings.mutate.is_empty());
 }
 
 #[test]
 fn load_returns_defaults_without_user_config() {
     let config = AppConfig::load();
     assert!(!config.keybindings.global.is_empty());
-    assert_eq!(config.keybindings.global.get("quit").unwrap(), "q");
+    assert_eq!(config.keybindings.global.get("quit").unwrap(), "ctrl+q");
 }
 
 #[test]
@@ -146,7 +156,7 @@ fn save_and_load_roundtrip() {
     let loaded = AppConfig::load_from(&path).unwrap();
     assert_eq!(loaded.general.tick_rate_ms, config.general.tick_rate_ms);
     assert_eq!(loaded.features.hot_reload, config.features.hot_reload);
-    assert_eq!(loaded.keybindings.global.get("quit").unwrap(), "q");
+    assert_eq!(loaded.keybindings.global.get("quit").unwrap(), "ctrl+q");
 
     let _ = std::fs::remove_dir_all(&dir);
 }
