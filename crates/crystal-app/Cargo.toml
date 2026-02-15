@@ -25,3 +25,13 @@ vt100.workspace = true
 clap.workspace = true
 toml.workspace = true
 portable-pty.workspace = true
+
+[package.metadata.deb]
+maintainer = "crystal"
+copyright = "2026, Crystal Project"
+license-file = ["../../LICENSE", "0"]
+depends = "libc6"
+assets = [
+    ["target/release/crystal", "usr/bin/", "755"],
+    ["../../README.md", "usr/share/doc/crystal/README", "644"],
+]

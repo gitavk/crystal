@@ -1,0 +1,119 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v[0-9]+.[0-9]+.[0-9]+'
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Install Rust toolchain
+      uses: dtolnay/rust-toolchain@stable
+
+    - name: Set Release Version Env
+      run: echo "VERSION=${{ github.ref_name#v }}" >> $GITHUB_ENV
+
+    - name: Set Maintainer Env
+      run: |
+        echo "MAINTAINER_NAME=${{ github.actor }}" >> $GITHUB_ENV
+        echo "MAINTAINER_EMAIL=${{ github.actor }}@users.noreply.github.com" >> $GITHUB_ENV
+
+    - name: Build Rust binary
+      run: cargo build --release --workspace
+
+    - name: Prepare staging directory for packaging
+      run: |
+        mkdir -p staging/usr/bin
+        cp target/release/crystal staging/usr/bin/
+        mkdir -p staging/usr/share/doc/crystal
+        cp README.md staging/usr/share/doc/crystal/README
+        mkdir -p staging/usr/share/licenses/crystal
+        cp LICENSE staging/usr/share/licenses/crystal/
+
+    - name: Build .tar.gz archive
+      run: tar -czvf crystal-${{ github.ref_name }}-x86_64-unknown-linux-gnu.tar.gz -C staging .
+
+    - name: Build .deb package
+      run: |
+        cargo install cargo-deb
+        cargo deb --no-build --workspace --output crystal_${{ env.VERSION }}_amd64.deb
+
+    - name: Build .rpm package
+      run: |
+        sudo apt-get update && sudo apt-get install -y ruby-dev
+        sudo gem install fpm
+        fpm -s dir -t rpm -n crystal -v ${{ env.VERSION }} 
+          --description "A terminal-based Kubernetes workspace" 
+          --maintainer "${{ env.MAINTAINER_NAME }} <${{ env.MAINTAINER_EMAIL }}>" 
+          --license "MIT" 
+          -C staging .
+
+    - name: Update and push downloads page
+      env:
+        TAR_FILE: crystal-${{ github.ref_name }}-x86_64-unknown-linux-gnu.tar.gz
+        DEB_FILE: crystal_${{ env.VERSION }}_amd64.deb
+        DOWNLOAD_URL_BASE: ${{ github.server_url }}/${{ github.repository }}/releases/download/${{ github.ref_name }}
+      run: |
+        # This script updates the downloads page with the new release artifacts.
+        # It checks out the default branch, adds the new links, and pushes the change.
+        
+        DEFAULT_BRANCH=$(git remote show origin | grep 'HEAD branch' | cut -d' ' -f5)
+        echo "Default branch is $DEFAULT_BRANCH. Checking it out."
+        git fetch origin $DEFAULT_BRANCH
+        git checkout $DEFAULT_BRANCH
+        
+        # Find the generated RPM file.
+        export RPM_FILE=$(ls *.rpm)
+        
+        # Use a Python script for safe HTML update.
+        python3 -c "
+import os
+html_file = 'pages/downloads.html'
+tar_file = os.environ['TAR_FILE']
+deb_file = os.environ['DEB_FILE']
+rpm_file = os.environ['RPM_FILE']
+download_url_base = os.environ['DOWNLOAD_URL_BASE']
+
+new_links_html = f\"\"\"            <li><a href=\\\"{download_url_base}/{tar_file}\\\">{tar_file}</a></li>
+            <li><a href=\\\"{download_url_base}/{deb_file}\\\">{deb_file}</a></li>
+            <li><a href=\\\"{download_url_base}/{rpm_file}\\\">{rpm_file}</a></li>\"\"\"
+
+with open(html_file, 'r') as f:
+    content = f.read()
+
+# Insert new links after the <ul> tag.
+updated_content = content.replace('<ul>', '<ul>\\n' + new_links_html, 1)
+
+with open(html_file, 'w') as f:
+    f.write(updated_content)
+        "
+        
+        # Commit and push the updated file.
+        git config user.name "github-actions[bot]"
+        git config user.email "github-actions[bot]@users.noreply.github.com"
+        git add pages/downloads.html
+        
+        if git diff --staged --quiet; then
+          echo "No changes to commit in pages/downloads.html"
+        else
+          git commit -m "docs(pages): update download links for ${{ github.ref_name }}" -m "[skip ci]"
+          git push origin $DEFAULT_BRANCH
+        fi
+
+    - name: Create GitHub Release and Upload Artifacts
+      uses: softprops/action-gh-release@v1
+      with:
+        name: "Release ${{ github.ref_name }}"
+        generate_release_notes: true
+        files: |
+          *.tar.gz
+          *.deb
+          *.rpm
