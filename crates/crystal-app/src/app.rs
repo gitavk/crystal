@@ -217,61 +217,71 @@ impl App {
                 crystal_tui::layout::render_root(frame, &ctx);
             })?;
 
-            match events.next().await? {
-                AppEvent::Key(key) => self.handle_key(key),
-                AppEvent::Tick => {
-                    self.poll_runtime_panes();
-                    self.toasts.retain(|t| !t.is_expired());
+            let first = events.next().await?;
+            self.handle_event(first);
+
+            for event in events.drain_pending() {
+                if !self.running {
+                    break;
                 }
-                AppEvent::Resize(_, _) => {}
-                AppEvent::ResourceUpdate { pane_id, headers, rows } => {
-                    self.handle_resource_update(pane_id, headers, rows)
-                }
-                AppEvent::ResourceError { pane_id, error } => self.handle_resource_error(pane_id, error),
-                AppEvent::Toast(toast) => {
-                    match toast.level {
-                        ToastLevel::Success => tracing::info!("{}", toast.text),
-                        ToastLevel::Error => tracing::error!("{}", toast.text),
-                        ToastLevel::Info => tracing::info!("{}", toast.text),
-                    }
-                    self.toasts.push(toast);
-                }
-                AppEvent::YamlReady { pane_id, kind, name, content } => {
-                    self.open_yaml_pane(pane_id, kind, name, content);
-                }
-                AppEvent::LogsStreamReady { pane_id, stream } => {
-                    self.attach_logs_stream(pane_id, stream);
-                }
-                AppEvent::LogsSnapshotReady { pane_id, lines } => {
-                    self.attach_logs_snapshot(pane_id, lines);
-                }
-                AppEvent::LogsStreamError { pane_id, error } => {
-                    self.attach_logs_error(pane_id, error);
-                }
-                AppEvent::ExecSessionReady { pane_id, session } => {
-                    self.attach_exec_session(pane_id, session);
-                    self.dispatcher.set_mode(InputMode::Insert);
-                }
-                AppEvent::ExecSessionError { pane_id, error } => {
-                    self.attach_exec_error(pane_id, error);
-                    self.dispatcher.set_mode(InputMode::Normal);
-                }
-                AppEvent::PortForwardReady { forward } => {
-                    self.attach_port_forward(forward);
-                }
-                AppEvent::PortForwardPromptReady { pod, namespace, suggested_remote } => {
-                    self.open_port_forward_prompt(pod, namespace, suggested_remote);
-                }
-                AppEvent::ContextSwitchReady { client, namespaces } => {
-                    self.apply_context_switch(client, namespaces);
-                }
-                AppEvent::ContextSwitchError { context, error } => {
-                    self.toasts.push(ToastMessage::error(format!("Failed to switch context {context}: {error}")));
-                }
+                self.handle_event(event);
             }
         }
 
         Ok(())
+    }
+
+    fn handle_event(&mut self, event: AppEvent) {
+        match event {
+            AppEvent::Key(key) => self.handle_key(key),
+            AppEvent::Tick => {
+                self.poll_runtime_panes();
+                self.toasts.retain(|t| !t.is_expired());
+            }
+            AppEvent::Resize(_, _) => {}
+            AppEvent::ResourceUpdate { pane_id, headers, rows } => self.handle_resource_update(pane_id, headers, rows),
+            AppEvent::ResourceError { pane_id, error } => self.handle_resource_error(pane_id, error),
+            AppEvent::Toast(toast) => {
+                match toast.level {
+                    ToastLevel::Success => tracing::info!("{}", toast.text),
+                    ToastLevel::Error => tracing::error!("{}", toast.text),
+                    ToastLevel::Info => tracing::info!("{}", toast.text),
+                }
+                self.toasts.push(toast);
+            }
+            AppEvent::YamlReady { pane_id, kind, name, content } => {
+                self.open_yaml_pane(pane_id, kind, name, content);
+            }
+            AppEvent::LogsStreamReady { pane_id, stream } => {
+                self.attach_logs_stream(pane_id, stream);
+            }
+            AppEvent::LogsSnapshotReady { pane_id, lines } => {
+                self.attach_logs_snapshot(pane_id, lines);
+            }
+            AppEvent::LogsStreamError { pane_id, error } => {
+                self.attach_logs_error(pane_id, error);
+            }
+            AppEvent::ExecSessionReady { pane_id, session } => {
+                self.attach_exec_session(pane_id, session);
+                self.dispatcher.set_mode(InputMode::Insert);
+            }
+            AppEvent::ExecSessionError { pane_id, error } => {
+                self.attach_exec_error(pane_id, error);
+                self.dispatcher.set_mode(InputMode::Normal);
+            }
+            AppEvent::PortForwardReady { forward } => {
+                self.attach_port_forward(forward);
+            }
+            AppEvent::PortForwardPromptReady { pod, namespace, suggested_remote } => {
+                self.open_port_forward_prompt(pod, namespace, suggested_remote);
+            }
+            AppEvent::ContextSwitchReady { client, namespaces } => {
+                self.apply_context_switch(client, namespaces);
+            }
+            AppEvent::ContextSwitchError { context, error } => {
+                self.toasts.push(ToastMessage::error(format!("Failed to switch context {context}: {error}")));
+            }
+        }
     }
 
     /// Start watching a resource type for a specific pane.
