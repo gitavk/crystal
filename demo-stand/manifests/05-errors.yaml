@@ -1,0 +1,39 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: crashing-pod
+  namespace: crystal-dev
+  labels:
+    app: error-demo
+spec:
+  containers:
+  - name: crasher
+    image: alpine
+    command: ["/bin/sh", "-c", "echo 'Everything looks fine... for 5 seconds'; sleep 5; echo 'Oh no!'; exit 1"]
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: pending-pod
+  namespace: crystal-dev
+  labels:
+    app: error-demo
+spec:
+  containers:
+  - name: sleeper
+    image: busybox
+    resources:
+      requests:
+        cpu: "100" # Intentionally high to cause pending state in small clusters
+    command: ["sleep", "3600"]
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: noisy-pod
+  namespace: crystal-dev
+spec:
+  containers:
+  - name: logger
+    image: alpine
+    command: ["/bin/sh", "-c", "while true; do echo "$(date) - Pulse check: System is $(shuf -n 1 -e healthy stable active optimal)"; sleep 2; done"]
