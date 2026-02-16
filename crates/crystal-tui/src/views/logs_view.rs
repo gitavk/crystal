@@ -1,7 +1,7 @@
 use ratatui::prelude::*;
 use ratatui::widgets::Paragraph;
 
-use crate::theme;
+use crate::theme::Theme;
 
 #[derive(Debug, Clone)]
 pub struct LogLineRef {
@@ -116,7 +116,6 @@ impl LogsView {
 
     pub fn scroll_to_top(&mut self) {
         self.auto_scroll = false;
-        // Set to a large value; render will clamp it
         self.scroll_offset = usize::MAX;
     }
 
@@ -132,31 +131,30 @@ impl LogsView {
         area: Rect,
         focused: bool,
         status_text: Option<&str>,
+        theme: &Theme,
     ) {
         if area.height < 3 || area.width < 10 {
             return;
         }
 
+        let t = theme;
+        let header_bg = t.header.bg.unwrap_or(Color::Reset);
+        let status_bg = t.status_bar.bg.unwrap_or(Color::Reset);
+        let status_fg = t.status_bar.fg.unwrap_or(Color::Reset);
+        let text_dim_color = t.text_dim.fg.unwrap_or(Color::Reset);
+
         self.total_lines = lines.len();
 
-        // Title bar
-        let title_style = if focused {
-            Style::new().fg(theme::HEADER_FG).bg(theme::HEADER_BG)
-        } else {
-            Style::new().fg(theme::TEXT_DIM).bg(theme::HEADER_BG)
-        };
+        let title_style = if focused { Style::new().fg(t.fg).bg(header_bg) } else { t.text_dim.bg(header_bg) };
         let title = self.title();
-        let title_bar = Paragraph::new(Line::from(vec![Span::styled(&title, title_style)]))
-            .style(Style::new().bg(theme::HEADER_BG));
+        let title_bar =
+            Paragraph::new(Line::from(vec![Span::styled(&title, title_style)])).style(Style::new().bg(header_bg));
         let title_area = Rect { x: area.x, y: area.y, width: area.width, height: 1 };
         frame.render_widget(title_bar, title_area);
 
-        // Status bar at bottom
         let status_area = Rect { x: area.x, y: area.y + area.height - 1, width: area.width, height: 1 };
-
         let content_area = Rect { x: area.x, y: area.y + 1, width: area.width, height: area.height.saturating_sub(2) };
 
-        // Filter lines
         let filtered: Vec<&LogLineRef> = lines
             .iter()
             .filter(|l| {
@@ -177,7 +175,6 @@ impl LogsView {
         let visible_count = filtered.len();
         let view_height = content_area.height as usize;
 
-        // Clamp scroll_offset
         if self.auto_scroll {
             self.scroll_offset = 0;
         }
@@ -186,17 +183,14 @@ impl LogsView {
             self.scroll_offset = max_offset;
         }
 
-        // Determine which lines to show (from bottom)
         let end = visible_count.saturating_sub(self.scroll_offset);
         let start = end.saturating_sub(view_height);
         let visible_lines = &filtered[start..end];
 
-        // Determine if we need container column (multi-container)
         let has_multi_containers = has_multiple_containers(lines);
         let ts_width: u16 = if self.show_timestamps { 24 } else { 0 };
         let ctr_width: u16 = if has_multi_containers { 16 } else { 0 };
 
-        // Render lines
         for (i, log_line) in visible_lines.iter().enumerate() {
             let y = content_area.y + i as u16;
             if y >= content_area.y + content_area.height {
@@ -211,7 +205,7 @@ impl LogsView {
                     Some(ts) => format!("{:<23} ", truncate_str(ts, 23)),
                     None => " ".repeat(24),
                 };
-                spans.push(Span::styled(ts_text, Style::new().fg(theme::TEXT_DIM)));
+                spans.push(Span::styled(ts_text, t.text_dim));
                 col_used += ts_width;
             }
 
@@ -229,16 +223,11 @@ impl LogsView {
                 log_line.content[..content_width].to_string()
             };
 
-            let content_style = if log_line.is_stderr {
-                Style::new().fg(theme::STATUS_PENDING)
-            } else {
-                Style::new().fg(theme::HEADER_FG)
-            };
+            let content_style = if log_line.is_stderr { t.status_pending } else { Style::new().fg(t.fg) };
 
-            // Highlight filter matches
             if let Some(ref f) = self.filter {
                 if !f.is_empty() {
-                    spans.extend(highlight_matches(&content, f, content_style));
+                    spans.extend(highlight_matches(&content, f, content_style, t));
                 } else {
                     spans.push(Span::styled(content, content_style));
                 }
@@ -251,38 +240,37 @@ impl LogsView {
             frame.render_widget(line_widget, line_area);
         }
 
-        // Status bar
         let mut status_parts = Vec::new();
 
         if self.auto_scroll {
-            status_parts.push(Span::styled(" FOLLOW ", Style::new().fg(theme::STATUS_RUNNING).bold()));
+            status_parts.push(Span::styled(" FOLLOW ", t.status_running.add_modifier(Modifier::BOLD)));
         } else {
-            status_parts.push(Span::styled(" PAUSED ", Style::new().fg(theme::STATUS_PENDING).bold()));
+            status_parts.push(Span::styled(" PAUSED ", t.status_pending.add_modifier(Modifier::BOLD)));
         }
 
-        status_parts.push(Span::styled(" | ", Style::new().fg(theme::TEXT_DIM)));
+        status_parts.push(Span::styled(" | ", t.text_dim));
 
         if let Some(ref f) = self.filter {
             if !f.is_empty() {
                 let filter_info = format!("Filter: \"{}\"  ({}/{} lines)", f, visible_count, self.total_lines);
-                status_parts.push(Span::styled(filter_info, Style::new().fg(theme::ACCENT)));
-                status_parts.push(Span::styled(" | ", Style::new().fg(theme::TEXT_DIM)));
+                status_parts.push(Span::styled(filter_info, Style::new().fg(t.accent)));
+                status_parts.push(Span::styled(" | ", t.text_dim));
             }
         }
 
         let line_info = format!("{} lines", self.total_lines);
-        status_parts.push(Span::styled(line_info, Style::new().fg(theme::STATUS_FG)));
+        status_parts.push(Span::styled(line_info, Style::new().fg(status_fg)));
 
         if let Some(st) = status_text {
-            status_parts.push(Span::styled(" | ", Style::new().fg(theme::TEXT_DIM)));
-            status_parts.push(Span::styled(st.to_string(), Style::new().fg(theme::STATUS_PENDING)));
+            status_parts.push(Span::styled(" | ", t.text_dim));
+            status_parts.push(Span::styled(st.to_string(), t.status_pending));
         }
 
-        let status_bar = Paragraph::new(Line::from(status_parts)).style(Style::new().bg(theme::STATUS_BG));
+        let status_bar = Paragraph::new(Line::from(status_parts)).style(Style::new().bg(status_bg));
         frame.render_widget(status_bar, status_area);
 
         if !focused {
-            dim_area(frame.buffer_mut(), content_area);
+            dim_area(frame.buffer_mut(), content_area, text_dim_color);
         }
     }
 }
@@ -316,7 +304,7 @@ fn truncate_str(s: &str, max: usize) -> String {
     }
 }
 
-fn highlight_matches<'a>(text: &'a str, query: &str, base_style: Style) -> Vec<Span<'a>> {
+fn highlight_matches<'a>(text: &'a str, query: &str, base_style: Style, theme: &Theme) -> Vec<Span<'a>> {
     let mut spans = Vec::new();
     let lower_text = text.to_lowercase();
     let lower_query = query.to_lowercase();
@@ -326,7 +314,7 @@ fn highlight_matches<'a>(text: &'a str, query: &str, base_style: Style) -> Vec<S
         if idx > last {
             spans.push(Span::styled(&text[last..idx], base_style));
         }
-        let highlight_style = base_style.bg(theme::SELECTION_BG).bold();
+        let highlight_style = base_style.patch(theme.selection).add_modifier(Modifier::BOLD);
         spans.push(Span::styled(&text[idx..idx + query.len()], highlight_style));
         last = idx + query.len();
     }
@@ -342,11 +330,11 @@ fn highlight_matches<'a>(text: &'a str, query: &str, base_style: Style) -> Vec<S
     spans
 }
 
-fn dim_area(buf: &mut Buffer, area: Rect) {
+fn dim_area(buf: &mut Buffer, area: Rect, dim_color: Color) {
     for y in area.y..area.y + area.height {
         for x in area.x..area.x + area.width {
             if let Some(cell) = buf.cell_mut((x, y)) {
-                cell.set_fg(theme::TEXT_DIM);
+                cell.set_fg(dim_color);
             }
         }
     }
@@ -441,16 +429,16 @@ mod tests {
         ];
 
         view.set_filter(Some("error".into()));
+        let theme = Theme::default();
 
         let backend = ratatui::backend::TestBackend::new(80, 25);
         let mut terminal = ratatui::Terminal::new(backend).unwrap();
         terminal
             .draw(|frame| {
-                view.render(&lines, frame, Rect::new(0, 0, 80, 25), true, None);
+                view.render(&lines, frame, Rect::new(0, 0, 80, 25), true, None, &theme);
             })
             .unwrap();
 
-        // After rendering with filter, check the status bar contains filter info
         let buf = terminal.backend().buffer().clone();
         let status_row = 24u16;
         let mut status_text = String::new();
@@ -467,11 +455,12 @@ mod tests {
         assert_eq!(view.scroll_offset(), 0);
 
         let lines = make_lines(100);
+        let theme = Theme::default();
         let backend = ratatui::backend::TestBackend::new(80, 25);
         let mut terminal = ratatui::Terminal::new(backend).unwrap();
         terminal
             .draw(|frame| {
-                view.render(&lines, frame, Rect::new(0, 0, 80, 25), true, None);
+                view.render(&lines, frame, Rect::new(0, 0, 80, 25), true, None, &theme);
             })
             .unwrap();
 
@@ -521,15 +510,15 @@ mod tests {
         view.scroll_up(1000);
 
         let lines = make_lines(10);
+        let theme = Theme::default();
         let backend = ratatui::backend::TestBackend::new(80, 25);
         let mut terminal = ratatui::Terminal::new(backend).unwrap();
         terminal
             .draw(|frame| {
-                view.render(&lines, frame, Rect::new(0, 0, 80, 12), true, None);
+                view.render(&lines, frame, Rect::new(0, 0, 80, 12), true, None, &theme);
             })
             .unwrap();
 
-        // view_height = 12 - 2 = 10, lines = 10, max_offset = 0
         assert_eq!(view.scroll_offset(), 0);
     }
 
@@ -537,29 +526,27 @@ mod tests {
     fn timestamp_toggle_affects_rendering() {
         let mut view = LogsView::new(1, "pod".into(), "ns".into());
         let lines = make_lines(1);
+        let theme = Theme::default();
 
         let backend = ratatui::backend::TestBackend::new(80, 5);
         let mut terminal = ratatui::Terminal::new(backend).unwrap();
 
-        // With timestamps
         view.show_timestamps = true;
         terminal
             .draw(|frame| {
-                view.render(&lines, frame, Rect::new(0, 0, 80, 5), true, None);
+                view.render(&lines, frame, Rect::new(0, 0, 80, 5), true, None, &theme);
             })
             .unwrap();
         let buf_with_ts = terminal.backend().buffer().clone();
 
-        // Without timestamps
         view.show_timestamps = false;
         terminal
             .draw(|frame| {
-                view.render(&lines, frame, Rect::new(0, 0, 80, 5), true, None);
+                view.render(&lines, frame, Rect::new(0, 0, 80, 5), true, None, &theme);
             })
             .unwrap();
         let buf_without_ts = terminal.backend().buffer().clone();
 
-        // Content position should differ
         let content_start_with_ts = find_text_position(&buf_with_ts, 1, "log line 0");
         let content_start_without_ts = find_text_position(&buf_without_ts, 1, "log line 0");
         assert!(content_start_with_ts.unwrap_or(0) > content_start_without_ts.unwrap_or(0));
@@ -571,12 +558,13 @@ mod tests {
         let lines = make_multi_container_lines();
 
         view.set_container_filter(Some("sidecar".into()));
+        let theme = Theme::default();
 
         let backend = ratatui::backend::TestBackend::new(80, 10);
         let mut terminal = ratatui::Terminal::new(backend).unwrap();
         terminal
             .draw(|frame| {
-                view.render(&lines, frame, Rect::new(0, 0, 80, 10), true, None);
+                view.render(&lines, frame, Rect::new(0, 0, 80, 10), true, None, &theme);
             })
             .unwrap();
 
@@ -595,12 +583,13 @@ mod tests {
     fn tiny_area_does_not_panic() {
         let mut view = LogsView::new(1, "pod".into(), "ns".into());
         let lines = make_lines(5);
+        let theme = Theme::default();
 
         let backend = ratatui::backend::TestBackend::new(80, 25);
         let mut terminal = ratatui::Terminal::new(backend).unwrap();
         terminal
             .draw(|frame| {
-                view.render(&lines, frame, Rect::new(0, 0, 5, 2), true, None);
+                view.render(&lines, frame, Rect::new(0, 0, 5, 2), true, None, &theme);
             })
             .unwrap();
     }
@@ -609,18 +598,20 @@ mod tests {
     fn unfocused_dims_content() {
         let mut view = LogsView::new(1, "pod".into(), "ns".into());
         let lines = make_lines(3);
+        let theme = Theme::default();
 
         let backend = ratatui::backend::TestBackend::new(80, 10);
         let mut terminal = ratatui::Terminal::new(backend).unwrap();
         terminal
             .draw(|frame| {
-                view.render(&lines, frame, Rect::new(0, 0, 80, 10), false, None);
+                view.render(&lines, frame, Rect::new(0, 0, 80, 10), false, None, &theme);
             })
             .unwrap();
 
         let buf = terminal.backend().buffer().clone();
         let cell = &buf[(0, 1)];
-        assert_eq!(cell.fg, theme::TEXT_DIM);
+        let text_dim_color = theme.text_dim.fg.unwrap_or(Color::Reset);
+        assert_eq!(cell.fg, text_dim_color);
     }
 
     #[test]
@@ -646,8 +637,9 @@ mod tests {
     #[test]
     fn highlight_matches_finds_occurrences() {
         let style = Style::new();
-        let spans = highlight_matches("hello error world error", "error", style);
-        assert!(spans.len() >= 4); // "hello " + "error" + " world " + "error"
+        let theme = Theme::default();
+        let spans = highlight_matches("hello error world error", "error", style, &theme);
+        assert!(spans.len() >= 4);
     }
 
     #[test]
@@ -661,7 +653,6 @@ mod tests {
     fn container_color_varies_by_name() {
         let c1 = container_color("main");
         let c2 = container_color("sidecar");
-        // Different names should usually produce different colors (not guaranteed but very likely)
         assert_ne!(c1, c2);
     }
 
@@ -685,12 +676,13 @@ mod tests {
     fn status_bar_shows_reconnecting() {
         let mut view = LogsView::new(1, "pod".into(), "ns".into());
         let lines = make_lines(5);
+        let theme = Theme::default();
 
         let backend = ratatui::backend::TestBackend::new(80, 10);
         let mut terminal = ratatui::Terminal::new(backend).unwrap();
         terminal
             .draw(|frame| {
-                view.render(&lines, frame, Rect::new(0, 0, 80, 10), true, Some("Reconnecting..."));
+                view.render(&lines, frame, Rect::new(0, 0, 80, 10), true, Some("Reconnecting..."), &theme);
             })
             .unwrap();
 

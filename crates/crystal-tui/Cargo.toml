@@ -7,4 +7,6 @@ edition = "2021"
 ratatui.workspace = true
 crossterm.workspace = true
 vt100.workspace = true
+anyhow.workspace = true
+crystal-config = { path = "../crystal-config" }
 crystal-terminal = { path = "../crystal-terminal" }

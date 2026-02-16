@@ -14,7 +14,8 @@ fn render_status_bar(
     terminal
         .draw(|frame| {
             let area = frame.area();
-            let widget = StatusBarWidget { mode, hints, cluster, namespace };
+            let theme = Theme::default();
+            let widget = StatusBarWidget { mode, hints, cluster, namespace, theme: &theme };
             widget.render(frame, area);
         })
         .unwrap();

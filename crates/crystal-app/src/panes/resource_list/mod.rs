@@ -112,7 +112,7 @@ impl ResourceListPane {
 }
 
 impl Pane for ResourceListPane {
-    fn render(&self, frame: &mut Frame, area: Rect, focused: bool) {
+    fn render(&self, frame: &mut Frame, area: Rect, focused: bool, theme: &crystal_tui::theme::Theme) {
         let title = match &self.view_type {
             ViewType::ResourceList(kind) => kind.display_name(),
             _ => "Resources",
@@ -134,6 +134,7 @@ impl Pane for ResourceListPane {
             sort_ascending: self.sort_ascending,
             total_count: self.state.items.len(),
             all_namespaces: self.all_namespaces,
+            theme,
         };
         widget.render(frame, area);
     }

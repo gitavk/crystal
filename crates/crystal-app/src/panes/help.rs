@@ -4,7 +4,7 @@ use ratatui::prelude::*;
 use ratatui::widgets::{Block, Borders, Paragraph, Wrap};
 
 use crystal_tui::pane::{Pane, PaneCommand, ResourceKind, ViewType};
-use crystal_tui::theme;
+use crystal_tui::theme::Theme;
 
 pub struct HelpPane {
     context_view: Option<ViewType>,
@@ -107,13 +107,13 @@ impl HelpPane {
 }
 
 impl Pane for HelpPane {
-    fn render(&self, frame: &mut Frame, area: Rect, focused: bool) {
-        let border_color = if focused { theme::ACCENT } else { theme::BORDER_COLOR };
+    fn render(&self, frame: &mut Frame, area: Rect, focused: bool, theme: &Theme) {
+        let border_style = if focused { theme.border_active } else { theme.border };
         let block = Block::default()
             .borders(Borders::ALL)
-            .border_style(Style::default().fg(border_color))
+            .border_style(border_style)
             .title(" Help ")
-            .title_style(Style::default().fg(theme::ACCENT).bold());
+            .title_style(Style::default().fg(theme.accent).bold());
 
         let inner = block.inner(area);
         frame.render_widget(block, area);
@@ -135,18 +135,13 @@ impl Pane for HelpPane {
             if i > 0 {
                 lines.push(Line::from(""));
             }
-            lines.push(Line::from(Span::styled(
-                format!("{title} Shortcuts"),
-                Style::default().fg(theme::ACCENT).bold(),
-            )));
+            lines
+                .push(Line::from(Span::styled(format!("{title} Shortcuts"), Style::default().fg(theme.accent).bold())));
             lines.push(Line::from(""));
             for (key, desc) in Self::normalize_shortcuts(shortcuts) {
                 lines.push(Line::from(vec![
-                    Span::styled(
-                        format!("  {:<16}", Self::format_key(&key)),
-                        Style::default().fg(theme::HEADER_FG).bold(),
-                    ),
-                    Span::styled(desc, Style::default().fg(theme::STATUS_FG)),
+                    Span::styled(format!("  {:<16}", Self::format_key(&key)), Style::default().fg(theme.fg).bold()),
+                    Span::styled(desc, theme.text_dim),
                 ]));
             }
         }
@@ -157,16 +152,13 @@ impl Pane for HelpPane {
                 lines.push(Line::from(""));
                 lines.push(Line::from(Span::styled(
                     format!("{} Actions", kind.display_name()),
-                    Style::default().fg(theme::ACCENT).bold(),
+                    Style::default().fg(theme.accent).bold(),
                 )));
                 lines.push(Line::from(""));
                 for (key, desc) in specific {
                     lines.push(Line::from(vec![
-                        Span::styled(
-                            format!("  {:<16}", Self::format_key(key)),
-                            Style::default().fg(theme::HEADER_FG).bold(),
-                        ),
-                        Span::styled(desc, Style::default().fg(theme::STATUS_FG)),
+                        Span::styled(format!("  {:<16}", Self::format_key(key)), Style::default().fg(theme.fg).bold()),
+                        Span::styled(desc, theme.text_dim),
                     ]));
                 }
             }

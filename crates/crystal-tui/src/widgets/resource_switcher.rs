@@ -2,16 +2,19 @@ use ratatui::prelude::*;
 use ratatui::widgets::{Block, Borders, Clear, List, ListItem, ListState, Paragraph};
 
 use crate::pane::ResourceKind;
-use crate::theme;
+use crate::theme::Theme;
 
 pub struct ResourceSwitcherWidget<'a> {
     pub input: &'a str,
     pub items: &'a [ResourceKind],
     pub selected: usize,
+    pub theme: &'a Theme,
 }
 
 impl<'a> ResourceSwitcherWidget<'a> {
     pub fn render(self, frame: &mut Frame, area: Rect) {
+        let t = self.theme;
+        let overlay_bg = t.overlay.bg.unwrap_or(Color::Reset);
         let width: u16 = 40.min(area.width.saturating_sub(4));
         let height: u16 = ((self.items.len() + 3) as u16).min(20).min(area.height.saturating_sub(2));
         let popup = Rect {
@@ -25,10 +28,10 @@ impl<'a> ResourceSwitcherWidget<'a> {
 
         let block = Block::default()
             .borders(Borders::ALL)
-            .border_style(Style::default().fg(theme::ACCENT))
+            .border_style(Style::default().fg(t.accent))
             .title(" Switch Resource ")
-            .title_style(Style::default().fg(theme::ACCENT).bold())
-            .style(Style::default().bg(theme::OVERLAY_BG));
+            .title_style(Style::default().fg(t.accent).bold())
+            .style(t.overlay);
 
         let inner = block.inner(popup);
         frame.render_widget(block, popup);
@@ -39,8 +42,7 @@ impl<'a> ResourceSwitcherWidget<'a> {
             .split(inner);
 
         let input_display = format!(":{}_", self.input);
-        let input_line =
-            Paragraph::new(input_display).style(Style::default().fg(theme::HEADER_FG).bg(theme::OVERLAY_BG));
+        let input_line = Paragraph::new(input_display).style(Style::default().fg(t.fg).bg(overlay_bg));
         frame.render_widget(input_line, chunks[0]);
 
         let items: Vec<ListItem> = self
@@ -52,16 +54,13 @@ impl<'a> ResourceSwitcherWidget<'a> {
                 let short = kind.short_name();
                 let display = kind.display_name();
                 let text = format!("{marker}{short:<8} {display}");
-                let style = if i == self.selected {
-                    Style::default().fg(theme::ACCENT).bold()
-                } else {
-                    Style::default().fg(theme::HEADER_FG)
-                };
+                let style =
+                    if i == self.selected { Style::default().fg(t.accent).bold() } else { Style::default().fg(t.fg) };
                 ListItem::new(text).style(style)
             })
             .collect();
 
-        let list = List::new(items).highlight_style(Style::default().bg(theme::SELECTION_BG).bold());
+        let list = List::new(items).highlight_style(t.selection.add_modifier(Modifier::BOLD));
 
         let mut list_state =
             ListState::default().with_selected(Some(self.selected.min(self.items.len().saturating_sub(1))));

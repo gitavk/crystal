@@ -5,7 +5,7 @@ use ratatui::widgets::{Block, Borders, Paragraph};
 
 use crystal_core::{LogLine, LogStream, StreamStatus};
 use crystal_tui::pane::{Pane, PaneCommand, ViewType};
-use crystal_tui::theme;
+use crystal_tui::theme::Theme;
 
 const MAX_LOG_LINES: usize = 5000;
 
@@ -85,13 +85,13 @@ impl LogsPane {
 }
 
 impl Pane for LogsPane {
-    fn render(&self, frame: &mut Frame, area: Rect, focused: bool) {
-        let border_color = if focused { theme::ACCENT } else { theme::BORDER_COLOR };
+    fn render(&self, frame: &mut Frame, area: Rect, focused: bool, theme: &Theme) {
+        let border_style = if focused { theme.border_active } else { theme.border };
         let block = Block::default()
             .borders(Borders::ALL)
-            .border_style(Style::default().fg(border_color))
+            .border_style(border_style)
             .title(format!(" {} ", self.render_title()))
-            .title_style(Style::default().fg(theme::ACCENT).bold());
+            .title_style(Style::default().fg(theme.accent).bold());
 
         let inner = block.inner(area);
         frame.render_widget(block, area);
@@ -119,10 +119,7 @@ impl Pane for LogsPane {
         let footer = format!("{mode_text} | {} lines | {}", self.lines.len(), self.status);
         let footer_area =
             Rect { x: inner.x, y: inner.y + inner.height.saturating_sub(1), width: inner.width, height: 1 };
-        frame.render_widget(
-            Paragraph::new(footer).style(Style::default().fg(theme::TEXT_DIM).bg(theme::STATUS_BG)),
-            footer_area,
-        );
+        frame.render_widget(Paragraph::new(footer).style(theme.status_bar), footer_area);
     }
 
     fn handle_command(&mut self, cmd: &PaneCommand) {

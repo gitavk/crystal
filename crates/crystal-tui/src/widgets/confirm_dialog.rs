@@ -1,14 +1,16 @@
 use ratatui::prelude::*;
 use ratatui::widgets::{Block, Borders, Clear, Paragraph};
 
-use crate::theme;
+use crate::theme::Theme;
 
 pub struct ConfirmDialogWidget<'a> {
     pub message: &'a str,
+    pub theme: &'a Theme,
 }
 
 impl<'a> ConfirmDialogWidget<'a> {
     pub fn render(self, frame: &mut Frame, area: Rect) {
+        let t = self.theme;
         let lines: Vec<&str> = self.message.lines().collect();
         let max_line_width = lines.iter().map(|l| l.len()).max().unwrap_or(0);
         let width = (max_line_width as u16 + 6).max(40).min(area.width.saturating_sub(4));
@@ -25,10 +27,10 @@ impl<'a> ConfirmDialogWidget<'a> {
 
         let block = Block::default()
             .title(" Confirm ")
-            .title_style(Style::default().fg(theme::STATUS_FAILED).bold())
+            .title_style(t.status_failed.add_modifier(Modifier::BOLD))
             .borders(Borders::ALL)
-            .border_style(Style::default().fg(theme::STATUS_FAILED))
-            .style(Style::default().bg(theme::OVERLAY_BG));
+            .border_style(t.status_failed)
+            .style(t.overlay);
 
         let inner = block.inner(popup);
         frame.render_widget(block, popup);
@@ -38,15 +40,15 @@ impl<'a> ConfirmDialogWidget<'a> {
             .constraints([Constraint::Min(1), Constraint::Length(1), Constraint::Length(1)])
             .split(inner);
 
-        let msg =
-            Paragraph::new(self.message).style(Style::default().fg(theme::HEADER_FG)).alignment(Alignment::Center);
+        let msg = Paragraph::new(self.message).style(Style::default().fg(t.fg)).alignment(Alignment::Center);
         frame.render_widget(msg, chunks[0]);
 
+        let status_fg = t.status_bar.fg.unwrap_or(Color::Reset);
         let buttons = Paragraph::new(Line::from(vec![
-            Span::styled("[y]", Style::default().fg(theme::STATUS_RUNNING).bold()),
-            Span::styled(" Confirm  ", Style::default().fg(theme::STATUS_FG)),
-            Span::styled("[n/Esc]", Style::default().fg(theme::STATUS_FAILED).bold()),
-            Span::styled(" Cancel", Style::default().fg(theme::STATUS_FG)),
+            Span::styled("[y]", t.status_running.add_modifier(Modifier::BOLD)),
+            Span::styled(" Confirm  ", Style::default().fg(status_fg)),
+            Span::styled("[n/Esc]", t.status_failed.add_modifier(Modifier::BOLD)),
+            Span::styled(" Cancel", Style::default().fg(status_fg)),
         ]))
         .alignment(Alignment::Center);
         frame.render_widget(buttons, chunks[2]);
@@ -64,10 +66,12 @@ mod tests {
     fn confirm_dialog_renders_message_and_buttons() {
         let backend = TestBackend::new(60, 20);
         let mut terminal = Terminal::new(backend).unwrap();
+        let theme = Theme::default();
 
         terminal
             .draw(|frame| {
-                let widget = ConfirmDialogWidget { message: "Delete pod nginx-abc123\nin namespace default?" };
+                let widget =
+                    ConfirmDialogWidget { message: "Delete pod nginx-abc123\nin namespace default?", theme: &theme };
                 widget.render(frame, frame.area());
             })
             .unwrap();

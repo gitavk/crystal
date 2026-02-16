@@ -34,7 +34,8 @@ async fn main() -> anyhow::Result<()> {
 
     let config = crystal_config::Config::load();
     let dispatcher = KeybindingDispatcher::from_config(&config.keybindings);
-    let mut app = App::new(config.tick_rate_ms(), dispatcher).await;
+    let theme = crystal_tui::theme::Theme::from_config(&config.theme);
+    let mut app = App::new(config.tick_rate_ms(), dispatcher, theme).await;
     let result = app.run(&mut terminal).await;
 
     terminal::disable_raw_mode()?;

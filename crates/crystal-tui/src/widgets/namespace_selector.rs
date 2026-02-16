@@ -1,12 +1,13 @@
 use ratatui::prelude::*;
 use ratatui::widgets::{Block, Borders, Clear, List, ListItem, ListState, Paragraph};
 
-use crate::theme;
+use crate::theme::Theme;
 
 pub struct NamespaceSelectorWidget<'a> {
     pub namespaces: &'a [String],
     pub filter: &'a str,
     pub selected: usize,
+    pub theme: &'a Theme,
 }
 
 impl<'a> NamespaceSelectorWidget<'a> {
@@ -28,6 +29,7 @@ impl<'a> NamespaceSelectorWidget<'a> {
     }
 
     pub fn render(self, frame: &mut Frame, area: Rect) {
+        let t = self.theme;
         let popup_width = area.width / 2;
         let popup_height = area.height * 3 / 5;
         let popup_area = Rect {
@@ -41,10 +43,10 @@ impl<'a> NamespaceSelectorWidget<'a> {
 
         let block = Block::default()
             .borders(Borders::ALL)
-            .border_style(Style::default().fg(theme::ACCENT))
+            .border_style(Style::default().fg(t.accent))
             .title(" Select Namespace ")
-            .title_style(Style::default().fg(theme::ACCENT).bold())
-            .style(Style::default().bg(theme::OVERLAY_BG));
+            .title_style(Style::default().fg(t.accent).bold())
+            .style(t.overlay);
 
         let inner = block.inner(popup_area);
         frame.render_widget(block, popup_area);
@@ -56,11 +58,7 @@ impl<'a> NamespaceSelectorWidget<'a> {
 
         let filter_display =
             if self.filter.is_empty() { "Type to filter...".to_string() } else { self.filter.to_string() };
-        let filter_style = if self.filter.is_empty() {
-            Style::default().fg(theme::TEXT_DIM)
-        } else {
-            Style::default().fg(theme::HEADER_FG)
-        };
+        let filter_style = if self.filter.is_empty() { t.text_dim } else { Style::default().fg(t.fg) };
         let filter_line = Paragraph::new(format!(" > {filter_display}")).style(filter_style);
         frame.render_widget(filter_line, chunks[0]);
 
@@ -69,21 +67,21 @@ impl<'a> NamespaceSelectorWidget<'a> {
             .iter()
             .map(|ns| {
                 let style = if *ns == "All Namespaces" {
-                    Style::default().fg(theme::ACCENT).italic()
+                    Style::default().fg(t.accent).italic()
                 } else {
-                    Style::default().fg(theme::HEADER_FG)
+                    Style::default().fg(t.fg)
                 };
                 ListItem::new(format!("  {ns}")).style(style)
             })
             .collect();
 
-        let list = List::new(items).highlight_style(Style::default().bg(theme::SELECTION_BG).bold());
+        let list = List::new(items).highlight_style(t.selection.add_modifier(Modifier::BOLD));
 
         let mut list_state =
             ListState::default().with_selected(Some(self.selected.min(filtered.len().saturating_sub(1))));
         frame.render_stateful_widget(list, chunks[1], &mut list_state);
 
-        let hints = Paragraph::new(" Enter:select  Esc:cancel").style(Style::default().fg(theme::TEXT_DIM));
+        let hints = Paragraph::new(" Enter:select  Esc:cancel").style(t.text_dim);
         frame.render_widget(hints, chunks[2]);
     }
 }

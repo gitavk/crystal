@@ -330,7 +330,9 @@ dependencies = [
 name = "crystal-tui"
 version = "0.1.0"
 dependencies = [
+ "anyhow",
  "crossterm",
+ "crystal-config",
  "crystal-terminal",
  "ratatui",
  "vt100",

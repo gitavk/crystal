@@ -2,6 +2,8 @@ use std::any::Any;
 
 use ratatui::prelude::{Frame, Rect};
 
+use crate::theme::Theme;
+
 pub type PaneId = u32;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -42,7 +44,7 @@ pub enum PaneCommand {
 /// - Accept PaneCommands and update internal state
 /// - Never affect other panes or access global state directly
 pub trait Pane {
-    fn render(&self, frame: &mut Frame, area: Rect, focused: bool);
+    fn render(&self, frame: &mut Frame, area: Rect, focused: bool, theme: &Theme);
     fn handle_command(&mut self, cmd: &PaneCommand);
     fn view_type(&self) -> &ViewType;
     fn on_focus_change(&mut self, _previous: Option<&ViewType>) {}

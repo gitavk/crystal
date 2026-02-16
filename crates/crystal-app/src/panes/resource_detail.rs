@@ -5,7 +5,7 @@ use ratatui::widgets::{Block, Borders, Paragraph, Scrollbar, ScrollbarOrientatio
 
 use crystal_core::resource::DetailSection;
 use crystal_tui::pane::{Pane, PaneCommand, ResourceKind, ViewType};
-use crystal_tui::theme;
+use crystal_tui::theme::Theme;
 use crystal_tui::widgets::breadcrumb::BreadcrumbWidget;
 
 #[allow(dead_code)]
@@ -46,21 +46,21 @@ impl ResourceDetailPane {
         height
     }
 
-    fn color_for_status_value(value: &str) -> Color {
+    fn color_for_status_value(value: &str, theme: &Theme) -> Style {
         let lower = value.to_lowercase();
         match lower.as_str() {
-            "running" | "active" | "ready" | "true" | "succeeded" | "bound" | "available" => theme::STATUS_RUNNING,
-            "failed" | "error" | "crashloopbackoff" | "imagepullbackoff" | "false" | "evicted" => theme::STATUS_FAILED,
-            "pending" | "waiting" | "terminating" | "containercreating" | "unknown" => theme::STATUS_PENDING,
-            _ => theme::HEADER_FG,
+            "running" | "active" | "ready" | "true" | "succeeded" | "bound" | "available" => theme.status_running,
+            "failed" | "error" | "crashloopbackoff" | "imagepullbackoff" | "false" | "evicted" => theme.status_failed,
+            "pending" | "waiting" | "terminating" | "containercreating" | "unknown" => theme.status_pending,
+            _ => theme.status_unknown,
         }
     }
 }
 
 impl Pane for ResourceDetailPane {
-    fn render(&self, frame: &mut Frame, area: Rect, focused: bool) {
-        let border_color = if focused { theme::ACCENT } else { theme::BORDER_COLOR };
-        let outer_block = Block::default().borders(Borders::ALL).border_style(Style::default().fg(border_color));
+    fn render(&self, frame: &mut Frame, area: Rect, focused: bool, theme: &Theme) {
+        let border_style = if focused { theme.border_active } else { theme.border };
+        let outer_block = Block::default().borders(Borders::ALL).border_style(border_style);
         let inner = outer_block.inner(area);
         frame.render_widget(outer_block, area);
 
@@ -68,13 +68,11 @@ impl Pane for ResourceDetailPane {
             return;
         }
 
-        // Breadcrumb at top
         let breadcrumb_area = Rect { x: inner.x + 1, y: inner.y, width: inner.width.saturating_sub(2), height: 1 };
         let kind_name = self.kind.display_name();
         let segments: Vec<&str> = vec![kind_name, &self.name];
-        frame.render_widget(BreadcrumbWidget { segments: &segments }, breadcrumb_area);
+        BreadcrumbWidget { segments: &segments, theme }.render(breadcrumb_area, frame.buffer_mut());
 
-        // Content area below breadcrumb
         let content_area =
             Rect { x: inner.x, y: inner.y + 1, width: inner.width, height: inner.height.saturating_sub(1) };
 
@@ -82,14 +80,12 @@ impl Pane for ResourceDetailPane {
         for (idx, section) in self.sections.iter().enumerate() {
             let is_selected = idx == self.selected_section;
             let title_style = if is_selected {
-                Style::default().fg(theme::ACCENT).bold()
+                Style::default().fg(theme.accent).bold()
             } else {
-                Style::default().fg(theme::TABLE_HEADER_FG).bold()
+                Style::default().fg(theme.fg).bold()
             };
-            let border_char_style =
-                if is_selected { Style::default().fg(theme::ACCENT) } else { Style::default().fg(theme::BORDER_COLOR) };
+            let border_char_style = if is_selected { theme.border_active } else { theme.border };
 
-            // Section header
             let title_line = Line::from(vec![
                 Span::styled("┌─ ", border_char_style),
                 Span::styled(&section.title, title_style),
@@ -103,11 +99,11 @@ impl Pane for ResourceDetailPane {
             lines.push(title_line);
 
             for (key, value) in &section.fields {
-                let value_color = Self::color_for_status_value(value);
+                let value_style = Self::color_for_status_value(value, theme);
                 lines.push(Line::from(vec![
                     Span::styled("│ ", border_char_style),
-                    Span::styled(format!("{key:<14}"), Style::default().fg(theme::TEXT_DIM)),
-                    Span::styled(value, Style::default().fg(value_color)),
+                    Span::styled(format!("{key:<14}"), theme.text_dim),
+                    Span::styled(value, value_style),
                 ]));
             }
 
@@ -251,12 +247,13 @@ mod tests {
 
     #[test]
     fn renders_all_sections() {
+        let theme = Theme::default();
         let pane =
             ResourceDetailPane::new(ResourceKind::Pods, "nginx".into(), Some("default".into()), sample_sections());
         let mut terminal = ratatui::Terminal::new(ratatui::backend::TestBackend::new(60, 30)).unwrap();
         terminal
             .draw(|frame| {
-                pane.render(frame, Rect::new(0, 0, 60, 30), true);
+                pane.render(frame, Rect::new(0, 0, 60, 30), true, &theme);
             })
             .unwrap();
         let buf = terminal.backend().buffer().clone();
@@ -275,9 +272,10 @@ mod tests {
 
     #[test]
     fn status_value_colors() {
-        assert_eq!(ResourceDetailPane::color_for_status_value("Running"), theme::STATUS_RUNNING);
-        assert_eq!(ResourceDetailPane::color_for_status_value("Failed"), theme::STATUS_FAILED);
-        assert_eq!(ResourceDetailPane::color_for_status_value("Pending"), theme::STATUS_PENDING);
+        let theme = Theme::default();
+        assert_eq!(ResourceDetailPane::color_for_status_value("Running", &theme), theme.status_running);
+        assert_eq!(ResourceDetailPane::color_for_status_value("Failed", &theme), theme.status_failed);
+        assert_eq!(ResourceDetailPane::color_for_status_value("Pending", &theme), theme.status_pending);
     }
 
     #[test]

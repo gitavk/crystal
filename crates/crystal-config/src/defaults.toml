@@ -17,6 +17,30 @@ hot_reload = true
 command_palette = true
 port_forward = true
 
+[theme]
+accent = "#89b4fa"
+bg = "default"
+fg = "#cdd6f4"
+header-bg = "#1e1e2e"
+header-fg = "#cdd6f4"
+selection-bg = "#45475a"
+selection-fg = "#cdd6f4"
+border = "#585b70"
+border-active = "#89b4fa"
+text-dim = "#6c7086"
+overlay-bg = "#1e1e2e"
+status-running = "#a6e3a1"
+status-pending = "#f9e2af"
+status-failed = "#f38ba8"
+status-unknown = "#585b70"
+yaml-key = "#89b4fa"
+yaml-string = "#a6e3a1"
+yaml-number = "#fab387"
+yaml-boolean = "#cba6f7"
+yaml-null = "#585b70"
+insert-mode-bg = "#a6e3a1"
+insert-mode-fg = "#1e1e2e"
+
 [keybindings.navigation]
 scroll_up = "k"
 scroll_down = "j"

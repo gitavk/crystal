@@ -3,7 +3,7 @@ use std::time::{Duration, Instant};
 use ratatui::prelude::*;
 use ratatui::widgets::{Block, Borders, Clear, Paragraph};
 
-use crate::theme;
+use crate::theme::Theme;
 
 #[derive(Clone, Debug)]
 pub enum ToastLevel {
@@ -40,10 +40,12 @@ impl ToastMessage {
 
 pub struct ToastWidget<'a> {
     pub toasts: &'a [ToastMessage],
+    pub theme: &'a Theme,
 }
 
 impl<'a> ToastWidget<'a> {
     pub fn render(self, frame: &mut Frame, area: Rect) {
+        let t = self.theme;
         let max_visible = 3;
         let visible: Vec<_> = self.toasts.iter().rev().take(max_visible).collect();
 
@@ -62,23 +64,20 @@ impl<'a> ToastWidget<'a> {
                 break;
             }
 
-            let (border_color, prefix) = match toast.level {
-                ToastLevel::Success => (theme::STATUS_RUNNING, "ok "),
-                ToastLevel::Error => (theme::STATUS_FAILED, "err "),
-                ToastLevel::Info => (theme::ACCENT, ""),
+            let (border_style, prefix) = match toast.level {
+                ToastLevel::Success => (t.status_running, "ok "),
+                ToastLevel::Error => (t.status_failed, "err "),
+                ToastLevel::Info => (Style::default().fg(t.accent), ""),
             };
 
             frame.render_widget(Clear, toast_area);
 
-            let block = Block::default()
-                .borders(Borders::ALL)
-                .border_style(Style::default().fg(border_color))
-                .style(Style::default().bg(theme::OVERLAY_BG));
+            let block = Block::default().borders(Borders::ALL).border_style(border_style).style(t.overlay);
 
             let inner = block.inner(toast_area);
             frame.render_widget(block, toast_area);
 
-            let text = Paragraph::new(format!("{prefix}{}", toast.text)).style(Style::default().fg(theme::HEADER_FG));
+            let text = Paragraph::new(format!("{prefix}{}", toast.text)).style(Style::default().fg(t.fg));
             frame.render_widget(text, inner);
         }
     }

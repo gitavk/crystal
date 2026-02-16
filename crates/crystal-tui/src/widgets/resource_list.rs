@@ -1,7 +1,7 @@
 use ratatui::prelude::*;
 use ratatui::widgets::{Block, Borders, Cell, Paragraph, Row, Scrollbar, ScrollbarOrientation, ScrollbarState, Table};
 
-use crate::theme;
+use crate::theme::Theme;
 
 pub struct ResourceListWidget<'a> {
     pub title: &'a str,
@@ -17,11 +17,13 @@ pub struct ResourceListWidget<'a> {
     pub sort_ascending: bool,
     pub total_count: usize,
     pub all_namespaces: bool,
+    pub theme: &'a Theme,
 }
 
 impl<'a> ResourceListWidget<'a> {
     pub fn render(self, frame: &mut Frame, area: Rect) {
-        let border_color = if self.focused { theme::ACCENT } else { theme::BORDER_COLOR };
+        let t = self.theme;
+        let border_color = if self.focused { t.accent } else { t.border.fg.unwrap_or(Color::Reset) };
 
         let title_suffix = if self.all_namespaces { " (All Namespaces)" } else { "" };
         let count_display = if self.filter_text.is_some() {
@@ -34,18 +36,17 @@ impl<'a> ResourceListWidget<'a> {
             .borders(Borders::ALL)
             .border_style(Style::default().fg(border_color))
             .title(format!(" {}{} ", self.title, title_suffix))
-            .title_style(Style::default().fg(theme::ACCENT).bold())
-            .title_bottom(Line::from(count_display).right_aligned().style(Style::default().fg(theme::TEXT_DIM)));
+            .title_style(Style::default().fg(t.accent).bold())
+            .title_bottom(Line::from(count_display).right_aligned().style(t.text_dim));
 
         if self.loading {
-            let msg = Paragraph::new("Loading...").style(Style::default().fg(theme::TEXT_DIM)).block(block);
+            let msg = Paragraph::new("Loading...").style(t.text_dim).block(block);
             frame.render_widget(msg, area);
             return;
         }
 
         if let Some(err) = self.error {
-            let msg =
-                Paragraph::new(format!("Error: {err}")).style(Style::default().fg(theme::STATUS_FAILED)).block(block);
+            let msg = Paragraph::new(format!("Error: {err}")).style(t.status_failed).block(block);
             frame.render_widget(msg, area);
             return;
         }
@@ -61,25 +62,26 @@ impl<'a> ResourceListWidget<'a> {
                 Rect { y: content_area.y + 1, height: content_area.height.saturating_sub(1), ..content_area };
 
             let filter_line = Line::from(vec![
-                Span::styled("Filter: ", Style::default().fg(theme::TEXT_DIM)),
-                Span::styled(filter, Style::default().fg(theme::ACCENT)),
-                Span::styled("_", Style::default().fg(theme::ACCENT)),
+                Span::styled("Filter: ", t.text_dim),
+                Span::styled(filter, Style::default().fg(t.accent)),
+                Span::styled("_", Style::default().fg(t.accent)),
             ]);
             frame.render_widget(Paragraph::new(filter_line), filter_area);
         }
 
         if self.items.is_empty() && self.filter_text.is_none() {
-            let msg = Paragraph::new("No resources found").style(Style::default().fg(theme::TEXT_DIM));
+            let msg = Paragraph::new("No resources found").style(t.text_dim);
             frame.render_widget(msg, content_area);
             return;
         }
 
         if self.items.is_empty() {
-            let msg = Paragraph::new("No matches").style(Style::default().fg(theme::TEXT_DIM));
+            let msg = Paragraph::new("No matches").style(t.text_dim);
             frame.render_widget(msg, content_area);
             return;
         }
 
+        let header_fg = t.accent;
         let header_cells: Vec<Cell> = self
             .headers
             .iter()
@@ -91,7 +93,7 @@ impl<'a> ResourceListWidget<'a> {
                 } else {
                     h.clone()
                 };
-                Cell::from(label).style(Style::default().fg(theme::TABLE_HEADER_FG).bold())
+                Cell::from(label).style(Style::default().fg(header_fg).bold())
             })
             .collect();
         let header = Row::new(header_cells).height(1);
@@ -105,11 +107,7 @@ impl<'a> ResourceListWidget<'a> {
                     .iter()
                     .enumerate()
                     .map(|(col_idx, val)| {
-                        let style = if Some(col_idx) == status_col {
-                            Style::default().fg(status_color(val))
-                        } else {
-                            Style::default()
-                        };
+                        let style = if Some(col_idx) == status_col { status_style(val, t) } else { Style::default() };
                         Cell::from(val.as_str()).style(style)
                     })
                     .collect();
@@ -132,18 +130,14 @@ impl<'a> ResourceListWidget<'a> {
             })
             .collect();
 
-        let table = Table::new(rows, &widths)
-            .header(header)
-            .row_highlight_style(Style::default().bg(theme::SELECTION_BG))
-            .highlight_symbol("▶ ");
+        let table = Table::new(rows, &widths).header(header).row_highlight_style(t.selection).highlight_symbol("▶ ");
 
         let mut table_state = ratatui::widgets::TableState::default().with_selected(self.selected);
         frame.render_stateful_widget(table, content_area, &mut table_state);
 
         if self.items.len() > content_area.height.saturating_sub(2) as usize {
             let mut scrollbar_state = ScrollbarState::new(self.items.len()).position(self.selected.unwrap_or(0));
-            let scrollbar =
-                Scrollbar::new(ScrollbarOrientation::VerticalRight).style(Style::default().fg(theme::BORDER_COLOR));
+            let scrollbar = Scrollbar::new(ScrollbarOrientation::VerticalRight).style(t.border);
             frame.render_stateful_widget(
                 scrollbar,
                 content_area.inner(Margin { vertical: 1, horizontal: 0 }),
@@ -153,12 +147,11 @@ impl<'a> ResourceListWidget<'a> {
     }
 }
 
-fn status_color(status: &str) -> Color {
+fn status_style(status: &str, theme: &Theme) -> Style {
     match status {
-        "Running" => theme::STATUS_RUNNING,
-        "Succeeded" => theme::STATUS_RUNNING,
-        "Pending" | "ContainerCreating" => theme::STATUS_PENDING,
-        "Failed" | "Error" | "CrashLoopBackOff" | "ImagePullBackOff" => theme::STATUS_FAILED,
-        _ => theme::STATUS_PENDING,
+        "Running" | "Succeeded" => theme.status_running,
+        "Pending" | "ContainerCreating" => theme.status_pending,
+        "Failed" | "Error" | "CrashLoopBackOff" | "ImagePullBackOff" => theme.status_failed,
+        _ => theme.status_pending,
     }
 }

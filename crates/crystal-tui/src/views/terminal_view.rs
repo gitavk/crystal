@@ -1,7 +1,7 @@
 use ratatui::prelude::*;
 use ratatui::widgets::Paragraph;
 
-use crate::theme;
+use crate::theme::Theme;
 use crystal_terminal::render_terminal_screen;
 
 pub type SessionId = u64;
@@ -33,23 +33,19 @@ impl TerminalView {
         self.scrollback_offset
     }
 
-    /// Render the terminal screen state.
-    /// `screen` is borrowed from TerminalManager via RenderContext.
-    /// When scrollback_offset > 0, App Core should call `parser.set_scrollback(offset)`
-    /// before passing the screen here — the vt100 cell() method already accounts for it.
-    pub fn render(&self, screen: &vt100::Screen, frame: &mut Frame, area: Rect, focused: bool) {
+    pub fn render(&self, screen: &vt100::Screen, frame: &mut Frame, area: Rect, focused: bool, theme: &Theme) {
         if area.height < 2 || area.width < 4 {
             return;
         }
 
-        let title_style = if focused {
-            Style::new().fg(theme::HEADER_FG).bg(theme::HEADER_BG)
-        } else {
-            Style::new().fg(theme::TEXT_DIM).bg(theme::HEADER_BG)
-        };
+        let t = theme;
+        let header_bg = t.header.bg.unwrap_or(Color::Reset);
+        let text_dim_color = t.text_dim.fg.unwrap_or(Color::Reset);
 
-        let title_bar = Paragraph::new(Line::from(vec![Span::styled(&self.title, title_style)]))
-            .style(Style::new().bg(theme::HEADER_BG));
+        let title_style = if focused { Style::new().fg(t.fg).bg(header_bg) } else { t.text_dim.bg(header_bg) };
+
+        let title_bar =
+            Paragraph::new(Line::from(vec![Span::styled(&self.title, title_style)])).style(Style::new().bg(header_bg));
         let title_area = Rect { x: area.x, y: area.y, width: area.width, height: 1 };
         frame.render_widget(title_bar, title_area);
 
@@ -67,7 +63,7 @@ impl TerminalView {
                 }
             }
         } else {
-            dim_area(frame.buffer_mut(), content_area);
+            dim_area(frame.buffer_mut(), content_area, text_dim_color);
         }
     }
 
@@ -84,11 +80,11 @@ impl TerminalView {
     }
 }
 
-fn dim_area(buf: &mut Buffer, area: Rect) {
+fn dim_area(buf: &mut Buffer, area: Rect, dim_color: Color) {
     for y in area.y..area.y + area.height {
         for x in area.x..area.x + area.width {
             if let Some(cell) = buf.cell_mut((x, y)) {
-                cell.set_fg(theme::TEXT_DIM);
+                cell.set_fg(dim_color);
             }
         }
     }
@@ -109,12 +105,13 @@ mod tests {
         let view = TerminalView::new(1, "[crystal:minikube/default] /bin/bash".into());
         let parser = make_screen(24, 80, b"");
         let area = Rect::new(0, 0, 80, 25);
+        let theme = Theme::default();
 
         let backend = ratatui::backend::TestBackend::new(80, 25);
         let mut terminal = ratatui::Terminal::new(backend).unwrap();
         terminal
             .draw(|frame| {
-                view.render(parser.screen(), frame, area, true);
+                view.render(parser.screen(), frame, area, true, &theme);
             })
             .unwrap();
 
@@ -129,12 +126,13 @@ mod tests {
     fn focused_pane_shows_cursor() {
         let view = TerminalView::new(1, "test".into());
         let parser = make_screen(24, 80, b"AB");
+        let theme = Theme::default();
 
         let backend = ratatui::backend::TestBackend::new(80, 25);
         let mut terminal = ratatui::Terminal::new(backend).unwrap();
         terminal
             .draw(|frame| {
-                view.render(parser.screen(), frame, Rect::new(0, 0, 80, 25), true);
+                view.render(parser.screen(), frame, Rect::new(0, 0, 80, 25), true, &theme);
             })
             .unwrap();
 
@@ -146,18 +144,20 @@ mod tests {
     fn unfocused_pane_does_not_show_cursor() {
         let view = TerminalView::new(1, "test".into());
         let parser = make_screen(24, 80, b"AB");
+        let theme = Theme::default();
 
         let backend = ratatui::backend::TestBackend::new(80, 25);
         let mut terminal = ratatui::Terminal::new(backend).unwrap();
         terminal
             .draw(|frame| {
-                view.render(parser.screen(), frame, Rect::new(0, 0, 80, 25), false);
+                view.render(parser.screen(), frame, Rect::new(0, 0, 80, 25), false, &theme);
             })
             .unwrap();
 
         let result_buf = terminal.backend().buffer().clone();
         let cell = &result_buf[(0, 1)];
-        assert_eq!(cell.fg, theme::TEXT_DIM, "unfocused content should be dimmed");
+        let text_dim_color = theme.text_dim.fg.unwrap_or(Color::Reset);
+        assert_eq!(cell.fg, text_dim_color, "unfocused content should be dimmed");
     }
 
     #[test]
@@ -192,12 +192,13 @@ mod tests {
     fn tiny_area_does_not_panic() {
         let view = TerminalView::new(1, "test".into());
         let parser = make_screen(24, 80, b"Hello");
+        let theme = Theme::default();
 
         let backend = ratatui::backend::TestBackend::new(80, 25);
         let mut terminal = ratatui::Terminal::new(backend).unwrap();
         terminal
             .draw(|frame| {
-                view.render(parser.screen(), frame, Rect::new(0, 0, 2, 1), true);
+                view.render(parser.screen(), frame, Rect::new(0, 0, 2, 1), true, &theme);
             })
             .unwrap();
     }

@@ -8,7 +8,8 @@ fn render_tab_bar(tabs: &[String], active: usize, width: u16) -> ratatui::buffer
     terminal
         .draw(|frame| {
             let area = frame.area();
-            let widget = TabBarWidget { tabs, active };
+            let theme = Theme::default();
+            let widget = TabBarWidget { tabs, active, theme: &theme };
             widget.render(frame, area);
         })
         .unwrap();

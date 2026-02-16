@@ -2,7 +2,7 @@ use ratatui::prelude::*;
 use ratatui::widgets::{Block, Borders, Clear, Paragraph};
 
 use crate::layout::PortForwardFieldView;
-use crate::theme;
+use crate::theme::Theme;
 
 pub struct PortForwardDialogWidget<'a> {
     pub pod: &'a str,
@@ -10,10 +10,12 @@ pub struct PortForwardDialogWidget<'a> {
     pub local_port: &'a str,
     pub remote_port: &'a str,
     pub active_field: PortForwardFieldView,
+    pub theme: &'a Theme,
 }
 
 impl<'a> PortForwardDialogWidget<'a> {
     pub fn render(self, frame: &mut Frame, area: Rect) {
+        let t = self.theme;
         let width = 56.min(area.width.saturating_sub(4));
         let height = 10.min(area.height.saturating_sub(2));
         let popup = Rect {
@@ -27,10 +29,10 @@ impl<'a> PortForwardDialogWidget<'a> {
 
         let block = Block::default()
             .title(" Port Forward ")
-            .title_style(Style::default().fg(theme::ACCENT).bold())
+            .title_style(Style::default().fg(t.accent).bold())
             .borders(Borders::ALL)
-            .border_style(Style::default().fg(theme::ACCENT))
-            .style(Style::default().bg(theme::OVERLAY_BG));
+            .border_style(Style::default().fg(t.accent))
+            .style(t.overlay);
 
         let inner = block.inner(popup);
         frame.render_widget(block, popup);
@@ -41,18 +43,18 @@ impl<'a> PortForwardDialogWidget<'a> {
             .split(inner);
 
         let target = Paragraph::new(format!("Pod: {}   Namespace: {}", self.pod, self.namespace))
-            .style(Style::default().fg(theme::HEADER_FG));
+            .style(Style::default().fg(t.fg));
         frame.render_widget(target, chunks[0]);
 
         let local_style = if matches!(self.active_field, PortForwardFieldView::Local) {
-            Style::default().fg(theme::ACCENT).bold()
+            Style::default().fg(t.accent).bold()
         } else {
-            Style::default().fg(theme::HEADER_FG)
+            Style::default().fg(t.fg)
         };
         let remote_style = if matches!(self.active_field, PortForwardFieldView::Remote) {
-            Style::default().fg(theme::ACCENT).bold()
+            Style::default().fg(t.accent).bold()
         } else {
-            Style::default().fg(theme::HEADER_FG)
+            Style::default().fg(t.fg)
         };
 
         let local_text = if self.local_port.is_empty() { "_" } else { self.local_port };
@@ -62,7 +64,7 @@ impl<'a> PortForwardDialogWidget<'a> {
         frame.render_widget(Paragraph::new(format!("Remote port: {remote_text}")).style(remote_style), chunks[2]);
 
         let help = Paragraph::new("Tab switch field | Enter start | Esc cancel")
-            .style(Style::default().fg(theme::TEXT_DIM))
+            .style(t.text_dim)
             .alignment(Alignment::Center);
         frame.render_widget(help, chunks[3]);
     }
@@ -79,6 +81,7 @@ mod tests {
     fn dialog_renders_both_ports_and_target() {
         let backend = TestBackend::new(80, 24);
         let mut terminal = Terminal::new(backend).unwrap();
+        let theme = Theme::default();
 
         terminal
             .draw(|frame| {
@@ -88,6 +91,7 @@ mod tests {
                     local_port: "3715",
                     remote_port: "8080",
                     active_field: PortForwardFieldView::Remote,
+                    theme: &theme,
                 };
                 widget.render(frame, frame.area());
             })

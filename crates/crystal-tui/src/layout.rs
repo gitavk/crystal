@@ -3,6 +3,7 @@ use std::collections::HashMap;
 use ratatui::prelude::*;
 
 use crate::pane::{Pane, PaneId, PaneTree, ResourceKind};
+use crate::theme::Theme;
 use crate::widgets::confirm_dialog::ConfirmDialogWidget;
 use crate::widgets::context_selector::ContextSelectorWidget;
 use crate::widgets::namespace_selector::NamespaceSelectorWidget;
@@ -65,6 +66,7 @@ pub struct RenderContext<'a> {
     pub active_tab: usize,
     pub mode_name: &'a str,
     pub mode_hints: &'a [(String, String)],
+    pub theme: &'a Theme,
 }
 
 pub fn render_root(frame: &mut Frame, ctx: &RenderContext) {
@@ -79,42 +81,49 @@ pub fn render_root(frame: &mut Frame, ctx: &RenderContext) {
 }
 
 fn render_tab_bar(frame: &mut Frame, area: Rect, ctx: &RenderContext) {
-    let widget = TabBarWidget { tabs: ctx.tab_names, active: ctx.active_tab };
+    let widget = TabBarWidget { tabs: ctx.tab_names, active: ctx.active_tab, theme: ctx.theme };
     widget.render(frame, area);
 }
 
 fn render_body(frame: &mut Frame, area: Rect, ctx: &RenderContext) {
     if let Some(fs_id) = ctx.fullscreen_pane {
         if let Some(pane) = ctx.panes.get(&fs_id) {
-            pane.render(frame, area, true);
+            pane.render(frame, area, true, ctx.theme);
         }
     } else {
         let pane_rects = ctx.pane_tree.layout(area);
         for (pane_id, pane_area) in &pane_rects {
             if let Some(pane) = ctx.panes.get(pane_id) {
                 let focused = ctx.focused_pane == Some(*pane_id);
-                pane.render(frame, *pane_area, focused);
+                pane.render(frame, *pane_area, focused, ctx.theme);
             }
         }
     }
 
     if let Some(ref ns) = ctx.namespace_selector {
-        let widget = NamespaceSelectorWidget { namespaces: ns.namespaces, filter: ns.filter, selected: ns.selected };
+        let widget = NamespaceSelectorWidget {
+            namespaces: ns.namespaces,
+            filter: ns.filter,
+            selected: ns.selected,
+            theme: ctx.theme,
+        };
         widget.render(frame, area);
     }
 
     if let Some(ref cs) = ctx.context_selector {
-        let widget = ContextSelectorWidget { contexts: cs.contexts, filter: cs.filter, selected: cs.selected };
+        let widget =
+            ContextSelectorWidget { contexts: cs.contexts, filter: cs.filter, selected: cs.selected, theme: ctx.theme };
         widget.render(frame, area);
     }
 
     if let Some(ref rs) = ctx.resource_switcher {
-        let widget = ResourceSwitcherWidget { input: rs.input, items: rs.items, selected: rs.selected };
+        let widget =
+            ResourceSwitcherWidget { input: rs.input, items: rs.items, selected: rs.selected, theme: ctx.theme };
         widget.render(frame, area);
     }
 
     if let Some(ref cd) = ctx.confirm_dialog {
-        let widget = ConfirmDialogWidget { message: cd.message };
+        let widget = ConfirmDialogWidget { message: cd.message, theme: ctx.theme };
         widget.render(frame, area);
     }
 
@@ -125,12 +134,13 @@ fn render_body(frame: &mut Frame, area: Rect, ctx: &RenderContext) {
             local_port: pf.local_port,
             remote_port: pf.remote_port,
             active_field: pf.active_field,
+            theme: ctx.theme,
         };
         widget.render(frame, area);
     }
 
     if !ctx.toasts.is_empty() {
-        let widget = ToastWidget { toasts: ctx.toasts };
+        let widget = ToastWidget { toasts: ctx.toasts, theme: ctx.theme };
         widget.render(frame, area);
     }
 }
@@ -141,6 +151,10 @@ fn render_status_bar(frame: &mut Frame, area: Rect, ctx: &RenderContext) {
         hints: ctx.mode_hints,
         cluster: ctx.cluster_name,
         namespace: ctx.namespace,
+        theme: ctx.theme,
     };
     widget.render(frame, area);
 }
+
+#[cfg(test)]
+mod tests;

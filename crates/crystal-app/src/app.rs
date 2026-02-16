@@ -126,10 +126,11 @@ pub struct App {
     panes: HashMap<PaneId, Box<dyn Pane>>,
     pods_pane_id: PaneId,
     app_tx: mpsc::UnboundedSender<AppEvent>,
+    theme: crystal_tui::theme::Theme,
 }
 
 impl App {
-    pub async fn new(tick_rate_ms: u64, dispatcher: KeybindingDispatcher) -> Self {
+    pub async fn new(tick_rate_ms: u64, dispatcher: KeybindingDispatcher, theme: crystal_tui::theme::Theme) -> Self {
         let mut context_resolver = ContextResolver::new();
         let kube_client = match KubeClient::from_kubeconfig().await {
             Ok(client) => {
@@ -179,6 +180,7 @@ impl App {
             panes,
             pods_pane_id,
             app_tx: tx,
+            theme,
         };
         app.sync_active_scope();
         app.update_active_tab_title();
@@ -1161,7 +1163,7 @@ impl App {
     }
 
     fn open_yaml_pane(&mut self, pane_id: PaneId, kind: ResourceKind, name: String, content: String) {
-        let yaml_pane = YamlPane::new(kind.clone(), name.clone(), content);
+        let yaml_pane = YamlPane::new(kind.clone(), name.clone(), content, &self.theme);
         let view = ViewType::Yaml(kind, name);
         if let Some(new_id) = self.tab_manager.split_pane(pane_id, SplitDirection::Horizontal, view) {
             self.panes.insert(new_id, Box::new(yaml_pane));
@@ -1970,6 +1972,7 @@ impl App {
             active_tab: self.tab_manager.active_index(),
             mode_name: self.mode_name(),
             mode_hints: &[],
+            theme: &self.theme,
         };
 
         (ctx, tab_names, hints)
@@ -2212,21 +2215,26 @@ async fn detect_remote_port(client: &kube::Client, pod_name: &str, namespace: &s
 struct EmptyPane(ViewType);
 
 impl Pane for EmptyPane {
-    fn render(&self, frame: &mut ratatui::prelude::Frame, area: ratatui::prelude::Rect, focused: bool) {
-        use ratatui::prelude::*;
+    fn render(
+        &self,
+        frame: &mut ratatui::prelude::Frame,
+        area: ratatui::prelude::Rect,
+        focused: bool,
+        theme: &crystal_tui::theme::Theme,
+    ) {
         use ratatui::widgets::{Block, Borders, Paragraph};
 
-        let border_color = if focused { crystal_tui::theme::ACCENT } else { crystal_tui::theme::BORDER_COLOR };
+        let border_style = if focused { theme.border_active } else { theme.border };
         let block = Block::default()
             .borders(Borders::ALL)
-            .border_style(Style::default().fg(border_color))
+            .border_style(border_style)
             .title(" Empty ")
-            .title_style(Style::default().fg(crystal_tui::theme::TEXT_DIM));
+            .title_style(theme.text_dim);
 
         let inner = block.inner(area);
         frame.render_widget(block, area);
 
-        let msg = Paragraph::new("Empty pane").style(Style::default().fg(crystal_tui::theme::TEXT_DIM));
+        let msg = Paragraph::new("Empty pane").style(theme.text_dim);
         frame.render_widget(msg, inner);
     }
 

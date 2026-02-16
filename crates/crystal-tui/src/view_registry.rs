@@ -1,10 +1,12 @@
 use std::collections::HashMap;
 
-use ratatui::prelude::{Frame, Rect};
+use ratatui::prelude::{Frame, Rect, Style, Stylize};
+use ratatui::widgets::{Block, Borders, Paragraph};
 
 use crate::pane::ViewType;
+use crate::theme::Theme;
 
-type RenderFn = fn(frame: &mut Frame, area: Rect, focused: bool);
+type RenderFn = fn(frame: &mut Frame, area: Rect, focused: bool, theme: &Theme);
 
 /// Maps ViewType discriminant keys to render functions.
 ///
@@ -33,11 +35,11 @@ impl ViewRegistry {
         self.renderers.get(key)
     }
 
-    pub fn render_fallback(&self, view_type: &ViewType, frame: &mut Frame, area: Rect, focused: bool) {
+    pub fn render_fallback(&self, view_type: &ViewType, frame: &mut Frame, area: Rect, focused: bool, theme: &Theme) {
         if let Some(render_fn) = self.get(view_type) {
-            render_fn(frame, area, focused);
+            render_fn(frame, area, focused, theme);
         } else {
-            render_unknown(frame, area, focused);
+            render_unknown(frame, area, focused, theme);
         }
     }
 }
@@ -62,57 +64,45 @@ fn view_type_key(view_type: &ViewType) -> &'static str {
     }
 }
 
-fn render_empty(frame: &mut Frame, area: Rect, focused: bool) {
-    use ratatui::prelude::*;
-    use ratatui::widgets::{Block, Borders, Paragraph};
-
-    let border_color = if focused { crate::theme::ACCENT } else { crate::theme::BORDER_COLOR };
-    let block = Block::default()
-        .borders(Borders::ALL)
-        .border_style(Style::default().fg(border_color))
-        .title(" Empty ")
-        .title_style(Style::default().fg(crate::theme::TEXT_DIM));
+fn render_empty(frame: &mut Frame, area: Rect, focused: bool, theme: &Theme) {
+    let border_style = if focused { theme.border_active } else { theme.border };
+    let block =
+        Block::default().borders(Borders::ALL).border_style(border_style).title(" Empty ").title_style(theme.text_dim);
 
     let inner = block.inner(area);
     frame.render_widget(block, area);
 
-    let msg = Paragraph::new("Empty pane").style(Style::default().fg(crate::theme::TEXT_DIM));
+    let msg = Paragraph::new("Empty pane").style(theme.text_dim);
     frame.render_widget(msg, inner);
 }
 
-fn render_help_placeholder(frame: &mut Frame, area: Rect, focused: bool) {
-    use ratatui::prelude::*;
-    use ratatui::widgets::{Block, Borders, Paragraph};
-
-    let border_color = if focused { crate::theme::ACCENT } else { crate::theme::BORDER_COLOR };
+fn render_help_placeholder(frame: &mut Frame, area: Rect, focused: bool, theme: &Theme) {
+    let border_style = if focused { theme.border_active } else { theme.border };
     let block = Block::default()
         .borders(Borders::ALL)
-        .border_style(Style::default().fg(border_color))
+        .border_style(border_style)
         .title(" Help ")
-        .title_style(Style::default().fg(crate::theme::ACCENT).bold());
+        .title_style(Style::default().fg(theme.accent).bold());
 
     let inner = block.inner(area);
     frame.render_widget(block, area);
 
-    let msg = Paragraph::new("Press ? for help").style(Style::default().fg(crate::theme::TEXT_DIM));
+    let msg = Paragraph::new("Press ? for help").style(theme.text_dim);
     frame.render_widget(msg, inner);
 }
 
-fn render_unknown(frame: &mut Frame, area: Rect, focused: bool) {
-    use ratatui::prelude::*;
-    use ratatui::widgets::{Block, Borders, Paragraph};
-
-    let border_color = if focused { crate::theme::ACCENT } else { crate::theme::BORDER_COLOR };
+fn render_unknown(frame: &mut Frame, area: Rect, focused: bool, theme: &Theme) {
+    let border_style = if focused { theme.border_active } else { theme.border };
     let block = Block::default()
         .borders(Borders::ALL)
-        .border_style(Style::default().fg(border_color))
+        .border_style(border_style)
         .title(" Unknown ")
-        .title_style(Style::default().fg(crate::theme::TEXT_DIM));
+        .title_style(theme.text_dim);
 
     let inner = block.inner(area);
     frame.render_widget(block, area);
 
-    let msg = Paragraph::new("Unknown view type").style(Style::default().fg(crate::theme::TEXT_DIM));
+    let msg = Paragraph::new("Unknown view type").style(theme.text_dim);
     frame.render_widget(msg, inner);
 }
 
