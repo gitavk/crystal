@@ -1,13 +1,19 @@
 name: Release
 
 on:
-  push:
-    tags:
-      - 'v[0-9]+.[0-9]+.[0-9]+'
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: 'Tag identifying the release (e.g. v1.2.3)'
+        required: true
 
 jobs:
   release:
     runs-on: ubuntu-latest
+    env:
+      RELEASE_TAG: ${{ github.event.release.tag_name || github.event.inputs.release_tag || github.ref_name }}
     permissions:
       contents: write
 
@@ -19,7 +25,12 @@ jobs:
       uses: dtolnay/rust-toolchain@stable
 
     - name: Set Release Version Env
-      run: echo "VERSION=${{ github.ref_name#v }}" >> $GITHUB_ENV
+      run: |
+        if [[ -z "$RELEASE_TAG" ]]; then
+          echo "Release tag is required" >&2
+          exit 1
+        fi
+        echo "VERSION=${RELEASE_TAG#v}" >> $GITHUB_ENV
 
     - name: Set Maintainer Env
       run: |
@@ -39,7 +50,7 @@ jobs:
         cp LICENSE staging/usr/share/licenses/crystal/
 
     - name: Build .tar.gz archive
-      run: tar -czvf crystal-${{ github.ref_name }}-x86_64-unknown-linux-gnu.tar.gz -C staging .
+      run: tar -czvf crystal-${RELEASE_TAG}-x86_64-unknown-linux-gnu.tar.gz -C staging .
 
     - name: Build .deb package
       run: |
@@ -50,17 +61,18 @@ jobs:
       run: |
         sudo apt-get update && sudo apt-get install -y ruby-dev
         sudo gem install fpm
-        fpm -s dir -t rpm -n crystal -v ${{ env.VERSION }} 
-          --description "A terminal-based Kubernetes workspace" 
-          --maintainer "${{ env.MAINTAINER_NAME }} <${{ env.MAINTAINER_EMAIL }}>" 
-          --license "MIT" 
+        fpm -s dir -t rpm -n crystal -v ${{ env.VERSION }} \
+          --description "A terminal-based Kubernetes workspace" \
+          --maintainer "${{ env.MAINTAINER_NAME }} <${{ env.MAINTAINER_EMAIL }}>" \
+          --license "MIT" \
           -C staging .
 
     - name: Update and push downloads page
       env:
-        TAR_FILE: crystal-${{ github.ref_name }}-x86_64-unknown-linux-gnu.tar.gz
+        TAR_FILE: crystal-${{ env.RELEASE_TAG }}-x86_64-unknown-linux-gnu.tar.gz
+        MAC_FILE: crystal-${{ env.RELEASE_TAG }}-aarch64-apple-darwin.tar.gz
         DEB_FILE: crystal_${{ env.VERSION }}_amd64.deb
-        DOWNLOAD_URL_BASE: ${{ github.server_url }}/${{ github.repository }}/releases/download/${{ github.ref_name }}
+        DOWNLOAD_URL_BASE: ${{ github.server_url }}/${{ github.repository }}/releases/download/${{ env.RELEASE_TAG }}
       run: |
         # This script updates the downloads page with the new release artifacts.
         # It checks out the default branch, adds the new links, and pushes the change.
@@ -74,27 +86,30 @@ jobs:
         export RPM_FILE=$(ls *.rpm)
         
         # Use a Python script for safe HTML update.
-        python3 -c "
-import os
-html_file = 'pages/downloads.html'
-tar_file = os.environ['TAR_FILE']
-deb_file = os.environ['DEB_FILE']
-rpm_file = os.environ['RPM_FILE']
-download_url_base = os.environ['DOWNLOAD_URL_BASE']
+        python3 <<'PY'
+        import os
 
-new_links_html = f\"\"\"            <li><a href=\\\"{download_url_base}/{tar_file}\\\">{tar_file}</a></li>
-            <li><a href=\\\"{download_url_base}/{deb_file}\\\">{deb_file}</a></li>
-            <li><a href=\\\"{download_url_base}/{rpm_file}\\\">{rpm_file}</a></li>\"\"\"
+        html_file = "pages/downloads.html"
+        tar_file = os.environ["TAR_FILE"]
+        mac_file = os.environ["MAC_FILE"]
+        deb_file = os.environ["DEB_FILE"]
+        rpm_file = os.environ["RPM_FILE"]
+        download_url_base = os.environ["DOWNLOAD_URL_BASE"]
 
-with open(html_file, 'r') as f:
-    content = f.read()
+        new_links_html = f"""            <li><a href="{download_url_base}/{tar_file}">{tar_file}</a></li>
+                    <li><a href="{download_url_base}/{mac_file}">{mac_file}</a></li>
+                    <li><a href="{download_url_base}/{deb_file}">{deb_file}</a></li>
+                    <li><a href="{download_url_base}/{rpm_file}">{rpm_file}</a></li>"""
 
-# Insert new links after the <ul> tag.
-updated_content = content.replace('<ul>', '<ul>\\n' + new_links_html, 1)
+        with open(html_file, "r") as f:
+            content = f.read()
 
-with open(html_file, 'w') as f:
-    f.write(updated_content)
-        "
+        # Insert new links after the <ul> tag.
+        updated_content = content.replace("<ul>", "<ul>\n" + new_links_html, 1)
+
+        with open(html_file, "w") as f:
+            f.write(updated_content)
+        PY
         
         # Commit and push the updated file.
         git config user.name "github-actions[bot]"
@@ -104,16 +119,56 @@ with open(html_file, 'w') as f:
         if git diff --staged --quiet; then
           echo "No changes to commit in pages/downloads.html"
         else
-          git commit -m "docs(pages): update download links for ${{ github.ref_name }}" -m "[skip ci]"
+          git commit -m "docs(pages): update download links for ${RELEASE_TAG}" -m "[skip ci]"
           git push origin $DEFAULT_BRANCH
         fi
 
     - name: Create GitHub Release and Upload Artifacts
       uses: softprops/action-gh-release@v1
       with:
-        name: "Release ${{ github.ref_name }}"
+        tag_name: ${{ env.RELEASE_TAG }}
+        name: "Release ${{ env.RELEASE_TAG }}"
         generate_release_notes: true
         files: |
           *.tar.gz
           *.deb
           *.rpm
+
+  build-macos:
+    name: Build macOS (aarch64)
+    runs-on: macos-13
+    needs: release
+    env:
+      RELEASE_TAG: ${{ github.event.release.tag_name || github.event.inputs.release_tag || github.ref_name }}
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Install Rust toolchain
+      uses: dtolnay/rust-toolchain@stable
+
+    - name: Ensure GitHub CLI
+      run: |
+        if ! command -v gh >/dev/null; then
+          brew install gh
+        fi
+
+    - name: Add macOS target
+      run: rustup target add aarch64-apple-darwin
+
+    - name: Build release for macOS
+      run: cargo build --release --workspace --target aarch64-apple-darwin
+
+    - name: Package mac artifact
+      run: |
+        mkdir -p macos-artifact/usr/local/bin
+        cp target/aarch64-apple-darwin/release/crystal macos-artifact/usr/local/bin/
+        mkdir -p macos-artifact/usr/local/share/doc/crystal
+        cp README.md macos-artifact/usr/local/share/doc/crystal/README
+        mkdir -p macos-artifact/usr/local/share/licenses/crystal
+        cp LICENSE macos-artifact/usr/local/share/licenses/crystal/
+        tar -czvf crystal-${RELEASE_TAG}-aarch64-apple-darwin.tar.gz -C macos-artifact .
+
+    - name: Upload mac artifact
+      run: gh release upload "${RELEASE_TAG}" "crystal-${RELEASE_TAG}-aarch64-apple-darwin.tar.gz" --clobber
