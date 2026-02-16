@@ -1,0 +1,19 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: app-config
+  namespace: crystal-prod
+data:
+  ENVIRONMENT: production
+  LOG_LEVEL: info
+  FEATURE_TOGGLE: "true"
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: app-secret
+  namespace: crystal-prod
+type: Opaque
+data:
+  # echo -n "super-secret-key" | base64
+  API_KEY: c3VwZXItc2VjcmV0LWtleQ==
