@@ -111,83 +111,87 @@ impl KeybindingDispatcher {
         }
     }
 
-    pub fn dispatch(&self, key: KeyEvent) -> Option<Command> {
+    pub fn dispatch(&self, key: KeyEvent) -> Option<(Command, bool)> {
         let key = normalize_key_event(key);
 
         match self.mode {
             InputMode::Insert => {
                 if key.code == KeyCode::Esc {
-                    return Some(Command::ExitMode);
+                    return Some((Command::ExitMode, false));
                 }
                 let s = key_to_input_string(key);
                 if s.is_empty() {
                     return None;
                 }
-                return Some(Command::Pane(PaneCommand::SendInput(s)));
+                return Some((Command::Pane(PaneCommand::SendInput(s)), false));
             }
             InputMode::ResourceSwitcher => match key.code {
-                KeyCode::Enter => return Some(Command::ResourceSwitcherConfirm),
-                KeyCode::Esc => return Some(Command::DenyAction),
-                KeyCode::Up => return Some(Command::Pane(PaneCommand::SelectPrev)),
-                KeyCode::Down => return Some(Command::Pane(PaneCommand::SelectNext)),
-                KeyCode::Char(c) => return Some(Command::ResourceSwitcherInput(c)),
-                KeyCode::Backspace => return Some(Command::ResourceSwitcherBackspace),
+                KeyCode::Enter => return Some((Command::ResourceSwitcherConfirm, false)),
+                KeyCode::Esc => return Some((Command::DenyAction, false)),
+                KeyCode::Up => return Some((Command::Pane(PaneCommand::SelectPrev), false)),
+                KeyCode::Down => return Some((Command::Pane(PaneCommand::SelectNext), false)),
+                KeyCode::Char(c) => return Some((Command::ResourceSwitcherInput(c), false)),
+                KeyCode::Backspace => return Some((Command::ResourceSwitcherBackspace, false)),
                 _ => return None,
             },
             InputMode::ConfirmDialog => match key.code {
-                KeyCode::Char('y') => return Some(Command::ConfirmAction),
-                KeyCode::Char('n') | KeyCode::Esc => return Some(Command::DenyAction),
+                KeyCode::Char('y') => return Some((Command::ConfirmAction, false)),
+                KeyCode::Char('n') | KeyCode::Esc => return Some((Command::DenyAction, false)),
                 _ => return None,
             },
             InputMode::FilterInput => match key.code {
-                KeyCode::Esc => return Some(Command::FilterCancel),
-                KeyCode::Enter => return Some(Command::ExitMode),
-                KeyCode::Char(c) => return Some(Command::FilterInput(c)),
-                KeyCode::Backspace => return Some(Command::FilterBackspace),
+                KeyCode::Esc => return Some((Command::FilterCancel, false)),
+                KeyCode::Enter => return Some((Command::ExitMode, false)),
+                KeyCode::Char(c) => return Some((Command::FilterInput(c), false)),
+                KeyCode::Backspace => return Some((Command::FilterBackspace, false)),
                 _ => return None,
             },
             InputMode::PortForwardInput => match key.code {
-                KeyCode::Esc => return Some(Command::PortForwardCancel),
-                KeyCode::Enter => return Some(Command::PortForwardConfirm),
+                KeyCode::Esc => return Some((Command::PortForwardCancel, false)),
+                KeyCode::Enter => return Some((Command::PortForwardConfirm, false)),
                 KeyCode::Tab | KeyCode::BackTab | KeyCode::Left | KeyCode::Right | KeyCode::Up | KeyCode::Down => {
-                    return Some(Command::PortForwardToggleField);
+                    return Some((Command::PortForwardToggleField, false));
                 }
-                KeyCode::Char(c) if c.is_ascii_digit() => return Some(Command::PortForwardInput(c)),
-                KeyCode::Backspace => return Some(Command::PortForwardBackspace),
+                KeyCode::Char(c) if c.is_ascii_digit() => return Some((Command::PortForwardInput(c), false)),
+                KeyCode::Backspace => return Some((Command::PortForwardBackspace, false)),
                 _ => return None,
             },
             _ => {}
         }
 
         if let Some(cmd) = self.global_bindings.get(&key) {
-            return Some(cmd.clone());
+            return Some((cmd.clone(), false));
         }
 
         match self.mode {
             InputMode::Insert => unreachable!("handled above"),
-            InputMode::Normal => self
-                .mutate_bindings
-                .get(&key)
-                .or_else(|| self.browse_bindings.get(&key))
-                .or_else(|| self.navigation_bindings.get(&key))
-                .or_else(|| self.tui_bindings.get(&key))
-                .cloned(),
+            InputMode::Normal => {
+                if let Some(cmd) = self.mutate_bindings.get(&key) {
+                    return Some((cmd.clone(), true));
+                }
+                self.browse_bindings
+                    .get(&key)
+                    .or_else(|| self.navigation_bindings.get(&key))
+                    .or_else(|| self.tui_bindings.get(&key))
+                    .cloned()
+                    .map(|cmd| (cmd, false))
+            }
             InputMode::NamespaceSelector => match key.code {
-                KeyCode::Enter => Some(Command::NamespaceConfirm),
-                KeyCode::Esc => Some(Command::ExitMode),
-                KeyCode::Up => Some(Command::Pane(PaneCommand::SelectPrev)),
-                KeyCode::Down => Some(Command::Pane(PaneCommand::SelectNext)),
-                KeyCode::Char(c) => Some(Command::NamespaceInput(c)),
-                KeyCode::Backspace => Some(Command::NamespaceBackspace),
+                KeyCode::Enter => Some((Command::NamespaceConfirm, false)),
+                KeyCode::Esc => Some((Command::ExitMode, false)),
+                KeyCode::Up => Some((Command::Pane(PaneCommand::SelectPrev), false)),
+                KeyCode::Down => Some((Command::Pane(PaneCommand::SelectNext), false)),
+                KeyCode::Char(c) => Some((Command::NamespaceInput(c), false)),
+                KeyCode::Backspace => Some((Command::NamespaceBackspace, false)),
                 _ => None,
             },
             InputMode::ContextSelector => match key.code {
-                KeyCode::Enter => Some(Command::ContextConfirm),
-                KeyCode::Esc => Some(Command::ExitMode),
-                KeyCode::Up => Some(Command::Pane(PaneCommand::SelectPrev)),
-                KeyCode::Down => Some(Command::Pane(PaneCommand::SelectNext)),
-                KeyCode::Char(c) => Some(Command::ContextInput(c)),
-                KeyCode::Backspace => Some(Command::ContextBackspace),
+                KeyCode::Enter => Some((Command::ContextConfirm, false)),
+                KeyCode::Esc => Some((Command::ExitMode, false)),
+                KeyCode::Up => Some((Command::Pane(PaneCommand::SelectPrev), false)),
+                KeyCode::Down => Some((Command::Pane(PaneCommand::SelectNext), false)),
+                KeyCode::Char(c) => Some((Command::ContextInput(c), false)),
+                KeyCode::Backspace => Some((Command::ContextBackspace, false)),
                 _ => None,
             },
             InputMode::Search | InputMode::Command => None,
@@ -199,6 +203,22 @@ impl KeybindingDispatcher {
                 unreachable!("handled above")
             }
         }
+    }
+
+    #[allow(dead_code)]
+    pub fn all_bindings(&self) -> Vec<(String, String, String)> {
+        let mut result = Vec::new();
+        fn collect(result: &mut Vec<(String, String, String)>, group: &str, reverse: &[(String, String, String)]) {
+            for (_, key_str, desc) in reverse {
+                result.push((group.to_string(), format_key_display(key_str), desc.clone()));
+            }
+        }
+        collect(&mut result, "Global", &self.reverse_global);
+        collect(&mut result, "Mutate", &self.reverse_mutate);
+        collect(&mut result, "Browse", &self.reverse_browse);
+        collect(&mut result, "Navigation", &self.reverse_navigation);
+        collect(&mut result, "TUI", &self.reverse_tui);
+        result
     }
 
     pub fn set_mode(&mut self, mode: InputMode) {

@@ -1,11 +1,12 @@
 pub mod general;
+pub mod keybindings;
 
-use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
 use serde::{Deserialize, Serialize};
 
 pub use general::{FeatureFlags, GeneralConfig, TerminalConfig};
+pub use keybindings::{check_collisions, validate_keybindings, KeybindingsConfig};
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct AppConfig {
@@ -17,20 +18,6 @@ pub struct AppConfig {
     pub terminal: TerminalConfig,
     #[serde(default)]
     pub features: FeatureFlags,
-}
-
-#[derive(Debug, Default, Clone, Deserialize, Serialize)]
-pub struct KeybindingsConfig {
-    #[serde(default)]
-    pub navigation: HashMap<String, String>,
-    #[serde(default)]
-    pub browse: HashMap<String, String>,
-    #[serde(default)]
-    pub tui: HashMap<String, String>,
-    #[serde(default)]
-    pub global: HashMap<String, String>,
-    #[serde(default)]
-    pub mutate: HashMap<String, String>,
 }
 
 const DEFAULT_CONFIG: &str = include_str!("defaults.toml");

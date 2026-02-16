@@ -87,10 +87,10 @@ fn global_command_takes_precedence() {
     let d = test_dispatcher();
 
     let key = KeyEvent::new(KeyCode::Char('q'), crossterm::event::KeyModifiers::CONTROL);
-    assert_eq!(d.dispatch(key), Some(Command::Quit));
+    assert_eq!(d.dispatch(key), Some((Command::Quit, false)));
 
     let key = KeyEvent::new(KeyCode::Char('j'), crossterm::event::KeyModifiers::NONE);
-    assert!(matches!(d.dispatch(key), Some(Command::Pane(PaneCommand::SelectNext))));
+    assert!(matches!(d.dispatch(key), Some((Command::Pane(PaneCommand::SelectNext), false))));
 }
 
 #[test]

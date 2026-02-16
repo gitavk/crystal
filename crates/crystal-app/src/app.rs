@@ -37,11 +37,29 @@ use crate::resource_switcher::ResourceSwitcher;
 #[derive(Debug, Clone)]
 pub enum PendingAction {
     Delete { kind: ResourceKind, name: String, namespace: String },
+    MutateCommand(Command),
 }
 
 pub struct PendingConfirmation {
     pub message: String,
     pub action: PendingAction,
+}
+
+impl PendingConfirmation {
+    pub fn from_command(cmd: Command) -> Self {
+        let label = match &cmd {
+            Command::DeleteResource => "Delete resource",
+            Command::ScaleResource => "Scale resource",
+            Command::RestartRollout => "Restart rollout",
+            Command::ExecInto => "Exec into pod",
+            Command::PortForward => "Port forward",
+            other => {
+                let msg = format!("{other:?}");
+                return Self { message: format!("Confirm: {msg}?"), action: PendingAction::MutateCommand(cmd) };
+            }
+        };
+        Self { message: format!("{label}?"), action: PendingAction::MutateCommand(cmd) }
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -349,8 +367,13 @@ impl App {
             return;
         }
 
-        if let Some(cmd) = self.dispatcher.dispatch(key) {
-            self.handle_command(cmd);
+        if let Some((cmd, requires_confirm)) = self.dispatcher.dispatch(key) {
+            if requires_confirm {
+                self.pending_confirmation = Some(PendingConfirmation::from_command(cmd));
+                self.dispatcher.set_mode(InputMode::ConfirmDialog);
+            } else {
+                self.handle_command(cmd);
+            }
         }
     }
 
@@ -1792,6 +1815,9 @@ impl App {
                     };
                     let _ = app_tx.send(toast_event);
                 });
+            }
+            PendingAction::MutateCommand(cmd) => {
+                self.handle_command(cmd);
             }
         }
     }
