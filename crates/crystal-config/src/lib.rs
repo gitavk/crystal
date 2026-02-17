@@ -24,7 +24,7 @@ pub struct AppConfig {
     pub theme: ThemeConfig,
 }
 
-const DEFAULT_CONFIG: &str = include_str!("defaults.toml");
+pub const DEFAULT_CONFIG: &str = include_str!("defaults.toml");
 
 impl Default for AppConfig {
     fn default() -> Self {
@@ -74,9 +74,13 @@ impl AppConfig {
 
     pub fn init_default() -> anyhow::Result<PathBuf> {
         let path = Self::default_path();
-        if !path.exists() {
-            Self::default().save(&path)?;
+        if path.exists() {
+            anyhow::bail!("Config already exists at {}", path.display());
         }
+        if let Some(parent) = path.parent() {
+            std::fs::create_dir_all(parent)?;
+        }
+        std::fs::write(&path, DEFAULT_CONFIG)?;
         Ok(path)
     }
 

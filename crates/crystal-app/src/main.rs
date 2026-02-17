@@ -9,6 +9,7 @@ mod state;
 
 use std::io;
 
+use clap::Parser;
 use crossterm::execute;
 use crossterm::terminal::{self, EnterAlternateScreen, LeaveAlternateScreen};
 use ratatui::backend::CrosstermBackend;
@@ -17,8 +18,34 @@ use ratatui::Terminal;
 use crate::app::App;
 use crate::keybindings::KeybindingDispatcher;
 
+#[derive(Parser)]
+#[command(name = "crystal", about = "Keyboard-driven Kubernetes TUI IDE")]
+struct Cli {
+    /// Generate default config file at ~/.config/crystal/config.toml
+    #[arg(long)]
+    init_config: bool,
+
+    /// Print effective config (defaults + user overrides) and exit
+    #[arg(long)]
+    print_config: bool,
+}
+
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
+    let cli = Cli::parse();
+
+    if cli.init_config {
+        let path = crystal_config::AppConfig::init_default()?;
+        println!("Config written to {}", path.display());
+        return Ok(());
+    }
+
+    if cli.print_config {
+        let config = crystal_config::AppConfig::load();
+        println!("{}", toml::to_string_pretty(&config)?);
+        return Ok(());
+    }
+
     tracing_subscriber::fmt()
         .with_env_filter(tracing_subscriber::EnvFilter::from_default_env())
         .with_writer(crate::app_log::AppLogMakeWriter)
