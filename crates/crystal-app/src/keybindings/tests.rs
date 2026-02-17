@@ -87,8 +87,13 @@ fn dispatch_mutate_keys_require_confirmation() {
     assert_eq!(d.dispatch(ctrl_alt(KeyCode::Char('d'))), Some((Command::DeleteResource, true)));
     assert_eq!(d.dispatch(ctrl_alt(KeyCode::Char('s'))), Some((Command::ScaleResource, true)));
     assert_eq!(d.dispatch(ctrl_alt(KeyCode::Char('r'))), Some((Command::RestartRollout, true)));
-    assert_eq!(d.dispatch(ctrl_alt(KeyCode::Char('e'))), Some((Command::ExecInto, true)));
-    assert_eq!(d.dispatch(ctrl_alt(KeyCode::Char('p'))), Some((Command::PortForward, true)));
+}
+
+#[test]
+fn dispatch_interact_keys_no_confirmation() {
+    let d = default_dispatcher();
+    assert_eq!(d.dispatch(press(KeyCode::Char('e'))), Some((Command::ExecInto, false)));
+    assert_eq!(d.dispatch(press(KeyCode::Char('p'))), Some((Command::PortForward, false)));
 }
 
 #[test]
@@ -510,15 +515,22 @@ fn mutate_command_config_names_map_correctly() {
     config.mutate.insert("delete".into(), "f3".into());
     config.mutate.insert("scale".into(), "f4".into());
     config.mutate.insert("restart_rollout".into(), "f5".into());
-    config.mutate.insert("exec".into(), "f7".into());
-    config.mutate.insert("port_forward".into(), "f8".into());
 
     let d = KeybindingDispatcher::from_config(&config);
     assert_eq!(d.dispatch(press(KeyCode::F(3))), Some((Command::DeleteResource, true)));
     assert_eq!(d.dispatch(press(KeyCode::F(4))), Some((Command::ScaleResource, true)));
     assert_eq!(d.dispatch(press(KeyCode::F(5))), Some((Command::RestartRollout, true)));
-    assert_eq!(d.dispatch(press(KeyCode::F(7))), Some((Command::ExecInto, true)));
-    assert_eq!(d.dispatch(press(KeyCode::F(8))), Some((Command::PortForward, true)));
+}
+
+#[test]
+fn interact_command_config_names_map_correctly() {
+    let mut config = KeybindingsConfig::default();
+    config.interact.insert("exec".into(), "f7".into());
+    config.interact.insert("port_forward".into(), "f8".into());
+
+    let d = KeybindingDispatcher::from_config(&config);
+    assert_eq!(d.dispatch(press(KeyCode::F(7))), Some((Command::ExecInto, false)));
+    assert_eq!(d.dispatch(press(KeyCode::F(8))), Some((Command::PortForward, false)));
 }
 
 #[test]
@@ -551,6 +563,7 @@ fn all_bindings_returns_entries_for_all_groups() {
     let groups: Vec<&str> = bindings.iter().map(|(g, _, _)| g.as_str()).collect();
     assert!(groups.contains(&"Global"));
     assert!(groups.contains(&"Mutate"));
+    assert!(groups.contains(&"Interact"));
     assert!(groups.contains(&"Browse"));
     assert!(groups.contains(&"Navigation"));
     assert!(groups.contains(&"TUI"));

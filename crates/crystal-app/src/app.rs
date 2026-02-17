@@ -51,8 +51,6 @@ impl PendingConfirmation {
             Command::DeleteResource => "Delete resource",
             Command::ScaleResource => "Scale resource",
             Command::RestartRollout => "Restart rollout",
-            Command::ExecInto => "Exec into pod",
-            Command::PortForward => "Port forward",
             other => {
                 let msg = format!("{other:?}");
                 return Self { message: format!("Confirm: {msg}?"), action: PendingAction::MutateCommand(cmd) };
@@ -269,14 +267,6 @@ impl App {
             }
             AppEvent::LogsStreamError { pane_id, error } => {
                 self.attach_logs_error(pane_id, error);
-            }
-            AppEvent::ExecSessionReady { pane_id, session } => {
-                self.attach_exec_session(pane_id, session);
-                self.dispatcher.set_mode(InputMode::Insert);
-            }
-            AppEvent::ExecSessionError { pane_id, error } => {
-                self.attach_exec_error(pane_id, error);
-                self.dispatcher.set_mode(InputMode::Normal);
             }
             AppEvent::PortForwardReady { forward } => {
                 self.attach_port_forward(forward);
@@ -925,6 +915,7 @@ impl App {
                     self.dispatcher.navigation_shortcuts(),
                     self.dispatcher.browse_shortcuts(),
                     self.dispatcher.tui_shortcuts(),
+                    self.dispatcher.interact_shortcuts(),
                     self.dispatcher.mutate_shortcuts(),
                 );
                 help.on_focus_change(prev_view.as_ref());
@@ -1286,96 +1277,26 @@ impl App {
             self.toasts.push(ToastMessage::info("Exec is only available for Pods"));
             return;
         }
-        let kube_client = match &self.kube_client {
-            Some(client) => client.inner_client(),
-            None => {
-                self.toasts.push(ToastMessage::error("No cluster connection"));
-                return;
-            }
-        };
+
+        let context = self.kube_client.as_ref().map(|c| c.context().to_string());
 
         let focused = self.tab_manager.active().focused_pane;
-        let pane = ExecPane::new(name.clone(), "auto".into(), namespace.clone());
-        let view = ViewType::Exec(name.clone());
-        let Some(new_id) = self.tab_manager.split_pane(focused, SplitDirection::Horizontal, view) else {
-            return;
-        };
-        self.panes.insert(new_id, Box::new(pane));
-        self.set_focus(new_id);
+        let mut pane = ExecPane::new(name.clone(), "auto".into(), namespace.clone());
 
-        let app_tx = self.app_tx.clone();
-        tokio::spawn(async move {
-            let mut exec_container = detect_first_container_name(&kube_client, &name, &namespace).await;
-
-            // Kubernetes exec with TTY already provides interactive mode.
-            // Run shell fallback chain similar to: zsh || bash || sh, but without noisy errors.
-            let shell_fallback = r#"if command -v zsh >/dev/null 2>&1; then exec zsh -i; fi; if command -v bash >/dev/null 2>&1; then exec bash -i; fi; exec sh -i"#;
-            let shell_candidates: [Vec<String>; 2] = [
-                vec!["/bin/sh".to_string(), "-c".to_string(), shell_fallback.to_string()],
-                vec!["sh".to_string(), "-c".to_string(), shell_fallback.to_string()],
-            ];
-
-            let mut last_error: Option<anyhow::Error> = None;
-            let mut started = None;
-
-            for command in shell_candidates {
-                match crystal_core::ExecSession::start(
-                    kube_client.clone(),
-                    &name,
-                    &namespace,
-                    exec_container.as_deref(),
-                    command.clone(),
-                )
-                .await
-                {
-                    Ok(session) => {
-                        started = Some(session);
-                        break;
-                    }
-                    Err(err) => {
-                        let msg = err.to_string();
-                        if exec_container.is_none() && msg.contains("container") && msg.contains("must be specified") {
-                            exec_container = detect_first_container_name(&kube_client, &name, &namespace).await;
-                            if exec_container.is_some() {
-                                match crystal_core::ExecSession::start(
-                                    kube_client.clone(),
-                                    &name,
-                                    &namespace,
-                                    exec_container.as_deref(),
-                                    command,
-                                )
-                                .await
-                                {
-                                    Ok(session) => {
-                                        started = Some(session);
-                                        break;
-                                    }
-                                    Err(retry_err) => {
-                                        last_error = Some(retry_err);
-                                        continue;
-                                    }
-                                }
-                            }
-                        }
-                        last_error = Some(err);
-                    }
-                }
+        match pane.spawn_kubectl(context.as_deref()) {
+            Ok(()) => {
+                let view = ViewType::Exec(name);
+                let Some(new_id) = self.tab_manager.split_pane(focused, SplitDirection::Horizontal, view) else {
+                    return;
+                };
+                self.panes.insert(new_id, Box::new(pane));
+                self.set_focus(new_id);
+                self.dispatcher.set_mode(InputMode::Insert);
             }
-
-            match started {
-                Some(session) => {
-                    let _ = app_tx.send(AppEvent::ExecSessionReady { pane_id: new_id, session });
-                }
-                None => {
-                    let error = match last_error {
-                        Some(err) => format!("no supported shell found (zsh, bash, sh): {err}"),
-                        None => "no supported shell found (zsh, bash, sh)".to_string(),
-                    };
-                    let _ = app_tx.send(AppEvent::ExecSessionError { pane_id: new_id, error: error.clone() });
-                    let _ = app_tx.send(AppEvent::Toast(ToastMessage::error(format!("Failed to start exec: {error}"))));
-                }
+            Err(e) => {
+                self.toasts.push(ToastMessage::error(format!("Failed to start exec: {e}")));
             }
-        });
+        }
     }
 
     fn attach_logs_stream(&mut self, pane_id: PaneId, stream: crystal_core::LogStream) {
@@ -1398,22 +1319,6 @@ impl App {
         if let Some(pane) = self.panes.get_mut(&pane_id) {
             if let Some(logs_pane) = pane.as_any_mut().downcast_mut::<LogsPane>() {
                 logs_pane.set_error(error);
-            }
-        }
-    }
-
-    fn attach_exec_session(&mut self, pane_id: PaneId, session: crystal_core::ExecSession) {
-        if let Some(pane) = self.panes.get_mut(&pane_id) {
-            if let Some(exec_pane) = pane.as_any_mut().downcast_mut::<ExecPane>() {
-                exec_pane.attach_session(session);
-            }
-        }
-    }
-
-    fn attach_exec_error(&mut self, pane_id: PaneId, error: String) {
-        if let Some(pane) = self.panes.get_mut(&pane_id) {
-            if let Some(exec_pane) = pane.as_any_mut().downcast_mut::<ExecPane>() {
-                exec_pane.set_error(error);
             }
         }
     }
@@ -1615,7 +1520,7 @@ impl App {
 
         let row = rp.state.items.get(selected_idx)?;
         let name = header_value(&rp.state.headers, row, "NAME", 0).unwrap_or_default();
-        let namespace = header_value(&rp.state.headers, row, "NAMESPACE", 1)
+        let namespace = header_value(&rp.state.headers, row, "NAMESPACE", usize::MAX)
             .unwrap_or_else(|| self.context_resolver.namespace().unwrap_or("default").to_string());
 
         Some((kind, name, namespace))
@@ -1765,7 +1670,7 @@ impl App {
         };
 
         let name = header_value(&rp.state.headers, row, "NAME", 0).unwrap_or_default();
-        let namespace = header_value(&rp.state.headers, row, "NAMESPACE", 1)
+        let namespace = header_value(&rp.state.headers, row, "NAMESPACE", usize::MAX)
             .unwrap_or_else(|| self.context_resolver.namespace().unwrap_or("default").to_string());
 
         let message = format!("Delete {} {}\nin namespace {}?", kind.display_name(), name, namespace);
@@ -2140,11 +2045,6 @@ async fn detect_container_name(pods: &Api<Pod>, pod_name: &str, error_msg: &str)
         .and_then(|pod| pod.spec.as_ref().and_then(|s| s.containers.first()).map(|c| c.name.clone()))
 }
 
-async fn detect_first_container_name(client: &kube::Client, pod_name: &str, namespace: &str) -> Option<String> {
-    let pods: Api<Pod> = Api::namespaced(client.clone(), namespace);
-    pods.get(pod_name).await.ok().and_then(|pod| pod.spec.and_then(|s| s.containers.first().map(|c| c.name.clone())))
-}
-
 fn first_container_from_logs_error(error_msg: &str) -> Option<String> {
     let marker = "choose one of:";
     let (_, right) = error_msg.split_once(marker)?;
@@ -2176,7 +2076,7 @@ fn with_pod_forward_cell(
     headers: &[String],
 ) -> Vec<String> {
     let name = header_value(headers, &row, "NAME", 0).unwrap_or_default();
-    let namespace = header_value(headers, &row, "NAMESPACE", 1).unwrap_or_default();
+    let namespace = header_value(headers, &row, "NAMESPACE", usize::MAX).unwrap_or_default();
     let active = pod_forward_index.contains_key(&(namespace, name));
     set_pod_forward_cell(&mut row, active);
     row

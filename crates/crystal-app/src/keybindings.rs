@@ -29,11 +29,13 @@ pub struct KeybindingDispatcher {
     mode: InputMode,
     global_bindings: HashMap<KeyEvent, Command>,
     mutate_bindings: HashMap<KeyEvent, Command>,
+    interact_bindings: HashMap<KeyEvent, Command>,
     browse_bindings: HashMap<KeyEvent, Command>,
     navigation_bindings: HashMap<KeyEvent, Command>,
     tui_bindings: HashMap<KeyEvent, Command>,
     reverse_global: Vec<(String, String, String)>,
     reverse_mutate: Vec<(String, String, String)>,
+    reverse_interact: Vec<(String, String, String)>,
     reverse_browse: Vec<(String, String, String)>,
     reverse_navigation: Vec<(String, String, String)>,
     reverse_tui: Vec<(String, String, String)>,
@@ -59,6 +61,17 @@ impl KeybindingDispatcher {
                 if let Some(key) = parse_key_string(key_str) {
                     mutate_bindings.insert(key, cmd);
                     reverse_mutate.push((name.clone(), key_str.clone(), mutate_command_description(name)));
+                }
+            }
+        }
+
+        let mut interact_bindings = HashMap::new();
+        let mut reverse_interact = Vec::new();
+        for (name, key_str) in &config.interact {
+            if let Some(cmd) = interact_command_from_name(name) {
+                if let Some(key) = parse_key_string(key_str) {
+                    interact_bindings.insert(key, cmd);
+                    reverse_interact.push((name.clone(), key_str.clone(), interact_command_description(name)));
                 }
             }
         }
@@ -100,11 +113,13 @@ impl KeybindingDispatcher {
             mode: InputMode::Normal,
             global_bindings,
             mutate_bindings,
+            interact_bindings,
             browse_bindings,
             navigation_bindings,
             tui_bindings,
             reverse_global,
             reverse_mutate,
+            reverse_interact,
             reverse_browse,
             reverse_navigation,
             reverse_tui,
@@ -169,8 +184,9 @@ impl KeybindingDispatcher {
                 if let Some(cmd) = self.mutate_bindings.get(&key) {
                     return Some((cmd.clone(), true));
                 }
-                self.browse_bindings
+                self.interact_bindings
                     .get(&key)
+                    .or_else(|| self.browse_bindings.get(&key))
                     .or_else(|| self.navigation_bindings.get(&key))
                     .or_else(|| self.tui_bindings.get(&key))
                     .cloned()
@@ -215,6 +231,7 @@ impl KeybindingDispatcher {
         }
         collect(&mut result, "Global", &self.reverse_global);
         collect(&mut result, "Mutate", &self.reverse_mutate);
+        collect(&mut result, "Interact", &self.reverse_interact);
         collect(&mut result, "Browse", &self.reverse_browse);
         collect(&mut result, "Navigation", &self.reverse_navigation);
         collect(&mut result, "TUI", &self.reverse_tui);
@@ -235,6 +252,7 @@ impl KeybindingDispatcher {
             .iter()
             .chain(&self.reverse_tui)
             .chain(&self.reverse_browse)
+            .chain(&self.reverse_interact)
             .chain(&self.reverse_navigation)
             .chain(&self.reverse_mutate)
             .collect();
@@ -279,6 +297,12 @@ impl KeybindingDispatcher {
 
     pub fn tui_shortcuts(&self) -> Vec<(String, String)> {
         let mut sorted = self.reverse_tui.clone();
+        sorted.sort_by(|a, b| a.0.cmp(&b.0));
+        sorted.into_iter().map(|(_, key_str, desc)| (format_key_display(&key_str), desc)).collect()
+    }
+
+    pub fn interact_shortcuts(&self) -> Vec<(String, String)> {
+        let mut sorted = self.reverse_interact.clone();
         sorted.sort_by(|a, b| a.0.cmp(&b.0));
         sorted.into_iter().map(|(_, key_str, desc)| (format_key_display(&key_str), desc)).collect()
     }
@@ -464,8 +488,6 @@ fn mutate_command_from_name(name: &str) -> Option<Command> {
         "delete" => Some(Command::DeleteResource),
         "scale" => Some(Command::ScaleResource),
         "restart_rollout" => Some(Command::RestartRollout),
-        "exec" => Some(Command::ExecInto),
-        "port_forward" => Some(Command::PortForward),
         _ => None,
     }
 }
@@ -475,6 +497,21 @@ fn mutate_command_description(name: &str) -> String {
         "delete" => "Delete",
         "scale" => "Scale",
         "restart_rollout" => "Restart",
+        _ => "Unknown",
+    }
+    .into()
+}
+
+fn interact_command_from_name(name: &str) -> Option<Command> {
+    match name {
+        "exec" => Some(Command::ExecInto),
+        "port_forward" => Some(Command::PortForward),
+        _ => None,
+    }
+}
+
+fn interact_command_description(name: &str) -> String {
+    match name {
         "exec" => "Exec",
         "port_forward" => "Port Forward",
         _ => "Unknown",

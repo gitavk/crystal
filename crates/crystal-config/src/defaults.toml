@@ -101,8 +101,10 @@ context_selector = "ctrl+o"
 delete = "ctrl+alt+d"
 scale = "ctrl+alt+s"
 restart_rollout = "ctrl+alt+r"
-exec = "ctrl+alt+e"
-port_forward = "ctrl+alt+p"
+
+[keybindings.interact]
+exec = "e"
+port_forward = "p"
 
 [views.pods]
 columns = ["name", "ready", "status", "restarts", "age", "node"]

@@ -14,13 +14,16 @@ pub struct KeybindingsConfig {
     pub global: HashMap<String, String>,
     #[serde(default)]
     pub mutate: HashMap<String, String>,
+    #[serde(default)]
+    pub interact: HashMap<String, String>,
 }
 
 impl KeybindingsConfig {
-    fn group_entries(&self) -> [(&str, &HashMap<String, String>); 5] {
+    fn group_entries(&self) -> [(&str, &HashMap<String, String>); 6] {
         [
             ("global", &self.global),
             ("mutate", &self.mutate),
+            ("interact", &self.interact),
             ("browse", &self.browse),
             ("navigation", &self.navigation),
             ("tui", &self.tui),

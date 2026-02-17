@@ -94,7 +94,9 @@ fn embedded_defaults_parse() {
     assert_eq!(config.keybindings.browse.get("filter").unwrap(), "/");
     // mutate group
     assert_eq!(config.keybindings.mutate.get("delete").unwrap(), "ctrl+alt+d");
-    assert_eq!(config.keybindings.mutate.get("exec").unwrap(), "ctrl+alt+e");
+    // interact group
+    assert_eq!(config.keybindings.interact.get("exec").unwrap(), "e");
+    assert_eq!(config.keybindings.interact.get("port_forward").unwrap(), "p");
 }
 
 #[test]

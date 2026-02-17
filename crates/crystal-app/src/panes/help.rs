@@ -13,6 +13,7 @@ pub struct HelpPane {
     navigation_shortcuts: Vec<(String, String)>,
     browse_shortcuts: Vec<(String, String)>,
     tui_shortcuts: Vec<(String, String)>,
+    interact_shortcuts: Vec<(String, String)>,
     mutate_shortcuts: Vec<(String, String)>,
 }
 
@@ -22,6 +23,7 @@ impl HelpPane {
         navigation_shortcuts: Vec<(String, String)>,
         browse_shortcuts: Vec<(String, String)>,
         tui_shortcuts: Vec<(String, String)>,
+        interact_shortcuts: Vec<(String, String)>,
         mutate_shortcuts: Vec<(String, String)>,
     ) -> Self {
         Self {
@@ -31,17 +33,43 @@ impl HelpPane {
             navigation_shortcuts,
             browse_shortcuts,
             tui_shortcuts,
+            interact_shortcuts,
             mutate_shortcuts,
         }
     }
 
-    fn resource_specific_entries(kind: &ResourceKind) -> Vec<(&'static str, &'static str)> {
-        match kind {
-            ResourceKind::Pods => vec![("L", "Logs"), ("E", "Exec"), ("P", "Port Forward")],
-            ResourceKind::Deployments => vec![("S", "Scale"), ("R", "Restart")],
-            ResourceKind::StatefulSets => vec![("S", "Scale")],
-            _ => vec![],
-        }
+    fn resource_specific_entries(&self, kind: &ResourceKind) -> Vec<(String, String)> {
+        let wanted: &[&str] = match kind {
+            ResourceKind::Pods => &["Logs", "Exec", "Port Forward"],
+            ResourceKind::Deployments => &["Scale", "Restart"],
+            ResourceKind::StatefulSets => &["Scale"],
+            _ => &[],
+        };
+
+        wanted
+            .iter()
+            .filter_map(|desc| {
+                let mut keys: Vec<String> = self
+                    .mutate_shortcuts
+                    .iter()
+                    .chain(self.interact_shortcuts.iter())
+                    .chain(self.browse_shortcuts.iter())
+                    .filter(|(_, d)| d == desc)
+                    .map(|(k, _)| k.clone())
+                    .collect();
+
+                // Avoid showing actions that are not bound.
+                if keys.is_empty() {
+                    return None;
+                }
+
+                keys.sort();
+                keys.dedup();
+
+                let display = Self::compact_keys(desc, &keys);
+                Some((display, (*desc).to_string()))
+            })
+            .collect()
     }
 
     fn normalize_shortcuts(entries: &[(String, String)]) -> Vec<(String, String)> {
@@ -125,6 +153,7 @@ impl Pane for HelpPane {
             ("Navigation", &self.navigation_shortcuts),
             ("Browse", &self.browse_shortcuts),
             ("TUI (Alt+)", &self.tui_shortcuts),
+            ("Interact", &self.interact_shortcuts),
             ("Mutate (Ctrl+Alt+)", &self.mutate_shortcuts),
         ];
 
@@ -147,7 +176,7 @@ impl Pane for HelpPane {
         }
 
         if let Some(ViewType::ResourceList(ref kind)) = self.context_view {
-            let specific = Self::resource_specific_entries(kind);
+            let specific = self.resource_specific_entries(kind);
             if !specific.is_empty() {
                 lines.push(Line::from(""));
                 lines.push(Line::from(Span::styled(
@@ -157,7 +186,7 @@ impl Pane for HelpPane {
                 lines.push(Line::from(""));
                 for (key, desc) in specific {
                     lines.push(Line::from(vec![
-                        Span::styled(format!("  {:<16}", Self::format_key(key)), Style::default().fg(theme.fg).bold()),
+                        Span::styled(format!("  {:<16}", Self::format_key(&key)), Style::default().fg(theme.fg).bold()),
                         Span::styled(desc, theme.text_dim),
                     ]));
                 }
@@ -204,42 +233,51 @@ mod tests {
     fn make_help(context: Option<ViewType>) -> HelpPane {
         let global = vec![("Ctrl+Q".into(), "Quit".into()), ("?".into(), "Help".into())];
         let navigation = vec![("J".into(), "Down".into()), ("K".into(), "Up".into())];
-        let browse = vec![("Y".into(), "View YAML".into()), ("D".into(), "Describe".into())];
+        let browse =
+            vec![("Y".into(), "View YAML".into()), ("D".into(), "Describe".into()), ("L".into(), "Logs".into())];
         let tui = vec![("Alt+V".into(), "Split V".into())];
-        let mutate = vec![("Ctrl+Alt+D".into(), "Delete".into())];
-        let mut help = HelpPane::new(global, navigation, browse, tui, mutate);
+        let interact = vec![("E".into(), "Exec".into()), ("P".into(), "Port Forward".into())];
+        let mutate = vec![
+            ("Ctrl+Alt+D".into(), "Delete".into()),
+            ("Ctrl+Alt+S".into(), "Scale".into()),
+            ("Ctrl+Alt+R".into(), "Restart".into()),
+        ];
+        let mut help = HelpPane::new(global, navigation, browse, tui, interact, mutate);
         help.context_view = context;
         help
     }
 
     #[test]
-    fn pods_context_shows_logs_and_exec() {
+    fn pods_context_shows_logs_and_exec_when_bound() {
         let help = make_help(Some(ViewType::ResourceList(ResourceKind::Pods)));
-        let entries = HelpPane::resource_specific_entries(&ResourceKind::Pods);
-        assert!(entries.iter().any(|(_, d)| *d == "Logs"));
-        assert!(entries.iter().any(|(_, d)| *d == "Exec"));
-        assert!(entries.iter().any(|(_, d)| *d == "Port Forward"));
+        let entries = help.resource_specific_entries(&ResourceKind::Pods);
+        assert!(entries.iter().any(|(_, d)| d == "Logs"));
+        assert!(entries.iter().any(|(_, d)| d == "Exec"));
+        assert!(entries.iter().any(|(_, d)| d == "Port Forward"));
         assert_eq!(help.view_type(), &ViewType::Help);
     }
 
     #[test]
     fn deployments_context_shows_scale_and_restart() {
-        let entries = HelpPane::resource_specific_entries(&ResourceKind::Deployments);
-        assert!(entries.iter().any(|(_, d)| *d == "Scale"));
-        assert!(entries.iter().any(|(_, d)| *d == "Restart"));
+        let help = make_help(Some(ViewType::ResourceList(ResourceKind::Deployments)));
+        let entries = help.resource_specific_entries(&ResourceKind::Deployments);
+        assert!(entries.iter().any(|(_, d)| d == "Scale"));
+        assert!(entries.iter().any(|(_, d)| d == "Restart"));
     }
 
     #[test]
     fn configmaps_context_shows_no_extra_entries() {
-        let entries = HelpPane::resource_specific_entries(&ResourceKind::ConfigMaps);
+        let help = make_help(Some(ViewType::ResourceList(ResourceKind::ConfigMaps)));
+        let entries = help.resource_specific_entries(&ResourceKind::ConfigMaps);
         assert!(entries.is_empty());
     }
 
     #[test]
     fn statefulsets_context_shows_scale_but_no_restart() {
-        let entries = HelpPane::resource_specific_entries(&ResourceKind::StatefulSets);
-        assert!(entries.iter().any(|(_, d)| *d == "Scale"));
-        assert!(!entries.iter().any(|(_, d)| *d == "Restart"));
+        let help = make_help(Some(ViewType::ResourceList(ResourceKind::StatefulSets)));
+        let entries = help.resource_specific_entries(&ResourceKind::StatefulSets);
+        assert!(entries.iter().any(|(_, d)| d == "Scale"));
+        assert!(!entries.iter().any(|(_, d)| d == "Restart"));
     }
 
     #[test]

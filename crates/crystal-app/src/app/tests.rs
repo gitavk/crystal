@@ -118,6 +118,7 @@ fn help_pane_updates_context_on_focus() {
         d.navigation_shortcuts(),
         d.browse_shortcuts(),
         d.tui_shortcuts(),
+        d.interact_shortcuts(),
         d.mutate_shortcuts(),
     );
     let resource_view = ViewType::ResourceList(ResourceKind::Pods);
@@ -590,11 +591,10 @@ async fn enter_insert_mode_is_gated_by_focused_pane_type() {
 }
 
 #[tokio::test]
-async fn exec_without_cluster_connection_keeps_normal_mode() {
+async fn exec_spawns_kubectl_and_enters_insert_mode() {
     let dispatcher = test_dispatcher();
     let mut app =
         App::new(50, dispatcher, crystal_tui::theme::Theme::default(), crystal_config::ViewsConfig::default()).await;
-    app.kube_client = None;
     app.dispatcher.set_mode(InputMode::Normal);
 
     app.with_pods_pane(|pane| {
@@ -605,5 +605,5 @@ async fn exec_without_cluster_connection_keeps_normal_mode() {
 
     app.handle_command(Command::ExecInto);
 
-    assert_eq!(app.dispatcher.mode(), InputMode::Normal);
+    assert_eq!(app.dispatcher.mode(), InputMode::Insert);
 }
