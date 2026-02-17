@@ -1,4 +1,5 @@
 use std::any::Any;
+use std::cell::Cell;
 
 use ratatui::prelude::*;
 use ratatui::widgets::{Block, Borders, Paragraph, Scrollbar, ScrollbarOrientation, ScrollbarState};
@@ -17,7 +18,7 @@ pub struct YamlPane {
     search_query: Option<String>,
     search_matches: Vec<usize>,
     current_match: usize,
-    visible_height: u16,
+    visible_height: Cell<u16>,
 }
 
 #[allow(dead_code)]
@@ -35,7 +36,7 @@ impl YamlPane {
             search_query: None,
             search_matches: vec![],
             current_match: 0,
-            visible_height: 0,
+            visible_height: Cell::new(0),
         }
     }
 
@@ -127,9 +128,15 @@ impl YamlPane {
 
     fn scroll_to_match(&mut self) {
         if let Some(&line_num) = self.search_matches.get(self.current_match) {
-            let half_visible = self.visible_height as usize / 2;
-            self.scroll_offset = line_num.saturating_sub(half_visible);
+            let half_visible = self.visible_height.get() as usize / 2;
+            let target = line_num.saturating_sub(half_visible);
+            self.scroll_offset = target.min(self.max_scroll());
         }
+    }
+
+    fn max_scroll(&self) -> usize {
+        let view_height = self.visible_height.get().max(1) as usize;
+        self.total_lines.saturating_sub(view_height)
     }
 
     fn prev_match(&mut self) {
@@ -170,7 +177,8 @@ impl Pane for YamlPane {
         let content_area = Rect { x: inner.x, y: inner.y, width: inner.width, height: content_height };
 
         // Build display lines with search highlighting
-        let max_scroll = self.total_lines.saturating_sub(content_height as usize);
+        self.visible_height.set(content_height);
+        let max_scroll = self.max_scroll();
         let scroll = self.scroll_offset.min(max_scroll);
 
         let display_lines: Vec<Line> = self
@@ -227,13 +235,25 @@ impl Pane for YamlPane {
 
     fn handle_command(&mut self, cmd: &PaneCommand) {
         match cmd {
-            PaneCommand::ScrollUp => {
+            PaneCommand::ScrollUp | PaneCommand::SelectPrev => {
                 self.scroll_offset = self.scroll_offset.saturating_sub(1);
             }
-            PaneCommand::ScrollDown => {
-                if self.scroll_offset < self.total_lines.saturating_sub(1) {
-                    self.scroll_offset += 1;
-                }
+            PaneCommand::ScrollDown | PaneCommand::SelectNext => {
+                self.scroll_offset = (self.scroll_offset + 1).min(self.max_scroll());
+            }
+            PaneCommand::PageUp => {
+                let page = self.visible_height.get().max(1) as usize;
+                self.scroll_offset = self.scroll_offset.saturating_sub(page);
+            }
+            PaneCommand::PageDown => {
+                let page = self.visible_height.get().max(1) as usize;
+                self.scroll_offset = (self.scroll_offset + page).min(self.max_scroll());
+            }
+            PaneCommand::GoToTop => {
+                self.scroll_offset = 0;
+            }
+            PaneCommand::GoToBottom => {
+                self.scroll_offset = self.max_scroll();
             }
             PaneCommand::SearchInput(ch) => {
                 self.search_query.get_or_insert_with(String::new).push(*ch);
@@ -249,9 +269,6 @@ impl Pane for YamlPane {
                 self.search_query = None;
                 self.search_matches.clear();
                 self.current_match = 0;
-            }
-            PaneCommand::SelectPrev => {
-                self.prev_match();
             }
             _ => {}
         }
@@ -349,7 +366,7 @@ status:
     fn search_finds_correct_lines() {
         let theme = test_theme();
         let mut pane = YamlPane::new(ResourceKind::Pods, "test".into(), SAMPLE_YAML.into(), &theme);
-        pane.visible_height = 20;
+        pane.visible_height.set(20);
         for ch in "nginx".chars() {
             pane.handle_command(&PaneCommand::SearchInput(ch));
         }
@@ -367,7 +384,7 @@ status:
     fn search_next_wraps_around() {
         let theme = test_theme();
         let mut pane = YamlPane::new(ResourceKind::Pods, "test".into(), SAMPLE_YAML.into(), &theme);
-        pane.visible_height = 20;
+        pane.visible_height.set(20);
         for ch in "nginx".chars() {
             pane.handle_command(&PaneCommand::SearchInput(ch));
         }
@@ -405,6 +422,18 @@ status:
         for _ in 0..200 {
             pane.handle_command(&PaneCommand::ScrollUp);
         }
+        assert_eq!(pane.scroll_offset, 0);
+    }
+
+    #[test]
+    fn select_commands_scroll_yaml() {
+        let theme = test_theme();
+        let mut pane = YamlPane::new(ResourceKind::Pods, "test".into(), "a\nb\nc\nd\n".into(), &theme);
+        pane.visible_height.set(1);
+        assert_eq!(pane.scroll_offset, 0);
+        pane.handle_command(&PaneCommand::SelectNext);
+        assert_eq!(pane.scroll_offset, 1);
+        pane.handle_command(&PaneCommand::SelectPrev);
         assert_eq!(pane.scroll_offset, 0);
     }
 

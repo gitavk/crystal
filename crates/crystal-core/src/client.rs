@@ -37,11 +37,7 @@ impl KubeClient {
                     }
 
                     let config = Kubeconfig::read_from(&path)?;
-                    merged = Some(if let Some(previous) = merged {
-                        previous.merge(config)?
-                    } else {
-                        config
-                    });
+                    merged = Some(if let Some(previous) = merged { previous.merge(config)? } else { config });
                 }
 
                 Ok(merged)

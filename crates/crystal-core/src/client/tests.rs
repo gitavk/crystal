@@ -52,14 +52,7 @@ fn kubeconfig_from_env_skips_missing_and_blank_paths() {
 
     let previous = env::var_os("KUBECONFIG");
     let sep = if cfg!(windows) { ';' } else { ':' };
-    let paths = format!(
-        "{}{}{}{}{}",
-        missing_path.display(),
-        sep,
-        "",
-        sep,
-        valid_path.display()
-    );
+    let paths = format!("{}{}{}{}{}", missing_path.display(), sep, "", sep, valid_path.display());
     env::set_var("KUBECONFIG", &paths);
 
     let loaded = KubeClient::load_kubeconfig_from_env().expect("load kubeconfig");
