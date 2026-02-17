@@ -280,6 +280,9 @@ impl App {
             AppEvent::ContextSwitchError { context, error } => {
                 self.toasts.push(ToastMessage::error(format!("Failed to switch context {context}: {error}")));
             }
+            AppEvent::NamespacesUpdated { namespaces } => {
+                self.namespaces = namespaces;
+            }
         }
     }
 
@@ -407,6 +410,7 @@ impl App {
                 if mode == InputMode::NamespaceSelector {
                     self.namespace_filter.clear();
                     self.namespace_selected = 0;
+                    self.refresh_namespaces();
                 }
                 if mode == InputMode::ContextSelector {
                     self.context_filter.clear();
@@ -1593,6 +1597,19 @@ impl App {
             }
         });
         self.dispatcher.set_mode(InputMode::Normal);
+    }
+
+    fn refresh_namespaces(&self) {
+        let Some(client) = self.kube_client.clone() else { return };
+        let app_tx = self.app_tx.clone();
+        tokio::spawn(async move {
+            match client.list_namespaces().await {
+                Ok(namespaces) => {
+                    let _ = app_tx.send(AppEvent::NamespacesUpdated { namespaces });
+                }
+                Err(e) => tracing::warn!("Failed to refresh namespaces: {e}"),
+            }
+        });
     }
 
     fn apply_context_switch(&mut self, client: KubeClient, namespaces: Vec<String>) {

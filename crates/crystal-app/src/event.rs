@@ -59,6 +59,9 @@ pub enum AppEvent {
         context: String,
         error: String,
     },
+    NamespacesUpdated {
+        namespaces: Vec<String>,
+    },
 }
 
 pub struct EventHandler {
