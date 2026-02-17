@@ -2,7 +2,7 @@ use super::*;
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 
 fn default_dispatcher() -> KeybindingDispatcher {
-    let config = crystal_config::Config::load();
+    let config = crystal_config::Config::default();
     KeybindingDispatcher::from_config(&config.keybindings)
 }
 

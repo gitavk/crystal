@@ -160,3 +160,67 @@ fn save_and_load_roundtrip() {
 
     let _ = std::fs::remove_dir_all(&dir);
 }
+
+#[test]
+fn view_config_roundtrips_through_serde() {
+    let config = AppConfig::default();
+    let serialized = toml::to_string_pretty(&config).unwrap();
+    let deserialized: AppConfig = toml::from_str(&serialized).unwrap();
+    assert_eq!(deserialized.views.pods.columns, config.views.pods.columns);
+    assert_eq!(deserialized.views.deployments.columns, config.views.deployments.columns);
+    assert_eq!(deserialized.views.nodes.columns, config.views.nodes.columns);
+}
+
+#[test]
+fn view_config_unknown_columns_dont_error() {
+    let raw = r#"
+[views.pods]
+columns = ["name", "nonexistent-column", "status"]
+"#;
+    let config: AppConfig = toml::from_str(raw).unwrap();
+    assert_eq!(config.views.pods.columns, vec!["name", "nonexistent-column", "status"]);
+}
+
+#[test]
+fn filter_columns_empty_config_returns_all() {
+    let headers = vec!["NAME".into(), "STATUS".into(), "AGE".into()];
+    let rows = vec![vec!["pod1".into(), "Running".into(), "5m".into()]];
+    let (h, r) = views::filter_columns(&[], &headers, &rows);
+    assert_eq!(h, headers);
+    assert_eq!(r, rows);
+}
+
+#[test]
+fn filter_columns_reorders_to_config_order() {
+    let headers = vec!["NAME".into(), "STATUS".into(), "AGE".into(), "NODE".into()];
+    let rows = vec![vec!["pod1".into(), "Running".into(), "5m".into(), "node1".into()]];
+    let configured: Vec<String> = vec!["age".into(), "name".into(), "status".into()];
+    let (h, r) = views::filter_columns(&configured, &headers, &rows);
+    assert_eq!(h, vec!["AGE", "NAME", "STATUS"]);
+    assert_eq!(r, vec![vec!["5m".to_string(), "pod1".to_string(), "Running".to_string()]]);
+}
+
+#[test]
+fn filter_columns_unknown_names_silently_ignored() {
+    let headers = vec!["NAME".into(), "STATUS".into()];
+    let rows = vec![vec!["pod1".into(), "Running".into()]];
+    let configured: Vec<String> = vec!["name".into(), "nonexistent".into(), "status".into()];
+    let (h, _) = views::filter_columns(&configured, &headers, &rows);
+    assert_eq!(h, vec!["NAME", "STATUS"]);
+}
+
+#[test]
+fn default_config_has_views_from_defaults_toml() {
+    let config = AppConfig::default();
+    assert_eq!(config.views.pods.columns, vec!["name", "ready", "status", "restarts", "age", "node"]);
+    assert_eq!(config.views.services.columns, vec!["name", "type", "cluster-ip", "external-ip", "ports", "age"]);
+    assert_eq!(config.views.namespaces.columns, vec!["name", "status", "age"]);
+}
+
+#[test]
+fn columns_for_returns_correct_resource() {
+    let views = ViewsConfig::default();
+    assert_eq!(views.columns_for("pods"), &["name", "ready", "status", "restarts", "age", "node"]);
+    assert_eq!(views.columns_for("nodes"), &["name", "status", "roles", "age", "version"]);
+    assert!(views.columns_for("unknown").is_empty());
+}

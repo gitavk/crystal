@@ -1,6 +1,7 @@
 pub mod general;
 pub mod keybindings;
 pub mod theme;
+pub mod views;
 
 use std::path::{Path, PathBuf};
 
@@ -9,6 +10,7 @@ use serde::{Deserialize, Serialize};
 pub use general::{FeatureFlags, GeneralConfig, TerminalConfig};
 pub use keybindings::{check_collisions, validate_keybindings, KeybindingsConfig};
 pub use theme::ThemeConfig;
+pub use views::{ResourceViewConfig, ViewsConfig};
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct AppConfig {
@@ -22,6 +24,8 @@ pub struct AppConfig {
     pub features: FeatureFlags,
     #[serde(default)]
     pub theme: ThemeConfig,
+    #[serde(default)]
+    pub views: ViewsConfig,
 }
 
 pub const DEFAULT_CONFIG: &str = include_str!("defaults.toml");
@@ -93,6 +97,7 @@ impl AppConfig {
         self.terminal = user.terminal;
         self.features = user.features;
         self.theme = user.theme;
+        self.views = user.views;
 
         // Keybindings: merge per-key (user overrides, defaults preserved)
         for (k, v) in user.keybindings.navigation {

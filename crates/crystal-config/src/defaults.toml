@@ -103,3 +103,39 @@ scale = "ctrl+alt+s"
 restart_rollout = "ctrl+alt+r"
 exec = "ctrl+alt+e"
 port_forward = "ctrl+alt+p"
+
+[views.pods]
+columns = ["name", "ready", "status", "restarts", "age", "node"]
+
+[views.deployments]
+columns = ["name", "ready", "up-to-date", "available", "age"]
+
+[views.services]
+columns = ["name", "type", "cluster-ip", "external-ip", "ports", "age"]
+
+[views.statefulsets]
+columns = ["name", "ready", "age"]
+
+[views.daemonsets]
+columns = ["name", "desired", "current", "ready", "age"]
+
+[views.jobs]
+columns = ["name", "completions", "duration", "age"]
+
+[views.cronjobs]
+columns = ["name", "schedule", "suspend", "active", "last-schedule", "age"]
+
+[views.configmaps]
+columns = ["name", "data", "age"]
+
+[views.secrets]
+columns = ["name", "type", "data", "age"]
+
+[views.ingresses]
+columns = ["name", "class", "hosts", "address", "ports", "age"]
+
+[views.nodes]
+columns = ["name", "status", "roles", "age", "version"]
+
+[views.namespaces]
+columns = ["name", "status", "age"]

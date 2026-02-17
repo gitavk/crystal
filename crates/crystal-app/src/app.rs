@@ -127,10 +127,16 @@ pub struct App {
     pods_pane_id: PaneId,
     app_tx: mpsc::UnboundedSender<AppEvent>,
     theme: crystal_tui::theme::Theme,
+    views_config: crystal_config::ViewsConfig,
 }
 
 impl App {
-    pub async fn new(tick_rate_ms: u64, dispatcher: KeybindingDispatcher, theme: crystal_tui::theme::Theme) -> Self {
+    pub async fn new(
+        tick_rate_ms: u64,
+        dispatcher: KeybindingDispatcher,
+        theme: crystal_tui::theme::Theme,
+        views_config: crystal_config::ViewsConfig,
+    ) -> Self {
         let mut context_resolver = ContextResolver::new();
         let kube_client = match KubeClient::from_kubeconfig().await {
             Ok(client) => {
@@ -181,6 +187,7 @@ impl App {
             pods_pane_id,
             app_tx: tx,
             theme,
+            views_config,
         };
         app.sync_active_scope();
         app.update_active_tab_title();
@@ -1107,8 +1114,13 @@ impl App {
         let pod_forward_index = self.pod_forward_index.clone();
         if let Some(pane) = self.panes.get_mut(&pane_id) {
             if let Some(resource_pane) = pane.as_any_mut().downcast_mut::<ResourceListPane>() {
-                let mut effective_headers = headers;
-                let mut effective_rows = rows;
+                let configured_columns = resource_pane
+                    .kind()
+                    .map(|k| self.views_config.columns_for(resource_kind_config_key(k)))
+                    .unwrap_or(&[]);
+
+                let (mut effective_headers, mut effective_rows) =
+                    crystal_config::views::filter_columns(configured_columns, &headers, &rows);
 
                 if matches!(resource_pane.kind(), Some(ResourceKind::Pods)) {
                     effective_headers = with_pod_forward_header(&effective_headers);
@@ -2037,6 +2049,24 @@ fn resource_alias(kind: &ResourceKind) -> String {
             let up = name.to_uppercase();
             up.chars().take(3).collect()
         }
+    }
+}
+
+fn resource_kind_config_key(kind: &ResourceKind) -> &'static str {
+    match kind {
+        ResourceKind::Pods => "pods",
+        ResourceKind::Deployments => "deployments",
+        ResourceKind::Services => "services",
+        ResourceKind::StatefulSets => "statefulsets",
+        ResourceKind::DaemonSets => "daemonsets",
+        ResourceKind::Jobs => "jobs",
+        ResourceKind::CronJobs => "cronjobs",
+        ResourceKind::ConfigMaps => "configmaps",
+        ResourceKind::Secrets => "secrets",
+        ResourceKind::Ingresses => "ingresses",
+        ResourceKind::Nodes => "nodes",
+        ResourceKind::Namespaces => "namespaces",
+        ResourceKind::PersistentVolumes | ResourceKind::PersistentVolumeClaims | ResourceKind::Custom(_) => "",
     }
 }
 

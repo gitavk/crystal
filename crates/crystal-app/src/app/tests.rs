@@ -572,7 +572,8 @@ fn insert_mode_hints_contain_esc() {
 #[tokio::test]
 async fn enter_insert_mode_is_gated_by_focused_pane_type() {
     let dispatcher = test_dispatcher();
-    let mut app = App::new(50, dispatcher, crystal_tui::theme::Theme::default()).await;
+    let mut app =
+        App::new(50, dispatcher, crystal_tui::theme::Theme::default(), crystal_config::ViewsConfig::default()).await;
     app.dispatcher.set_mode(InputMode::Normal);
 
     app.handle_command(Command::EnterMode(InputMode::Insert));
@@ -591,7 +592,8 @@ async fn enter_insert_mode_is_gated_by_focused_pane_type() {
 #[tokio::test]
 async fn exec_without_cluster_connection_keeps_normal_mode() {
     let dispatcher = test_dispatcher();
-    let mut app = App::new(50, dispatcher, crystal_tui::theme::Theme::default()).await;
+    let mut app =
+        App::new(50, dispatcher, crystal_tui::theme::Theme::default(), crystal_config::ViewsConfig::default()).await;
     app.kube_client = None;
     app.dispatcher.set_mode(InputMode::Normal);
 
