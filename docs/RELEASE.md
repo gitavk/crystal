@@ -25,4 +25,5 @@ These steps document how to prepare and ship a Crystal release. Follow them in o
    - Ensure git history is clean (rebase/squash commits as agreed) and run `git status`.
    - Commit version/docs/test updates with a clear message (e.g., “release: prepare v0.4.0”).
    - Tag the commit: `git tag -a vX.Y.Z -m "Crystal vX.Y.Z"` and push tags `git push origin vX.Y.Z`.
-   - If binaries/assets must be published, build them from the release tag and upload to the artifact store (GitHub Releases, internal CDN, etc.).
+   - Build the release artifacts that the workflow publishes: the Linux tarball, `cargo deb --no-build --manifest-path crates/crystal-app/Cargo.toml --output crystal_${{ env.VERSION }}_amd64.deb` (matches `.github/workflows/release.yml`), the staged RPM, and macOS tarball if needed. Upload them together with the standard GitHub Release assets.
+   - If binaries/assets must be published outside of GitHub Releases (internal CDN, etc.), export them from the tagged commit and push to the artifact store.

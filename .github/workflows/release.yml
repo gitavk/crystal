@@ -55,7 +55,7 @@ jobs:
     - name: Build .deb package
       run: |
         cargo install cargo-deb
-        cargo deb --no-build --workspace --output crystal_${{ env.VERSION }}_amd64.deb
+        cargo deb --no-build --manifest-path crates/crystal-app/Cargo.toml --output crystal_${{ env.VERSION }}_amd64.deb
 
     - name: Build .rpm package
       run: |
@@ -136,7 +136,7 @@ jobs:
 
   build-macos:
     name: Build macOS (aarch64)
-    runs-on: macos-13
+    runs-on: macos-latest
     needs: release
     env:
       RELEASE_TAG: ${{ github.event.release.tag_name || github.event.inputs.release_tag || github.ref_name }}
