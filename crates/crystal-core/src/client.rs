@@ -18,11 +18,36 @@ pub struct KubeClient {
 
 impl KubeClient {
     fn read_kubeconfig_with_fallback() -> Result<Kubeconfig> {
-        Kubeconfig::read().or_else(|_| {
-            let home = std::env::var("HOME").unwrap_or_else(|_| "/root".into());
-            let default_path = std::path::PathBuf::from(home).join(".kube").join("config");
-            Kubeconfig::read_from(&default_path).map_err(|e| anyhow::anyhow!(e))
-        })
+        if let Some(kubeconfig) = Self::load_kubeconfig_from_env()? {
+            return Ok(kubeconfig);
+        }
+
+        let home = std::env::var("HOME").unwrap_or_else(|_| "/root".into());
+        let default_path = std::path::PathBuf::from(home).join(".kube").join("config");
+        Kubeconfig::read_from(&default_path).map_err(|e| anyhow::anyhow!(e))
+    }
+
+    fn load_kubeconfig_from_env() -> Result<Option<Kubeconfig>> {
+        match std::env::var_os("KUBECONFIG") {
+            Some(paths) => {
+                let mut merged: Option<Kubeconfig> = None;
+                for path in std::env::split_paths(&paths).filter(|p| !p.as_os_str().is_empty()) {
+                    if !path.exists() {
+                        continue;
+                    }
+
+                    let config = Kubeconfig::read_from(&path)?;
+                    merged = Some(if let Some(previous) = merged {
+                        previous.merge(config)?
+                    } else {
+                        config
+                    });
+                }
+
+                Ok(merged)
+            }
+            None => Ok(None),
+        }
     }
 
     pub async fn from_kubeconfig() -> Result<Self> {
