@@ -1,0 +1,37 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: nightly-cleanup
+  namespace: crystal-prod
+spec:
+  schedule: "*/5 * * * *" # Every 5 minutes for demo purposes
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          containers:
+          - name: cleanup
+            image: alpine
+            command:
+            - /bin/sh
+            - -c
+            - echo "Starting cleanup task..."; sleep 5; echo "Cleanup complete."
+          restartPolicy: OnFailure
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: database-migration
+  namespace: crystal-prod
+spec:
+  template:
+    spec:
+      containers:
+      - name: migrate
+        image: alpine
+        command:
+        - /bin/sh
+        - -c
+        - echo "Running migrations..."; sleep 10; echo "Done."
+      restartPolicy: Never
+  backoffLimit: 2

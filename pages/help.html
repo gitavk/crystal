@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Crystal - Help</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <header>
+        <h1>Crystal</h1>
+        <nav>
+            <a href="index.html">Home</a>
+            <a href="downloads.html">Downloads</a>
+            <a href="help.html">Help</a>
+        </nav>
+    </header>
+    <main>
+        <h2>Help & Documentation</h2>
+
+        <section id="about">
+            <h3>About Crystal</h3>
+            <p>Crystal is a terminal-based Kubernetes workspace inspired by k9s and Lens. It is focused on fast, keyboard-driven navigation and a flexible pane-and-tab layout, allowing you to manage your cluster without leaving the terminal.</p>
+        </section>
+
+        <section id="ui-layout">
+            <h3>UI Layout: Panes and Tabs</h3>
+            <p>Crystal features a powerful layout system inspired by Zellij, allowing you to create a workspace that fits your needs.</p>
+            <ul>
+                <li><strong>Tabs:</strong> Organize your work into different tabs. Each tab has its own set of panes.</li>
+                <li><strong>Panes:</strong> Each tab can be split into multiple panes, vertically or horizontally. Each pane can contain a different view (e.g., a list of Pods, logs, or a terminal).</li>
+            </ul>
+            <div class="screenshot-note">
+                <strong>Screenshot Note:</strong> A screenshot showing a 3-pane layout (e.g., Pods list, Pod details, and Logs) would be very effective here.
+            </div>
+        </section>
+
+        <section id="navigation">
+            <h3>Navigation</h3>
+            <p>Navigating Crystal is designed to be fast and keyboard-centric.</p>
+            <ul>
+                <li><strong>Focus Panes:</strong> Use <span class="key">Alt</span> + <span class="key">Arrow Keys</span> to move focus between panes.</li>
+                <li><strong>Cycle Focus:</strong> Use <span class="key">Tab</span> and <span class="key">Shift</span> + <span class="key">Tab</span> to cycle through panes.</li>
+                <li><strong>Switch Tabs:</strong> Use number keys <span class="key">1</span>-<span class="key">9</span> to switch to a specific tab.</li>
+                <li><strong>Scroll/Navigate Lists:</strong> Use <span class="key">j</span>/<span class="key">k</span> or <span class="key">Up</span>/<span class="key">Down</span> arrows to navigate items within a list pane.</li>
+            </ul>
+        </section>
+
+        <section id="resource-views">
+            <h3>Resource Views</h3>
+            <p>Crystal provides views for all major Kubernetes resource types.</p>
+            <ul>
+                <li><strong>Resource Switcher:</strong> Press <span class="key">:</span> to open the command palette. Start typing to fuzzy-find a resource type (e.g., 'po' for Pods, 'deploy' for Deployments) and press <span class="key">Enter</span> to switch.</li>
+                <li><strong>List View:</strong> The default view for a resource type. It shows a filterable and sortable table of resources.
+                    <ul>
+                        <li><span class="key">/</span>: Enter filter mode to search by name.</li>
+                        <li><span class="key">s</span>: Cycle through columns to sort.</li>
+                        <li><span class="key">a</span>: Toggle between the current namespace and all namespaces.</li>
+                    </ul>
+                </li>
+                <li><strong>Detail View:</strong> Press <span class="key">Enter</span> on a resource to open a detailed view in a new pane. This shows metadata, status, specs, and more.</li>
+                <li><strong>YAML View:</strong> Press <span class="key">y</span> on a resource to view its full YAML definition with syntax highlighting.</li>
+            </ul>
+            <div class="screenshot-note">
+                <strong>Screenshot Note:</strong> A screenshot of the Resource Switcher overlay (<span class="key">:</span>) would be helpful. Another showing a list view with the filter bar active would also be great.
+            </div>
+        </section>
+
+        <section id="actions">
+            <h3>Resource Actions</h3>
+            <p>Perform actions on the selected resource.</p>
+            <ul>
+                <li><span class="key">d</span>: Describe the resource in a new pane.</li>
+                <li><span class="key">Ctrl</span> + <span class="key">d</span>: Delete the selected resource (with a confirmation dialog).</li>
+                <li><span class="key">l</span>: Stream logs from a Pod.</li>
+                <li><span class="key">e</span>: Exec into a Pod's container.</li>
+                <li><span class="key">S</span> (Shift+s): Scale a Deployment or StatefulSet.</li>
+                <li><span class="key">R</span> (Shift+r): Trigger a rollout restart for a Deployment.</li>
+            </ul>
+            <div class="screenshot-note">
+                <strong>Screenshot Note:</strong> A screenshot of the confirmation dialog for a delete action.
+            </div>
+        </section>
+
+        <section id="terminal">
+            <h3>Integrated Terminal & Logs</h3>
+            <p>Crystal's terminal integration is a core feature, providing shells and log streams that are automatically configured for your cluster.</p>
+            <ul>
+                <li><strong>Context-Aware Terminal:</strong> Open a new terminal pane (<span class="key">Alt</span>+<span class="key">Enter</span>). Your shell will be automatically configured with the correct `KUBECONFIG`, context, and namespace. The prompt will even show your current location in the cluster!</li>
+                <li><strong>Exec into Pods:</strong> Select a Pod and press <span class="key">e</span> to get a shell directly inside a container.</li>
+                <li><strong>Log Streaming:</strong> Select a Pod and press <span class="key">l</span> to view its logs. The log view supports following (<span class="key">f</span>), filtering (<span class="key">/</span>), and toggling timestamps (<span class="key">t</span>).</li>
+                <li><strong>Insert Mode:</strong> When focused on a terminal or exec pane, Crystal enters "Insert Mode". All key presses are sent to the terminal. Press <span class="key">Esc</span> to return to "Normal Mode" to use global shortcuts for navigation and pane management.</li>
+            </ul>
+            <div class="screenshot-note">
+                <strong>Screenshot Note:</strong> A screenshot showing a terminal pane with the custom prompt `[crystal:minikube/default] $` would clearly demonstrate the context-aware feature.
+            </div>
+        </section>
+
+        <section id="keybindings">
+            <h3>Keybindings</h3>
+            <p>Crystal is controlled through keyboard shortcuts, which are organized into logical groups. These can be customized in your config file.</p>
+            <ul>
+                <li><strong>Global (<span class="key">ctrl</span>):</strong> App-wide actions like <span class="key">ctrl</span>+<span class="key">q</span> to quit.</li>
+                <li><strong>TUI (<span class="key">alt</span>):</strong> Layout management like <span class="key">alt</span>+<span class="key">v</span> to split a pane.</li>
+                <li><strong>Navigation (bare keys):</strong> <span class="key">j</span>, <span class="key">k</span>, <span class="key">Enter</span>, <span class="key">Esc</span> for moving around.</li>
+                <li><strong>Browse (bare keys):</strong> <span class="key">y</span> for YAML, <span class="key">l</span> for logs.</li>
+                <li><strong>Mutate (<span class="key">ctrl</span>+<span class="key">alt</span>):</strong> Destructive actions like <span class="key">ctrl</span>+<span class="key">alt</span>+<span class="key">d</span> for delete.</li>
+            </ul>
+            <p>Press <span class="key">?</span> at any time to see a context-sensitive help pane with available shortcuts.</p>
+        </section>
+
+        <section id="configuration">
+            <h3>Configuration</h3>
+            <p>You can customize Crystal by creating a configuration file at <code>~/.config/crystal/config.toml</code>.</p>
+            <p>To get started, run <code>crystal --init-config</code> to generate a default config file with all available options and comments.</p>
+            <p>The configuration allows you to customize:</p>
+            <ul>
+                <li>Keybindings</li>
+                <li>Theme colors</li>
+                <li>Columns displayed in resource tables</li>
+                <li>And much more!</li>
+            </ul>
+            <p>The configuration file is hot-reloaded, so changes you save will be applied instantly without restarting the app.</p>
+        </section>
+
+    </main>
+    <footer>
+        <p>&copy; 2026 Crystal Project</p>
+    </footer>
+</body>
+</html>

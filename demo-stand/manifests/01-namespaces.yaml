@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: crystal-prod
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: crystal-staging
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: crystal-dev
