@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 use std::fmt::Debug;
+use std::time::Duration;
 
 use futures::StreamExt;
 use kube::runtime::watcher::{self, Event};
@@ -21,6 +22,11 @@ pub struct ResourceWatcher {
     cancel: CancellationToken,
 }
 
+fn backoff_duration(attempt: u32) -> Duration {
+    let secs = 2u64.pow(attempt.min(5)).min(30);
+    Duration::from_secs(secs)
+}
+
 impl ResourceWatcher {
     /// Watch any Kubernetes resource type and emit summary snapshots.
     ///
@@ -40,71 +46,94 @@ impl ResourceWatcher {
         let cancel_clone = cancel.clone();
 
         tokio::spawn(async move {
-            let stream = watcher::watcher(api, watcher::Config::default());
-            tokio::pin!(stream);
+            let mut consecutive_failures: u32 = 0;
 
-            let mut snapshot: HashMap<String, S> = HashMap::new();
-            let mut initializing = false;
+            'outer: loop {
+                let stream = watcher::watcher(api.clone(), watcher::Config::default());
+                tokio::pin!(stream);
 
-            loop {
-                tokio::select! {
-                    _ = cancel_clone.cancelled() => {
-                        info!("Resource watcher cancelled");
-                        break;
-                    }
-                    item = stream.next() => {
-                        match item {
-                            Some(Ok(event)) => {
-                                let should_send = match event {
-                                    Event::InitApply(resource) => {
-                                        let summary = S::from(resource);
-                                        let key = match summary.namespace() {
-                                            Some(ns) => format!("{}/{}", ns, summary.name()),
-                                            None => summary.name().to_string(),
-                                        };
-                                        snapshot.insert(key, summary);
-                                        false
+                let mut snapshot: HashMap<String, S> = HashMap::new();
+                let mut initializing = false;
+
+                loop {
+                    tokio::select! {
+                        _ = cancel_clone.cancelled() => {
+                            info!("Resource watcher cancelled");
+                            break 'outer;
+                        }
+                        item = stream.next() => {
+                            match item {
+                                Some(Ok(event)) => {
+                                    consecutive_failures = 0;
+                                    let should_send = match event {
+                                        Event::InitApply(resource) => {
+                                            let summary = S::from(resource);
+                                            let key = match summary.namespace() {
+                                                Some(ns) => format!("{}/{}", ns, summary.name()),
+                                                None => summary.name().to_string(),
+                                            };
+                                            snapshot.insert(key, summary);
+                                            false
+                                        }
+                                        Event::Apply(resource) => {
+                                            let summary = S::from(resource);
+                                            let key = match summary.namespace() {
+                                                Some(ns) => format!("{}/{}", ns, summary.name()),
+                                                None => summary.name().to_string(),
+                                            };
+                                            snapshot.insert(key, summary);
+                                            true
+                                        }
+                                        Event::Delete(resource) => {
+                                            let name = resource.name_any();
+                                            let ns = resource.namespace();
+                                            let key = match ns {
+                                                Some(ns) => format!("{ns}/{name}"),
+                                                None => name,
+                                            };
+                                            snapshot.remove(&key);
+                                            !initializing
+                                        }
+                                        Event::Init => {
+                                            snapshot.clear();
+                                            initializing = true;
+                                            false
+                                        }
+                                        Event::InitDone => {
+                                            initializing = false;
+                                            true
+                                        }
+                                    };
+                                    if should_send {
+                                        let items: Vec<S> = snapshot.values().cloned().collect();
+                                        let _ = tx.send(ResourceEvent::Updated(items)).await;
                                     }
-                                    Event::Apply(resource) => {
-                                        let summary = S::from(resource);
-                                        let key = match summary.namespace() {
-                                            Some(ns) => format!("{}/{}", ns, summary.name()),
-                                            None => summary.name().to_string(),
-                                        };
-                                        snapshot.insert(key, summary);
-                                        true
-                                    }
-                                    Event::Delete(resource) => {
-                                        let name = resource.name_any();
-                                        let ns = resource.namespace();
-                                        let key = match ns {
-                                            Some(ns) => format!("{ns}/{name}"),
-                                            None => name,
-                                        };
-                                        snapshot.remove(&key);
-                                        !initializing
-                                    }
-                                    Event::Init => {
-                                        snapshot.clear();
-                                        initializing = true;
-                                        false
-                                    }
-                                    Event::InitDone => {
-                                        initializing = false;
-                                        true
-                                    }
-                                };
-                                if should_send {
-                                    let items: Vec<S> = snapshot.values().cloned().collect();
-                                    let _ = tx.send(ResourceEvent::Updated(items)).await;
+                                }
+                                Some(Err(e)) => {
+                                    warn!("Watcher stream error: {e}");
+                                    consecutive_failures += 1;
+                                    let _ = tx.send(ResourceEvent::Error(e.to_string())).await;
+                                    break;
+                                }
+                                None => {
+                                    warn!("Watcher stream ended unexpectedly");
+                                    consecutive_failures += 1;
+                                    let _ = tx.send(ResourceEvent::Error("Watch stream ended unexpectedly".into())).await;
+                                    break;
                                 }
                             }
-                            Some(Err(e)) => {
-                                warn!("Watcher error: {e}");
-                                let _ = tx.send(ResourceEvent::Error(e.to_string())).await;
-                            }
-                            None => break,
                         }
+                    }
+                }
+
+                let backoff = backoff_duration(consecutive_failures);
+                warn!("Reconnecting watcher in {}s (attempt {consecutive_failures})", backoff.as_secs());
+
+                tokio::select! {
+                    _ = tokio::time::sleep(backoff) => {}
+                    _ = cancel_clone.cancelled() => {
+                        info!("Resource watcher cancelled during reconnect");
+                        break;
                     }
                 }
             }

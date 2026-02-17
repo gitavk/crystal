@@ -46,24 +46,19 @@ impl<'a> MakeWriter<'a> for AppLogMakeWriter {
     type Writer = AppLogWriter;
 
     fn make_writer(&'a self) -> Self::Writer {
-        AppLogWriter { stderr: io::stderr() }
+        AppLogWriter
     }
 }
 
-pub struct AppLogWriter {
-    stderr: io::Stderr,
-}
+pub struct AppLogWriter;
 
 impl Write for AppLogWriter {
     fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
-        let written = self.stderr.write(buf)?;
-        if written > 0 {
-            push_lines(&String::from_utf8_lossy(&buf[..written]));
-        }
-        Ok(written)
+        push_lines(&String::from_utf8_lossy(buf));
+        Ok(buf.len())
     }
 
     fn flush(&mut self) -> io::Result<()> {
-        self.stderr.flush()
+        Ok(())
     }
 }
