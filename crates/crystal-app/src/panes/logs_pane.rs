@@ -1,4 +1,5 @@
 use std::any::Any;
+use std::cell::Cell;
 
 use ratatui::prelude::*;
 use ratatui::widgets::{Block, Borders, Paragraph};
@@ -18,6 +19,7 @@ pub struct LogsPane {
     follow: bool,
     status: String,
     stream: Option<LogStream>,
+    max_scroll_offset: Cell<usize>,
 }
 
 impl LogsPane {
@@ -31,6 +33,7 @@ impl LogsPane {
             follow: true,
             status: "Connecting...".into(),
             stream: None,
+            max_scroll_offset: Cell::new(0),
         }
     }
 
@@ -42,6 +45,8 @@ impl LogsPane {
     pub fn append_snapshot(&mut self, lines: Vec<String>) {
         if !lines.is_empty() {
             self.lines.extend(lines.into_iter().map(|line| sanitize_log_text(&line)));
+            self.lines.sort();
+            self.lines.dedup();
             if self.lines.len() > MAX_LOG_LINES {
                 let drop_count = self.lines.len().saturating_sub(MAX_LOG_LINES);
                 self.lines.drain(0..drop_count);
@@ -62,13 +67,17 @@ impl LogsPane {
             return;
         };
 
-        for line in stream.next_lines() {
-            self.lines.push(format_log_line(&line));
-        }
-
-        if self.lines.len() > MAX_LOG_LINES {
-            let drop_count = self.lines.len().saturating_sub(MAX_LOG_LINES);
-            self.lines.drain(0..drop_count);
+        let new_lines = stream.next_lines();
+        if !new_lines.is_empty() {
+            for line in new_lines {
+                self.lines.push(format_log_line(&line));
+            }
+            self.lines.sort();
+            self.lines.dedup();
+            if self.lines.len() > MAX_LOG_LINES {
+                let drop_count = self.lines.len().saturating_sub(MAX_LOG_LINES);
+                self.lines.drain(0..drop_count);
+            }
         }
 
         self.status = match stream.status() {
@@ -102,7 +111,9 @@ impl Pane for LogsPane {
 
         let visible_height = inner.height.saturating_sub(1) as usize;
         let total = self.lines.len();
-        let offset = if self.follow { 0 } else { self.scroll_offset.min(total) };
+        let max_offset = total.saturating_sub(visible_height);
+        self.max_scroll_offset.set(max_offset);
+        let offset = if self.follow { 0 } else { self.scroll_offset.min(max_offset) };
         let end = total.saturating_sub(offset);
         let start = end.saturating_sub(visible_height);
         let visible = &self.lines[start..end];
@@ -126,7 +137,7 @@ impl Pane for LogsPane {
         match cmd {
             PaneCommand::ScrollUp | PaneCommand::SelectPrev => {
                 self.follow = false;
-                self.scroll_offset = self.scroll_offset.saturating_add(1);
+                self.scroll_offset = self.scroll_offset.saturating_add(1).min(self.max_scroll_offset.get());
             }
             PaneCommand::ScrollDown | PaneCommand::SelectNext => {
                 self.scroll_offset = self.scroll_offset.saturating_sub(1);
