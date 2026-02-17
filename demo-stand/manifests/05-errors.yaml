@@ -36,4 +36,4 @@ spec:
   containers:
   - name: logger
     image: alpine
-    command: ["/bin/sh", "-c", "while true; do echo "$(date) - Pulse check: System is $(shuf -n 1 -e healthy stable active optimal)"; sleep 2; done"]
+    command: ["/bin/sh", "-c", 'while true; do echo "$(date) - Pulse check: System is $(shuf -n 1 -e healthy stable active optimal)"; sleep 2; done']
