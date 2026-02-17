@@ -98,6 +98,12 @@ impl LogStream {
     }
 }
 
+impl Drop for LogStream {
+    fn drop(&mut self) {
+        let _ = self.cancel.send(true);
+    }
+}
+
 async fn stream_logs(
     client: Client,
     request: LogRequest,
@@ -111,7 +117,7 @@ async fn stream_logs(
     let mut last_line_seen_at: Option<std::time::Instant> = None;
 
     loop {
-        if *cancel_rx.borrow() {
+        if *cancel_rx.borrow() || tx.is_closed() {
             let _ = status_tx.send(StreamStatus::Stopped);
             return;
         }
