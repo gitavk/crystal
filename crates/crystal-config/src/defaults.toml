@@ -42,74 +42,74 @@ insert-mode-bg = "#a6e3a1"
 insert-mode-fg = "#1e1e2e"
 
 [keybindings.navigation]
-scroll_up = "k"
-scroll_down = "j"
-select_prev = "up"
-select_next = "down"
-select = "enter"
-back = "esc"
-go_to_top = "g"
-go_to_bottom = "shift+g"
-page_up = "pageup"
-page_down = "pagedown"
-scroll_left = "shift+h"
-scroll_right = "shift+l"
+scroll_up = "k"             # vim/k9s/ranger home-row up
+scroll_down = "j"           # vim/k9s/ranger home-row down
+select_prev = "up"          # universal arrow fallback
+select_next = "down"        # universal arrow fallback
+select = "enter"            # universal confirm
+back = "esc"                # universal cancel
+go_to_top = "g"             # vim gg / k9s / less convention
+go_to_bottom = "shift+g"    # vim G / k9s / less convention
+page_up = "ctrl+b"          # vim/less: ctrl+b = back one page; keeps hands on home row
+page_down = "ctrl+f"        # vim/less: ctrl+f = forward one page; keeps hands on home row
+scroll_left = "ctrl+left"   # deliberate chord
+scroll_right = "ctrl+right" # mirrors ctrl+left
 
 [keybindings.browse]
-view_yaml = "y"
-view_describe = "d"
-view_logs = "l"
-save_logs = "ctrl+s"
-filter = "/"
-resource_switcher = ":"
-sort_column = "s"
-toggle_sort_order = "shift+s"
-toggle_all_namespaces = "a"
-toggle_follow = "f"
-toggle_wrap = "w"
+view_yaml = "y"               # y = yaml; matches k9s
+view_describe = "d"           # d = describe; matches k9s
+view_logs = "l"               # l = logs; matches k9s
+save_logs = "ctrl+s"          # universal save (gedit, nano, VS Code)
+filter = "/"                  # vim/less/man forward-search
+resource_switcher = ":"       # vim command mode; faster than any chord
+sort_column = "s"             # s = sort
+toggle_sort_order = "shift+s" # S = reverse; capital-as-inverse is a common TUI idiom
+toggle_all_namespaces = "a"   # a = all; matches k9s
+toggle_follow = "f"           # f = follow
+toggle_wrap = "w"             # w = wrap
 
 [keybindings.tui]
-split_vertical = "alt+v"
-split_horizontal = "alt+h"
-close_pane = "alt+w"
-toggle_fullscreen = "alt+f"
-focus_up = "alt+up"
+split_vertical = "alt+v"      # v = vertical; alt prefix avoids text-input conflicts
+split_horizontal = "alt+h"    # h = horizontal
+close_pane = "alt+x"          # x = close
+toggle_fullscreen = "f11"     # universal Linux fullscreen key (browsers, GTK, VLC)
+focus_up = "alt+up"           # alt+arrows = pane focus; mirrors i3/sway/tmux
 focus_down = "alt+down"
 focus_left = "alt+left"
 focus_right = "alt+right"
-resize_grow = "alt+k"
-resize_shrink = "alt+j"
-new_tab = "alt+t"
-close_tab = "alt+c"
-open_terminal = "alt+enter"
-focus_next = "tab"
-focus_prev = "shift+tab"
-goto_tab_1 = "1"
-goto_tab_2 = "2"
-goto_tab_3 = "3"
-goto_tab_4 = "4"
-goto_tab_5 = "5"
-goto_tab_6 = "6"
-goto_tab_7 = "7"
-goto_tab_8 = "8"
-goto_tab_9 = "9"
+resize_grow = "alt+shift+up"  # shift distinguishes resize from plain alt+arrows (focus)
+resize_shrink = "alt+shift+down"
+new_tab = "ctrl+t"            # universal new-tab (every Linux browser)
+close_tab = "ctrl+w"          # universal close-tab (every Linux browser); pairs with ctrl+t
+open_terminal = "alt+enter"   # alt scopes enter to "open terminal here"
+focus_next = "tab"            # universal forward focus cycling (GTK, Qt, web)
+focus_prev = "shift+tab"      # universal backward focus cycling
+goto_tab_1 = "alt+1"          # alt+N = browser/tmux/i3 tab switching
+goto_tab_2 = "alt+2"
+goto_tab_3 = "alt+3"
+goto_tab_4 = "alt+4"
+goto_tab_5 = "alt+5"
+goto_tab_6 = "alt+6"
+goto_tab_7 = "alt+7"
+goto_tab_8 = "alt+8"
+goto_tab_9 = "alt+9"
 
 [keybindings.global]
-quit = "ctrl+q"
-help = "?"
-app_logs = "ctrl+l"
-enter_insert = "ctrl+e"
-namespace_selector = "ctrl+n"
-context_selector = "ctrl+o"
+quit = "ctrl+q"               # standard quit in htop, ranger, mc, ncmpcpp
+help = "f1"                   # dedicated Linux help key
+app_logs = "ctrl+shift+l"     # shift avoids ctrl+l = clear-screen muscle memory
+enter_insert = "i"            # vim insert mode
+namespace_selector = "ctrl+n" # n = namespace
+context_selector = "ctrl+k"   # k = kubernetes context
 
 [keybindings.mutate]
-delete = "ctrl+alt+d"
-scale = "ctrl+alt+s"
-restart_rollout = "ctrl+alt+r"
+delete = "ctrl+alt+d"          # triple modifier prevents accidental deletion of production resources
+scale = "ctrl+alt+s"           # triple modifier
+restart_rollout = "ctrl+alt+r" # triple modifier
 
 [keybindings.interact]
-exec = "e"
-port_forward = "p"
+exec = "e"                    # e = exec; matches k9s
+port_forward = "p"            # p = port-forward; matches k9s
 
 [views.pods]
 columns = ["name", "ready", "status", "restarts", "age", "node"]
