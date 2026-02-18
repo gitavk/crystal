@@ -472,6 +472,23 @@ fn toast_cleanup_removes_expired() {
 }
 
 #[test]
+fn kubectl_candidates_include_plain_binary_name() {
+    let dir = std::path::Path::new("/tmp/bin");
+    let candidates = kubectl_binary_candidates(dir);
+    assert!(candidates.iter().any(|p| p.ends_with("kubectl")));
+}
+
+#[cfg(windows)]
+#[test]
+fn kubectl_candidates_include_windows_extensions() {
+    let dir = std::path::Path::new("C:\\tools");
+    let candidates = kubectl_binary_candidates(dir);
+    assert!(candidates.iter().any(|p| p.ends_with("kubectl.exe")));
+    assert!(candidates.iter().any(|p| p.ends_with("kubectl.cmd")));
+    assert!(candidates.iter().any(|p| p.ends_with("kubectl.bat")));
+}
+
+#[test]
 fn close_pane_cancels_watcher() {
     let mut active_watchers: HashMap<PaneId, CancellationToken> = HashMap::new();
     let token = CancellationToken::new();

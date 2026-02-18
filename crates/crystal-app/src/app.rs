@@ -1,4 +1,6 @@
 use std::collections::HashMap;
+use std::env;
+use std::path::{Path, PathBuf};
 use std::time::Duration;
 
 use crossterm::event::{KeyEvent, KeyEventKind};
@@ -159,6 +161,12 @@ impl App {
         // Create a temporary channel to get the sender
         let (tx, _rx) = mpsc::unbounded_channel();
 
+        let mut toasts = Vec::new();
+        if !is_kubectl_available_with_logging() {
+            tracing::warn!("kubectl not found in PATH; exec workflows will be unavailable");
+            toasts.push(ToastMessage::error("kubectl was not found in PATH. Install kubectl to use exec sessions."));
+        }
+
         let mut app = Self {
             running: true,
             tick_rate: Duration::from_millis(tick_rate_ms),
@@ -179,7 +187,7 @@ impl App {
             resource_switcher: None,
             pending_confirmation: None,
             pending_port_forward: None,
-            toasts: Vec::new(),
+            toasts,
             tab_manager,
             panes,
             pods_pane_id,
@@ -2157,6 +2165,42 @@ async fn detect_remote_port(client: &kube::Client, pod_name: &str, namespace: &s
 
     // Fall back to the first declared container port.
     Some(all_ports[0].0)
+}
+
+fn is_kubectl_available_with_logging() -> bool {
+    tracing::info!("Checking kubectl availability in PATH");
+    let Some(path_var) = env::var_os("PATH") else {
+        tracing::warn!("PATH is not set; kubectl check failed");
+        return false;
+    };
+
+    let path_entries: Vec<_> = env::split_paths(&path_var).collect();
+    tracing::info!("kubectl check: scanning {} PATH entries", path_entries.len());
+
+    for dir in path_entries {
+        let candidates = kubectl_binary_candidates(&dir);
+        for candidate in candidates {
+            tracing::debug!("kubectl check: probing {}", candidate.display());
+            if candidate.is_file() {
+                tracing::info!("kubectl check: found {}", candidate.display());
+                return true;
+            }
+        }
+    }
+
+    tracing::warn!("kubectl check: binary not found in PATH");
+    false
+}
+
+fn kubectl_binary_candidates(dir: &Path) -> Vec<PathBuf> {
+    #[cfg(windows)]
+    {
+        vec![dir.join("kubectl.exe"), dir.join("kubectl.cmd"), dir.join("kubectl.bat"), dir.join("kubectl")]
+    }
+    #[cfg(not(windows))]
+    {
+        vec![dir.join("kubectl")]
+    }
 }
 
 struct EmptyPane(ViewType);

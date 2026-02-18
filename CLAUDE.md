@@ -32,3 +32,12 @@ cargo fmt                # Format the code
 - Config over magic - prefer explicit configuration
 - Small context windows - keep modules focused and self-contained
 - Step-by-step development - incremental, well-tested changes
+
+## Workflow
+
+- Keep working from current folder without unnecessary directory changes
+- Avoid adding obvious or redundant comments to code
+- For each task:
+  1. Create a plan using TodoWrite
+  2. Present it for confirmation
+  3. Execute step by step, marking progress
