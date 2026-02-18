@@ -72,7 +72,7 @@ toggle_wrap = "w"             # w = wrap
 split_vertical = "alt+v"      # v = vertical; alt prefix avoids text-input conflicts
 split_horizontal = "alt+h"    # h = horizontal
 close_pane = "alt+x"          # x = close
-toggle_fullscreen = "f11"     # universal Linux fullscreen key (browsers, GTK, VLC)
+toggle_fullscreen = "alt+f"   # follow tui basic principle
 focus_up = "alt+up"           # alt+arrows = pane focus; mirrors i3/sway/tmux
 focus_down = "alt+down"
 focus_left = "alt+left"

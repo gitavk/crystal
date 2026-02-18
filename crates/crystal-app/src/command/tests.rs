@@ -48,7 +48,7 @@ fn backtab_maps_to_focus_prev() {
 #[test]
 fn help_maps_globally() {
     let d = default_dispatcher();
-    assert_eq!(d.dispatch(press(KeyCode::Char('?'))), Some((Command::ShowHelp, false)));
+    assert_eq!(d.dispatch(press(KeyCode::F(1))), Some((Command::ShowHelp, false)));
 }
 
 #[test]

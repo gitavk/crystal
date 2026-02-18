@@ -3,11 +3,10 @@ use std::any::Any;
 use ratatui::prelude::*;
 use ratatui::widgets::{Block, Borders, Paragraph, Wrap};
 
-use crystal_tui::pane::{Pane, PaneCommand, ResourceKind, ViewType};
+use crystal_tui::pane::{Pane, PaneCommand, ViewType};
 use crystal_tui::theme::Theme;
 
 pub struct HelpPane {
-    context_view: Option<ViewType>,
     scroll_offset: u16,
     global_shortcuts: Vec<(String, String)>,
     navigation_shortcuts: Vec<(String, String)>,
@@ -27,7 +26,6 @@ impl HelpPane {
         mutate_shortcuts: Vec<(String, String)>,
     ) -> Self {
         Self {
-            context_view: None,
             scroll_offset: 0,
             global_shortcuts,
             navigation_shortcuts,
@@ -36,40 +34,6 @@ impl HelpPane {
             interact_shortcuts,
             mutate_shortcuts,
         }
-    }
-
-    fn resource_specific_entries(&self, kind: &ResourceKind) -> Vec<(String, String)> {
-        let wanted: &[&str] = match kind {
-            ResourceKind::Pods => &["Logs", "Exec", "Port Forward"],
-            ResourceKind::Deployments => &["Scale", "Restart"],
-            ResourceKind::StatefulSets => &["Scale"],
-            _ => &[],
-        };
-
-        wanted
-            .iter()
-            .filter_map(|desc| {
-                let mut keys: Vec<String> = self
-                    .mutate_shortcuts
-                    .iter()
-                    .chain(self.interact_shortcuts.iter())
-                    .chain(self.browse_shortcuts.iter())
-                    .filter(|(_, d)| d == desc)
-                    .map(|(k, _)| k.clone())
-                    .collect();
-
-                // Avoid showing actions that are not bound.
-                if keys.is_empty() {
-                    return None;
-                }
-
-                keys.sort();
-                keys.dedup();
-
-                let display = Self::compact_keys(desc, &keys);
-                Some((display, (*desc).to_string()))
-            })
-            .collect()
     }
 
     fn normalize_shortcuts(entries: &[(String, String)]) -> Vec<(String, String)> {
@@ -102,23 +66,46 @@ impl HelpPane {
         }
 
         if desc == "Go to tab" {
+            // Try alt+N pattern first (e.g. "alt+1".."alt+9" → "alt+[1-9]")
             let mut numbers: Vec<u8> = Vec::new();
+            let mut all_alt = true;
             for key in &unique {
-                if key.len() == 1 {
-                    if let Some(digit) = key.chars().next().and_then(|c| c.to_digit(10)) {
+                let lower = key.to_ascii_lowercase();
+                if let Some(suffix) = lower.strip_prefix("alt+") {
+                    if let Some(digit) =
+                        suffix.chars().next().filter(|_| suffix.len() == 1).and_then(|c| c.to_digit(10))
+                    {
                         numbers.push(digit as u8);
                         continue;
                     }
                 }
-                return unique.join(", ");
+                all_alt = false;
+                break;
+            }
+            if all_alt && !numbers.is_empty() {
+                numbers.sort_unstable();
+                numbers.dedup();
+                if numbers.len() >= 2
+                    && numbers.last().copied() == numbers.first().copied().map(|v| v + numbers.len() as u8 - 1)
+                {
+                    return format!("Alt+[{}-{}]", numbers[0], numbers[numbers.len() - 1]);
+                }
+                return numbers.iter().map(|n| format!("Alt+{n}")).collect::<Vec<_>>().join(", ");
             }
 
-            numbers.sort_unstable();
-            numbers.dedup();
-            if numbers.len() >= 2
-                && numbers.last().copied() == numbers.first().copied().map(|v| v + numbers.len() as u8 - 1)
-            {
-                return format!("{}-{}", numbers[0], numbers[numbers.len() - 1]);
+            // Fallback: bare digits (e.g. "1".."9" → "1-9")
+            let mut bare: Vec<u8> = Vec::new();
+            for key in &unique {
+                if let Some(digit) = key.chars().next().filter(|_| key.len() == 1).and_then(|c| c.to_digit(10)) {
+                    bare.push(digit as u8);
+                    continue;
+                }
+                return unique.join(", ");
+            }
+            bare.sort_unstable();
+            bare.dedup();
+            if bare.len() >= 2 && bare.last().copied() == bare.first().copied().map(|v| v + bare.len() as u8 - 1) {
+                return format!("{}-{}", bare[0], bare[bare.len() - 1]);
             }
         }
 
@@ -175,24 +162,6 @@ impl Pane for HelpPane {
             }
         }
 
-        if let Some(ViewType::ResourceList(ref kind)) = self.context_view {
-            let specific = self.resource_specific_entries(kind);
-            if !specific.is_empty() {
-                lines.push(Line::from(""));
-                lines.push(Line::from(Span::styled(
-                    format!("{} Actions", kind.display_name()),
-                    Style::default().fg(theme.accent).bold(),
-                )));
-                lines.push(Line::from(""));
-                for (key, desc) in specific {
-                    lines.push(Line::from(vec![
-                        Span::styled(format!("  {:<16}", Self::format_key(&key)), Style::default().fg(theme.fg).bold()),
-                        Span::styled(desc, theme.text_dim),
-                    ]));
-                }
-            }
-        }
-
         let paragraph = Paragraph::new(lines).wrap(Wrap { trim: false }).scroll((self.scroll_offset, 0));
         frame.render_widget(paragraph, inner);
     }
@@ -213,10 +182,6 @@ impl Pane for HelpPane {
         &ViewType::Help
     }
 
-    fn on_focus_change(&mut self, previous: Option<&ViewType>) {
-        self.context_view = previous.cloned();
-    }
-
     fn as_any(&self) -> &dyn Any {
         self
     }
@@ -230,7 +195,7 @@ impl Pane for HelpPane {
 mod tests {
     use super::*;
 
-    fn make_help(context: Option<ViewType>) -> HelpPane {
+    fn make_help() -> HelpPane {
         let global = vec![("Ctrl+Q".into(), "Quit".into()), ("?".into(), "Help".into())];
         let navigation = vec![("J".into(), "Down".into()), ("K".into(), "Up".into())];
         let browse =
@@ -242,49 +207,45 @@ mod tests {
             ("Ctrl+Alt+S".into(), "Scale".into()),
             ("Ctrl+Alt+R".into(), "Restart".into()),
         ];
-        let mut help = HelpPane::new(global, navigation, browse, tui, interact, mutate);
-        help.context_view = context;
-        help
+        HelpPane::new(global, navigation, browse, tui, interact, mutate)
     }
 
     #[test]
-    fn pods_context_shows_logs_and_exec_when_bound() {
-        let help = make_help(Some(ViewType::ResourceList(ResourceKind::Pods)));
-        let entries = help.resource_specific_entries(&ResourceKind::Pods);
-        assert!(entries.iter().any(|(_, d)| d == "Logs"));
-        assert!(entries.iter().any(|(_, d)| d == "Exec"));
-        assert!(entries.iter().any(|(_, d)| d == "Port Forward"));
+    fn help_pane_view_type() {
+        let help = make_help();
         assert_eq!(help.view_type(), &ViewType::Help);
     }
 
     #[test]
-    fn deployments_context_shows_scale_and_restart() {
-        let help = make_help(Some(ViewType::ResourceList(ResourceKind::Deployments)));
-        let entries = help.resource_specific_entries(&ResourceKind::Deployments);
-        assert!(entries.iter().any(|(_, d)| d == "Scale"));
-        assert!(entries.iter().any(|(_, d)| d == "Restart"));
-    }
-
-    #[test]
-    fn configmaps_context_shows_no_extra_entries() {
-        let help = make_help(Some(ViewType::ResourceList(ResourceKind::ConfigMaps)));
-        let entries = help.resource_specific_entries(&ResourceKind::ConfigMaps);
-        assert!(entries.is_empty());
-    }
-
-    #[test]
-    fn statefulsets_context_shows_scale_but_no_restart() {
-        let help = make_help(Some(ViewType::ResourceList(ResourceKind::StatefulSets)));
-        let entries = help.resource_specific_entries(&ResourceKind::StatefulSets);
-        assert!(entries.iter().any(|(_, d)| d == "Scale"));
-        assert!(!entries.iter().any(|(_, d)| d == "Restart"));
-    }
-
-    #[test]
     fn help_pane_shortcuts_from_dispatcher() {
-        let help = make_help(Some(ViewType::ResourceList(ResourceKind::Pods)));
+        let help = make_help();
         assert!(help.browse_shortcuts.iter().any(|(_, d)| d == "View YAML"));
         assert!(help.browse_shortcuts.iter().any(|(_, d)| d == "Describe"));
         assert!(help.mutate_shortcuts.iter().any(|(_, d)| d == "Delete"));
+    }
+
+    #[test]
+    fn compact_keys_alt_digits_contiguous_range() {
+        // keys arrive title-cased from format_key_display ("Alt+1" style)
+        let keys: Vec<String> = (1..=9).map(|n| format!("Alt+{n}")).collect();
+        assert_eq!(HelpPane::compact_keys("Go to tab", &keys), "Alt+[1-9]");
+    }
+
+    #[test]
+    fn compact_keys_alt_digits_partial_range() {
+        let keys: Vec<String> = (1..=3).map(|n| format!("Alt+{n}")).collect();
+        assert_eq!(HelpPane::compact_keys("Go to tab", &keys), "Alt+[1-3]");
+    }
+
+    #[test]
+    fn compact_keys_alt_digits_non_contiguous() {
+        let keys = vec!["Alt+1".to_string(), "Alt+3".to_string(), "Alt+5".to_string()];
+        assert_eq!(HelpPane::compact_keys("Go to tab", &keys), "Alt+1, Alt+3, Alt+5");
+    }
+
+    #[test]
+    fn compact_keys_bare_digits_legacy_range() {
+        let keys: Vec<String> = (1..=9).map(|n| n.to_string()).collect();
+        assert_eq!(HelpPane::compact_keys("Go to tab", &keys), "1-9");
     }
 }

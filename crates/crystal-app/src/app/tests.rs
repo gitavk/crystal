@@ -111,9 +111,9 @@ fn focus_cycling_wraps_around() {
 }
 
 #[test]
-fn help_pane_updates_context_on_focus() {
+fn help_pane_view_type_is_help() {
     let d = test_dispatcher();
-    let mut help = HelpPane::new(
+    let help = HelpPane::new(
         d.global_shortcuts(),
         d.navigation_shortcuts(),
         d.browse_shortcuts(),
@@ -121,8 +121,6 @@ fn help_pane_updates_context_on_focus() {
         d.interact_shortcuts(),
         d.mutate_shortcuts(),
     );
-    let resource_view = ViewType::ResourceList(ResourceKind::Pods);
-    help.on_focus_change(Some(&resource_view));
 
     let help_ref = help.as_any().downcast_ref::<HelpPane>().unwrap();
     assert_eq!(help_ref.view_type(), &ViewType::Help);

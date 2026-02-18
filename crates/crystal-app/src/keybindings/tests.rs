@@ -30,11 +30,14 @@ fn ctrl_alt(code: KeyCode) -> KeyEvent {
 fn dispatch_global_keys() {
     let d = default_dispatcher();
     assert_eq!(d.dispatch(ctrl(KeyCode::Char('q'))), Some((Command::Quit, false)));
-    assert_eq!(d.dispatch(press(KeyCode::Char('?'))), Some((Command::ShowHelp, false)));
-    assert_eq!(d.dispatch(ctrl(KeyCode::Char('l'))), Some((Command::ToggleAppLogsTab, false)));
-    assert_eq!(d.dispatch(ctrl(KeyCode::Char('o'))), Some((Command::EnterMode(InputMode::ContextSelector), false)));
+    assert_eq!(d.dispatch(press(KeyCode::F(1))), Some((Command::ShowHelp, false)));
+    assert_eq!(
+        d.dispatch(press_mod(KeyCode::Char('l'), KeyModifiers::CONTROL | KeyModifiers::SHIFT)),
+        Some((Command::ToggleAppLogsTab, false))
+    );
+    assert_eq!(d.dispatch(ctrl(KeyCode::Char('k'))), Some((Command::EnterMode(InputMode::ContextSelector), false)));
     assert_eq!(d.dispatch(ctrl(KeyCode::Char('n'))), Some((Command::EnterMode(InputMode::NamespaceSelector), false)));
-    assert_eq!(d.dispatch(ctrl(KeyCode::Char('e'))), Some((Command::EnterMode(InputMode::Insert), false)));
+    assert_eq!(d.dispatch(press(KeyCode::Char('i'))), Some((Command::EnterMode(InputMode::Insert), false)));
 }
 
 #[test]
@@ -51,14 +54,14 @@ fn dispatch_navigation_keys() {
         d.dispatch(press_mod(KeyCode::Char('G'), KeyModifiers::SHIFT)),
         Some((Command::Pane(PaneCommand::GoToBottom), false))
     );
-    assert_eq!(d.dispatch(press(KeyCode::PageUp)), Some((Command::Pane(PaneCommand::PageUp), false)));
-    assert_eq!(d.dispatch(press(KeyCode::PageDown)), Some((Command::Pane(PaneCommand::PageDown), false)));
+    assert_eq!(d.dispatch(ctrl(KeyCode::Char('b'))), Some((Command::Pane(PaneCommand::PageUp), false)));
+    assert_eq!(d.dispatch(ctrl(KeyCode::Char('f'))), Some((Command::Pane(PaneCommand::PageDown), false)));
     assert_eq!(
-        d.dispatch(press_mod(KeyCode::Char('H'), KeyModifiers::SHIFT)),
+        d.dispatch(press_mod(KeyCode::Left, KeyModifiers::CONTROL)),
         Some((Command::Pane(PaneCommand::ScrollLeft), false))
     );
     assert_eq!(
-        d.dispatch(press_mod(KeyCode::Char('L'), KeyModifiers::SHIFT)),
+        d.dispatch(press_mod(KeyCode::Right, KeyModifiers::CONTROL)),
         Some((Command::Pane(PaneCommand::ScrollRight), false))
     );
 }
@@ -87,10 +90,10 @@ fn dispatch_tui_keys() {
     let d = default_dispatcher();
     assert_eq!(d.dispatch(alt(KeyCode::Char('v'))), Some((Command::SplitVertical, false)));
     assert_eq!(d.dispatch(alt(KeyCode::Char('h'))), Some((Command::SplitHorizontal, false)));
-    assert_eq!(d.dispatch(alt(KeyCode::Char('w'))), Some((Command::ClosePane, false)));
+    assert_eq!(d.dispatch(alt(KeyCode::Char('x'))), Some((Command::ClosePane, false)));
     assert_eq!(d.dispatch(alt(KeyCode::Char('f'))), Some((Command::ToggleFullscreen, false)));
-    assert_eq!(d.dispatch(alt(KeyCode::Char('t'))), Some((Command::NewTab, false)));
-    assert_eq!(d.dispatch(alt(KeyCode::Char('c'))), Some((Command::CloseTab, false)));
+    assert_eq!(d.dispatch(ctrl(KeyCode::Char('t'))), Some((Command::NewTab, false)));
+    assert_eq!(d.dispatch(ctrl(KeyCode::Char('w'))), Some((Command::CloseTab, false)));
     assert_eq!(d.dispatch(press(KeyCode::Tab)), Some((Command::FocusNextPane, false)));
     assert_eq!(d.dispatch(press_mod(KeyCode::Tab, KeyModifiers::SHIFT)), Some((Command::FocusPrevPane, false)));
 }
@@ -382,9 +385,9 @@ fn global_shortcuts_formatted() {
 #[test]
 fn goto_tab_dispatch() {
     let d = default_dispatcher();
-    assert_eq!(d.dispatch(press(KeyCode::Char('1'))), Some((Command::GoToTab(1), false)));
-    assert_eq!(d.dispatch(press(KeyCode::Char('5'))), Some((Command::GoToTab(5), false)));
-    assert_eq!(d.dispatch(press(KeyCode::Char('9'))), Some((Command::GoToTab(9), false)));
+    assert_eq!(d.dispatch(alt(KeyCode::Char('1'))), Some((Command::GoToTab(1), false)));
+    assert_eq!(d.dispatch(alt(KeyCode::Char('5'))), Some((Command::GoToTab(5), false)));
+    assert_eq!(d.dispatch(alt(KeyCode::Char('9'))), Some((Command::GoToTab(9), false)));
 }
 
 #[test]
@@ -399,8 +402,14 @@ fn focus_direction_dispatch() {
 #[test]
 fn resize_dispatch() {
     let d = default_dispatcher();
-    assert_eq!(d.dispatch(alt(KeyCode::Char('k'))), Some((Command::ResizeGrow, false)));
-    assert_eq!(d.dispatch(alt(KeyCode::Char('j'))), Some((Command::ResizeShrink, false)));
+    assert_eq!(
+        d.dispatch(press_mod(KeyCode::Up, KeyModifiers::ALT | KeyModifiers::SHIFT)),
+        Some((Command::ResizeGrow, false))
+    );
+    assert_eq!(
+        d.dispatch(press_mod(KeyCode::Down, KeyModifiers::ALT | KeyModifiers::SHIFT)),
+        Some((Command::ResizeShrink, false))
+    );
 }
 
 #[test]

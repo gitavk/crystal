@@ -925,9 +925,8 @@ impl App {
             self.close_pane(id);
         } else {
             let focused = self.tab_manager.active().focused_pane;
-            let prev_view = self.panes.get(&focused).map(|p| p.view_type().clone());
             if let Some(new_id) = self.tab_manager.split_pane(focused, SplitDirection::Vertical, ViewType::Help) {
-                let mut help = HelpPane::new(
+                let help = HelpPane::new(
                     self.dispatcher.global_shortcuts(),
                     self.dispatcher.navigation_shortcuts(),
                     self.dispatcher.browse_shortcuts(),
@@ -935,7 +934,6 @@ impl App {
                     self.dispatcher.interact_shortcuts(),
                     self.dispatcher.mutate_shortcuts(),
                 );
-                help.on_focus_change(prev_view.as_ref());
                 self.panes.insert(new_id, Box::new(help));
                 self.set_focus(new_id);
             }

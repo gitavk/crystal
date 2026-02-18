@@ -80,11 +80,11 @@ fn embedded_defaults_parse() {
     let config: AppConfig = toml::from_str(DEFAULT_CONFIG).unwrap();
     // global group
     assert_eq!(config.keybindings.global.get("quit").unwrap(), "ctrl+q");
-    assert_eq!(config.keybindings.global.get("help").unwrap(), "?");
-    assert_eq!(config.keybindings.global.get("app_logs").unwrap(), "ctrl+l");
-    assert_eq!(config.keybindings.global.get("context_selector").unwrap(), "ctrl+o");
+    assert_eq!(config.keybindings.global.get("help").unwrap(), "f1");
+    assert_eq!(config.keybindings.global.get("app_logs").unwrap(), "ctrl+shift+l");
+    assert_eq!(config.keybindings.global.get("context_selector").unwrap(), "ctrl+k");
     // tui group
-    assert_eq!(config.keybindings.tui.get("close_tab").unwrap(), "alt+c");
+    assert_eq!(config.keybindings.tui.get("close_tab").unwrap(), "ctrl+w");
     assert_eq!(config.keybindings.tui.get("split_vertical").unwrap(), "alt+v");
     // navigation group
     assert_eq!(config.keybindings.navigation.get("select").unwrap(), "enter");
@@ -112,7 +112,7 @@ quit = "ctrl+x"
     base.merge(user);
 
     assert_eq!(base.keybindings.global.get("quit").unwrap(), "ctrl+x");
-    assert_eq!(base.keybindings.global.get("help").unwrap(), "?");
+    assert_eq!(base.keybindings.global.get("help").unwrap(), "f1");
 }
 
 #[test]
