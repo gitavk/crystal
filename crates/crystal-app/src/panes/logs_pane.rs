@@ -27,6 +27,7 @@ pub struct LogsPane {
     horizontal_offset: usize,
     follow: bool,
     wrap: bool,
+    filter_text: String,
     status: String,
     stream: Option<LogStream>,
     max_scroll_offset: Cell<usize>,
@@ -45,6 +46,7 @@ impl LogsPane {
             horizontal_offset: 0,
             follow: true,
             wrap: true,
+            filter_text: String::new(),
             status: "Connecting...".into(),
             stream: None,
             max_scroll_offset: Cell::new(0),
@@ -117,6 +119,15 @@ impl LogsPane {
             self.lines.drain(0..drop_count);
         }
     }
+
+    fn filtered_lines(&self) -> Vec<&LogEntry> {
+        if self.filter_text.is_empty() {
+            return self.lines.iter().collect();
+        }
+
+        let query = self.filter_text.to_lowercase();
+        self.lines.iter().filter(|line| line.rendered.to_lowercase().contains(&query)).collect()
+    }
 }
 
 impl Pane for LogsPane {
@@ -135,14 +146,16 @@ impl Pane for LogsPane {
             return;
         }
 
+        let filtered = self.filtered_lines();
         let visible_height = inner.height.saturating_sub(1) as usize;
         let total = self.lines.len();
-        let max_offset = total.saturating_sub(visible_height);
+        let filtered_total = filtered.len();
+        let max_offset = filtered_total.saturating_sub(visible_height);
         self.max_scroll_offset.set(max_offset);
         let offset = if self.follow { 0 } else { self.scroll_offset.min(max_offset) };
-        let end = total.saturating_sub(offset);
+        let end = filtered_total.saturating_sub(offset);
         let start = end.saturating_sub(visible_height);
-        let visible = &self.lines[start..end];
+        let visible = &filtered[start..end];
         let viewport_width = inner.width as usize;
         let max_horizontal =
             visible.iter().map(|line| line.rendered.chars().count().saturating_sub(viewport_width)).max().unwrap_or(0);
@@ -165,6 +178,14 @@ impl Pane for LogsPane {
         let mode_text = if self.follow { "FOLLOW" } else { "PAUSED" };
         let wrap_mode = if self.wrap { "WRAP" } else { "NOWRAP" };
         let footer = format!("{mode_text} | {wrap_mode} | {} lines | {}", self.lines.len(), self.status);
+        let footer = if self.filter_text.is_empty() {
+            footer
+        } else {
+            format!(
+                "{mode_text} | {wrap_mode} | filter:\"{}\" | {filtered_total}/{total} lines | {}",
+                self.filter_text, self.status
+            )
+        };
         let footer_area =
             Rect { x: inner.x, y: inner.y + inner.height.saturating_sub(1), width: inner.width, height: 1 };
         frame.render_widget(Paragraph::new(footer).style(theme.status_bar), footer_area);
@@ -206,6 +227,14 @@ impl Pane for LogsPane {
                 } else {
                     self.horizontal_offset = self.horizontal_offset.min(self.max_horizontal_offset.get());
                 }
+            }
+            PaneCommand::Filter(text) => {
+                self.filter_text = text.clone();
+                self.scroll_offset = 0;
+            }
+            PaneCommand::ClearFilter => {
+                self.filter_text.clear();
+                self.scroll_offset = 0;
             }
             _ => {}
         }
@@ -292,6 +321,7 @@ fn sanitize_log_text(input: &str) -> String {
 mod tests {
     use super::{sanitize_log_text, LogsPane};
     use crystal_core::LogLine;
+    use crystal_tui::pane::{Pane, PaneCommand};
 
     #[test]
     fn sanitize_strips_ansi_sequences() {
@@ -330,5 +360,35 @@ mod tests {
 
         assert!(pane.lines[0].rendered.contains("first"));
         assert!(pane.lines[1].rendered.contains("second"));
+    }
+
+    #[test]
+    fn filter_matches_log_content_case_insensitive() {
+        let mut pane = LogsPane::new("pod-a".into(), "default".into());
+        pane.append_snapshot(vec![
+            LogLine { timestamp: None, content: "Error connecting".into(), container: "main".into(), is_stderr: false },
+            LogLine { timestamp: None, content: "ready".into(), container: "main".into(), is_stderr: false },
+        ]);
+
+        pane.handle_command(&PaneCommand::Filter("ERROR".into()));
+        let filtered = pane.filtered_lines();
+
+        assert_eq!(filtered.len(), 1);
+        assert_eq!(filtered[0].rendered, "Error connecting");
+    }
+
+    #[test]
+    fn clear_filter_restores_all_lines() {
+        let mut pane = LogsPane::new("pod-a".into(), "default".into());
+        pane.append_snapshot(vec![
+            LogLine { timestamp: None, content: "alpha".into(), container: "main".into(), is_stderr: false },
+            LogLine { timestamp: None, content: "beta".into(), container: "main".into(), is_stderr: false },
+        ]);
+
+        pane.handle_command(&PaneCommand::Filter("alpha".into()));
+        assert_eq!(pane.filtered_lines().len(), 1);
+
+        pane.handle_command(&PaneCommand::ClearFilter);
+        assert_eq!(pane.filtered_lines().len(), 2);
     }
 }
