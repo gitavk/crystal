@@ -16,11 +16,15 @@ fn render_tab_bar(tabs: &[String], active: usize, width: u16) -> ratatui::buffer
     terminal.backend().buffer().clone()
 }
 
+fn buf_text(buf: &ratatui::buffer::Buffer) -> String {
+    buf.content().iter().map(|c| c.symbol().chars().next().unwrap_or(' ')).collect()
+}
+
 #[test]
 fn renders_correct_number_of_tabs() {
     let tabs: Vec<String> = vec!["Pods".into(), "Services".into(), "Terminal".into()];
     let buf = render_tab_bar(&tabs, 0, 60);
-    let content: String = buf.content().iter().map(|c| c.symbol().chars().next().unwrap_or(' ')).collect();
+    let content = buf_text(&buf);
     assert!(content.contains("[1] Pods"));
     assert!(content.contains("[2] Services"));
     assert!(content.contains("[3] Terminal"));
@@ -47,7 +51,27 @@ fn active_tab_is_visually_distinct() {
 fn single_tab_renders() {
     let tabs: Vec<String> = vec!["Main".into()];
     let buf = render_tab_bar(&tabs, 0, 30);
-    let content: String = buf.content().iter().map(|c| c.symbol().chars().next().unwrap_or(' ')).collect();
+    let content = buf_text(&buf);
     assert!(content.contains("[1] Main"));
     assert!(!content.contains("│"));
+}
+
+#[test]
+fn scrolls_to_show_active_tab() {
+    let tabs: Vec<String> = (1..=10).map(|i| format!("Tab-{i}")).collect();
+    // Each label is "[N] Tab-N" (~11 chars) + separator " │ " (3 chars)
+    // 10 tabs won't fit in 40 columns
+    let buf = render_tab_bar(&tabs, 8, 40);
+    let content = buf_text(&buf);
+    assert!(content.contains("[9] Tab-9"), "active tab 9 should be visible");
+    assert!(!content.contains("[1] Tab-1"), "first tab should be scrolled away");
+}
+
+#[test]
+fn no_scroll_when_all_fit() {
+    let tabs: Vec<String> = vec!["A".into(), "B".into()];
+    let buf = render_tab_bar(&tabs, 1, 40);
+    let content = buf_text(&buf);
+    assert!(content.contains("[1] A"));
+    assert!(content.contains("[2] B"));
 }
