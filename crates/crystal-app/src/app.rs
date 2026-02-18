@@ -1220,14 +1220,14 @@ impl App {
                 tail_lines: None,
                 since_seconds: None,
                 previous: false,
-                timestamps: false,
+                timestamps: true,
             };
 
             let pods: Api<Pod> = Api::namespaced(kube_client.clone(), &namespace);
             let mut snapshot_params = kube::api::LogParams {
                 follow: false,
                 previous: request.previous,
-                timestamps: false,
+                timestamps: true,
                 tail_lines: None,
                 container: request.container.clone(),
                 ..Default::default()
@@ -1245,7 +1245,9 @@ impl App {
                 }
             }
             if let Ok(snapshot) = snapshot_result {
-                let lines = snapshot.lines().map(ToString::to_string).collect::<Vec<_>>();
+                let container = request.container.clone().unwrap_or_default();
+                let lines =
+                    snapshot.lines().map(|raw| crystal_core::parse_raw_log_line(raw, &container)).collect::<Vec<_>>();
                 let _ = app_tx.send(AppEvent::LogsSnapshotReady { pane_id: new_id, lines });
             } else if let Err(e) = snapshot_result {
                 let _ =
@@ -1319,7 +1321,7 @@ impl App {
         }
     }
 
-    fn attach_logs_snapshot(&mut self, pane_id: PaneId, lines: Vec<String>) {
+    fn attach_logs_snapshot(&mut self, pane_id: PaneId, lines: Vec<LogLine>) {
         if let Some(pane) = self.panes.get_mut(&pane_id) {
             if let Some(logs_pane) = pane.as_any_mut().downcast_mut::<LogsPane>() {
                 logs_pane.append_snapshot(lines);

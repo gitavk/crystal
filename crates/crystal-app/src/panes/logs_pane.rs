@@ -10,11 +10,19 @@ use crystal_tui::theme::Theme;
 
 const MAX_LOG_LINES: usize = 5000;
 
+#[derive(Clone)]
+struct LogEntry {
+    rendered: String,
+    sort_ts: jiff::Timestamp,
+    sequence: u64,
+}
+
 pub struct LogsPane {
     view_type: ViewType,
     pod_name: String,
     namespace: String,
-    lines: Vec<String>,
+    lines: Vec<LogEntry>,
+    next_sequence: u64,
     scroll_offset: usize,
     horizontal_offset: usize,
     follow: bool,
@@ -32,6 +40,7 @@ impl LogsPane {
             pod_name,
             namespace,
             lines: Vec::new(),
+            next_sequence: 0,
             scroll_offset: 0,
             horizontal_offset: 0,
             follow: true,
@@ -48,16 +57,8 @@ impl LogsPane {
         self.status = "Streaming".into();
     }
 
-    pub fn append_snapshot(&mut self, lines: Vec<String>) {
-        if !lines.is_empty() {
-            self.lines.extend(lines.into_iter().map(|line| sanitize_log_text(&line)));
-            self.lines.sort();
-            self.lines.dedup();
-            if self.lines.len() > MAX_LOG_LINES {
-                let drop_count = self.lines.len().saturating_sub(MAX_LOG_LINES);
-                self.lines.drain(0..drop_count);
-            }
-        }
+    pub fn append_snapshot(&mut self, lines: Vec<LogLine>) {
+        self.push_lines(lines);
         if self.status == "Connecting..." {
             self.status = "Snapshot loaded".into();
         }
@@ -69,24 +70,20 @@ impl LogsPane {
     }
 
     pub fn poll(&mut self) {
-        let Some(stream) = self.stream.as_mut() else {
-            return;
+        let (new_lines, stream_status) = {
+            let Some(stream) = self.stream.as_mut() else {
+                return;
+            };
+            let new_lines = stream.next_lines();
+            let stream_status = stream.status();
+            (new_lines, stream_status)
         };
 
-        let new_lines = stream.next_lines();
         if !new_lines.is_empty() {
-            for line in new_lines {
-                self.lines.push(format_log_line(&line));
-            }
-            self.lines.sort();
-            self.lines.dedup();
-            if self.lines.len() > MAX_LOG_LINES {
-                let drop_count = self.lines.len().saturating_sub(MAX_LOG_LINES);
-                self.lines.drain(0..drop_count);
-            }
+            self.push_lines(new_lines);
         }
 
-        self.status = match stream.status() {
+        self.status = match stream_status {
             StreamStatus::Streaming => "Streaming".into(),
             StreamStatus::Reconnecting { attempt } => format!("Reconnecting ({attempt})"),
             StreamStatus::Stopped => "Stopped".into(),
@@ -96,6 +93,29 @@ impl LogsPane {
 
     fn render_title(&self) -> String {
         format!("[logs:{} @ {}]", self.pod_name, self.namespace)
+    }
+
+    fn push_lines(&mut self, lines: Vec<LogLine>) {
+        if lines.is_empty() {
+            return;
+        }
+
+        for line in lines {
+            let sequence = self.next_sequence;
+            self.next_sequence = self.next_sequence.saturating_add(1);
+            self.lines.push(LogEntry {
+                rendered: format_log_line(&line),
+                sort_ts: line.timestamp.unwrap_or_else(jiff::Timestamp::now),
+                sequence,
+            });
+        }
+
+        self.lines.sort_by(|a, b| a.sort_ts.cmp(&b.sort_ts).then_with(|| a.sequence.cmp(&b.sequence)));
+
+        if self.lines.len() > MAX_LOG_LINES {
+            let drop_count = self.lines.len().saturating_sub(MAX_LOG_LINES);
+            self.lines.drain(0..drop_count);
+        }
     }
 }
 
@@ -125,14 +145,14 @@ impl Pane for LogsPane {
         let visible = &self.lines[start..end];
         let viewport_width = inner.width as usize;
         let max_horizontal =
-            visible.iter().map(|line| line.chars().count().saturating_sub(viewport_width)).max().unwrap_or(0);
+            visible.iter().map(|line| line.rendered.chars().count().saturating_sub(viewport_width)).max().unwrap_or(0);
         self.max_horizontal_offset.set(max_horizontal);
         let horizontal_offset = if self.wrap { 0 } else { self.horizontal_offset.min(max_horizontal) };
 
         let content = if visible.is_empty() {
             vec![Line::from(format!("Waiting for log lines... ({})", self.status))]
         } else {
-            visible.iter().map(|l| Line::from(l.as_str())).collect()
+            visible.iter().map(|l| Line::from(l.rendered.as_str())).collect()
         };
         let content_area = Rect { x: inner.x, y: inner.y, width: inner.width, height: inner.height.saturating_sub(1) };
         let paragraph = if self.wrap {
@@ -205,10 +225,7 @@ impl Pane for LogsPane {
 }
 
 fn format_log_line(line: &LogLine) -> String {
-    match &line.timestamp {
-        Some(ts) => format!("{ts} {}", sanitize_log_text(&line.content)),
-        None => sanitize_log_text(&line.content),
-    }
+    sanitize_log_text(&line.content)
 }
 
 fn sanitize_log_text(input: &str) -> String {
@@ -273,7 +290,8 @@ fn sanitize_log_text(input: &str) -> String {
 
 #[cfg(test)]
 mod tests {
-    use super::sanitize_log_text;
+    use super::{sanitize_log_text, LogsPane};
+    use crystal_core::LogLine;
 
     #[test]
     fn sanitize_strips_ansi_sequences() {
@@ -285,5 +303,32 @@ mod tests {
     fn sanitize_drops_carriage_returns_and_controls() {
         let input = "line1\r\nline2\u{0007}";
         assert_eq!(sanitize_log_text(input), "line1 line2 ");
+    }
+
+    #[test]
+    fn append_snapshot_sorts_by_log_timestamp() {
+        let mut pane = LogsPane::new("pod-a".into(), "default".into());
+        let newer = "2024-01-01T00:00:02Z".parse().unwrap();
+        let older = "2024-01-01T00:00:01Z".parse().unwrap();
+
+        pane.append_snapshot(vec![
+            LogLine { timestamp: Some(newer), content: "new".into(), container: "main".into(), is_stderr: false },
+            LogLine { timestamp: Some(older), content: "old".into(), container: "main".into(), is_stderr: false },
+        ]);
+
+        assert!(pane.lines[0].rendered.contains("old"));
+        assert!(pane.lines[1].rendered.contains("new"));
+    }
+
+    #[test]
+    fn append_snapshot_preserves_arrival_order_when_timestamps_missing() {
+        let mut pane = LogsPane::new("pod-a".into(), "default".into());
+        pane.append_snapshot(vec![
+            LogLine { timestamp: None, content: "first".into(), container: "main".into(), is_stderr: false },
+            LogLine { timestamp: None, content: "second".into(), container: "main".into(), is_stderr: false },
+        ]);
+
+        assert!(pane.lines[0].rendered.contains("first"));
+        assert!(pane.lines[1].rendered.contains("second"));
     }
 }

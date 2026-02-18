@@ -156,7 +156,7 @@ async fn stream_logs(
                         item = lines_stream.next() => {
                             match item {
                                 Some(Ok(raw_line)) => {
-                                    let log_line = parse_log_line(&raw_line, &container);
+                                    let log_line = parse_raw_log_line(&raw_line, &container);
                                     if tx.send(log_line).is_err() {
                                         return;
                                     }
@@ -220,7 +220,7 @@ fn backoff_duration(attempt: u32) -> Duration {
     Duration::from_secs(secs)
 }
 
-fn parse_log_line(raw: &str, default_container: &str) -> LogLine {
+pub fn parse_raw_log_line(raw: &str, default_container: &str) -> LogLine {
     let (timestamp, content) =
         if let Some(rest) = try_parse_timestamp_prefix(raw) { rest } else { (None, raw.to_string()) };
 
@@ -248,7 +248,7 @@ mod tests {
     #[test]
     fn parse_log_line_with_timestamp() {
         let raw = "2024-01-15T10:30:00.123456789Z hello world";
-        let line = parse_log_line(raw, "main");
+        let line = parse_raw_log_line(raw, "main");
         assert!(line.timestamp.is_some());
         assert_eq!(line.content, "hello world");
         assert_eq!(line.container, "main");
@@ -258,7 +258,7 @@ mod tests {
     #[test]
     fn parse_log_line_without_timestamp() {
         let raw = "just some log output";
-        let line = parse_log_line(raw, "sidecar");
+        let line = parse_raw_log_line(raw, "sidecar");
         assert!(line.timestamp.is_none());
         assert_eq!(line.content, "just some log output");
         assert_eq!(line.container, "sidecar");
@@ -267,7 +267,7 @@ mod tests {
     #[test]
     fn parse_log_line_empty_string() {
         let raw = "";
-        let line = parse_log_line(raw, "ctr");
+        let line = parse_raw_log_line(raw, "ctr");
         assert!(line.timestamp.is_none());
         assert_eq!(line.content, "");
     }

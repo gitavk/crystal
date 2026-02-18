@@ -1,7 +1,7 @@
 use std::time::Duration;
 
 use crossterm::event::{self, Event, KeyEvent};
-use crystal_core::{KubeClient, LogStream, PortForward};
+use crystal_core::{KubeClient, LogLine, LogStream, PortForward};
 use crystal_tui::pane::{PaneId, ResourceKind};
 use crystal_tui::widgets::toast::ToastMessage;
 use tokio::sync::mpsc;
@@ -37,7 +37,7 @@ pub enum AppEvent {
     },
     LogsSnapshotReady {
         pane_id: PaneId,
-        lines: Vec<String>,
+        lines: Vec<LogLine>,
     },
     LogsStreamError {
         pane_id: PaneId,

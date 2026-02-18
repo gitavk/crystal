@@ -15,7 +15,7 @@ pub use client::KubeClient;
 pub use context::{ClusterContext, ContextResolver};
 pub use error::KubeError;
 pub use exec::ExecSession;
-pub use logs::{LogLine, LogRequest, LogStream, StreamStatus};
+pub use logs::{parse_raw_log_line, LogLine, LogRequest, LogStream, StreamStatus};
 pub use port_forward::{ForwardId, PortForward};
 pub use resource::{DetailSection, ResourceSummary};
 pub use resources::*;
