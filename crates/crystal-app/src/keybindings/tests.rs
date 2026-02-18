@@ -69,6 +69,7 @@ fn dispatch_browse_keys() {
     assert_eq!(d.dispatch(press(KeyCode::Char('y'))), Some((Command::ViewYaml, false)));
     assert_eq!(d.dispatch(press(KeyCode::Char('d'))), Some((Command::ViewDescribe, false)));
     assert_eq!(d.dispatch(press(KeyCode::Char('l'))), Some((Command::ViewLogs, false)));
+    assert_eq!(d.dispatch(ctrl(KeyCode::Char('s'))), Some((Command::SaveLogsToFile, false)));
     assert_eq!(d.dispatch(press(KeyCode::Char('/'))), Some((Command::EnterMode(InputMode::FilterInput), false)));
     assert_eq!(d.dispatch(press(KeyCode::Char(':'))), Some((Command::EnterResourceSwitcher, false)));
     assert_eq!(d.dispatch(press(KeyCode::Char('s'))), Some((Command::SortByColumn, false)));
@@ -548,6 +549,7 @@ fn browse_command_config_names_map_correctly() {
     config.browse.insert("view_yaml".into(), "f1".into());
     config.browse.insert("view_describe".into(), "f2".into());
     config.browse.insert("view_logs".into(), "f6".into());
+    config.browse.insert("save_logs".into(), "f3".into());
     config.browse.insert("toggle_all_namespaces".into(), "f9".into());
     config.browse.insert("sort_column".into(), "f10".into());
     config.browse.insert("filter".into(), "f11".into());
@@ -557,6 +559,7 @@ fn browse_command_config_names_map_correctly() {
     assert_eq!(d.dispatch(press(KeyCode::F(1))), Some((Command::ViewYaml, false)));
     assert_eq!(d.dispatch(press(KeyCode::F(2))), Some((Command::ViewDescribe, false)));
     assert_eq!(d.dispatch(press(KeyCode::F(6))), Some((Command::ViewLogs, false)));
+    assert_eq!(d.dispatch(press(KeyCode::F(3))), Some((Command::SaveLogsToFile, false)));
     assert_eq!(d.dispatch(press(KeyCode::F(9))), Some((Command::ToggleAllNamespaces, false)));
     assert_eq!(d.dispatch(press(KeyCode::F(10))), Some((Command::SortByColumn, false)));
     assert_eq!(d.dispatch(press(KeyCode::F(11))), Some((Command::EnterMode(InputMode::FilterInput), false)));

@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 use std::env;
+use std::fs;
 use std::path::{Path, PathBuf};
 use std::time::Duration;
 
@@ -39,6 +40,7 @@ use crate::resource_switcher::ResourceSwitcher;
 #[derive(Debug, Clone)]
 pub enum PendingAction {
     Delete { kind: ResourceKind, name: String, namespace: String },
+    SaveLogs { path: PathBuf, content: String },
     MutateCommand(Command),
 }
 
@@ -707,6 +709,9 @@ impl App {
                         let _ = app_tx.send(event);
                     });
                 }
+            }
+            Command::SaveLogsToFile => {
+                self.initiate_save_logs();
             }
 
             Command::RestartRollout => {
@@ -1707,6 +1712,56 @@ impl App {
         self.dispatcher.set_mode(InputMode::ConfirmDialog);
     }
 
+    fn initiate_save_logs(&mut self) {
+        let focused = self.tab_manager.active().focused_pane;
+        let Some(pane) = self.panes.get(&focused) else { return };
+        let Some(logs) = pane.as_any().downcast_ref::<LogsPane>() else {
+            self.toasts.push(ToastMessage::info("Save logs is only available in a Logs pane"));
+            return;
+        };
+
+        let Some(downloads_dir) = home_downloads_dir() else {
+            self.toasts.push(ToastMessage::error("HOME is not set; cannot resolve $HOME/Downloads"));
+            return;
+        };
+
+        let context = self.context_resolver.context_name().unwrap_or("unknown-context");
+        let namespace = logs.namespace();
+        let pod = logs.pod_name();
+        let timestamp = filename_timestamp_now();
+
+        let filename = format!(
+            "{}_{}_{}_{}.log",
+            sanitize_filename_component(context),
+            sanitize_filename_component(namespace),
+            sanitize_filename_component(pod),
+            timestamp
+        );
+        let path = downloads_dir.join(filename);
+
+        let lines = logs.export_filtered_history();
+        let filter = logs.filter_text().unwrap_or("");
+        let exported_at = jiff::Timestamp::now().to_string();
+        let mut content = String::new();
+        content.push_str(&format!("# context: {context}\n"));
+        content.push_str(&format!("# namespace: {namespace}\n"));
+        content.push_str(&format!("# pod: {pod}\n"));
+        content.push_str(&format!("# exported_at: {exported_at}\n"));
+        if !filter.is_empty() {
+            content.push_str(&format!("# filter: {filter}\n"));
+        }
+        content.push('\n');
+        for line in lines {
+            content.push_str(&line);
+            content.push('\n');
+        }
+
+        let message = format!("Save logs to:\n{}?", path.display());
+        self.pending_confirmation =
+            Some(PendingConfirmation { message, action: PendingAction::SaveLogs { path, content } });
+        self.dispatcher.set_mode(InputMode::ConfirmDialog);
+    }
+
     fn execute_confirmed_action(&mut self) {
         let confirmation = match self.pending_confirmation.take() {
             Some(c) => c,
@@ -1771,6 +1826,19 @@ impl App {
                     };
                     let _ = app_tx.send(toast_event);
                 });
+            }
+            PendingAction::SaveLogs { path, content } => {
+                if let Some(parent) = path.parent() {
+                    if let Err(e) = fs::create_dir_all(parent) {
+                        self.toasts.push(ToastMessage::error(format!("Failed to create {}: {e}", parent.display())));
+                        return;
+                    }
+                }
+
+                match fs::write(&path, content) {
+                    Ok(()) => self.toasts.push(ToastMessage::success(format!("Saved logs to {}", path.display()))),
+                    Err(e) => self.toasts.push(ToastMessage::error(format!("Failed to save logs: {e}"))),
+                }
             }
             PendingAction::MutateCommand(cmd) => {
                 self.handle_command(cmd);
@@ -2095,6 +2163,46 @@ fn with_pod_forward_header(headers: &[String]) -> Vec<String> {
     updated.push("PF".to_string());
     updated.extend(headers.iter().cloned());
     updated
+}
+
+fn home_downloads_dir() -> Option<PathBuf> {
+    env::var_os("HOME").map(PathBuf::from).map(|home| home.join("Downloads"))
+}
+
+fn filename_timestamp_now() -> String {
+    let iso = jiff::Timestamp::now().to_string();
+    let mut out = String::with_capacity(15);
+    for ch in iso.chars() {
+        if ch.is_ascii_digit() {
+            out.push(ch);
+        } else if ch == 'T' && out.len() == 8 {
+            out.push('-');
+        }
+        if out.len() >= 15 {
+            break;
+        }
+    }
+    if out.len() == 15 {
+        out
+    } else {
+        "19700101-000000".to_string()
+    }
+}
+
+fn sanitize_filename_component(input: &str) -> String {
+    let mut out = String::with_capacity(input.len());
+    for ch in input.chars() {
+        if ch.is_ascii_alphanumeric() || matches!(ch, '-' | '_' | '.') {
+            out.push(ch);
+        } else {
+            out.push('_');
+        }
+    }
+    if out.is_empty() {
+        "unknown".to_string()
+    } else {
+        out
+    }
 }
 
 fn with_pod_forward_cell(

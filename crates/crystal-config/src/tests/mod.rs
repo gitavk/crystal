@@ -91,6 +91,7 @@ fn embedded_defaults_parse() {
     assert_eq!(config.keybindings.navigation.get("back").unwrap(), "esc");
     // browse group
     assert_eq!(config.keybindings.browse.get("view_yaml").unwrap(), "y");
+    assert_eq!(config.keybindings.browse.get("save_logs").unwrap(), "ctrl+s");
     assert_eq!(config.keybindings.browse.get("filter").unwrap(), "/");
     // mutate group
     assert_eq!(config.keybindings.mutate.get("delete").unwrap(), "ctrl+alt+d");

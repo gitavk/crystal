@@ -71,6 +71,26 @@ impl LogsPane {
         self.status = format!("Error: {error}");
     }
 
+    pub fn pod_name(&self) -> &str {
+        &self.pod_name
+    }
+
+    pub fn namespace(&self) -> &str {
+        &self.namespace
+    }
+
+    pub fn filter_text(&self) -> Option<&str> {
+        if self.filter_text.is_empty() {
+            None
+        } else {
+            Some(self.filter_text.as_str())
+        }
+    }
+
+    pub fn export_filtered_history(&self) -> Vec<String> {
+        self.filtered_lines().into_iter().map(|line| line.rendered.clone()).collect()
+    }
+
     pub fn poll(&mut self) {
         let (new_lines, stream_status) = {
             let Some(stream) = self.stream.as_mut() else {

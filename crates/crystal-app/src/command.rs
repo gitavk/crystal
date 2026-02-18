@@ -47,6 +47,7 @@ pub enum Command {
     // Resource actions
     ViewYaml,
     ViewDescribe,
+    SaveLogsToFile,
     DeleteResource,
     ScaleResource,
     RestartRollout,
