@@ -16,10 +16,13 @@ pub struct LogsPane {
     namespace: String,
     lines: Vec<String>,
     scroll_offset: usize,
+    horizontal_offset: usize,
     follow: bool,
+    wrap: bool,
     status: String,
     stream: Option<LogStream>,
     max_scroll_offset: Cell<usize>,
+    max_horizontal_offset: Cell<usize>,
 }
 
 impl LogsPane {
@@ -30,10 +33,13 @@ impl LogsPane {
             namespace,
             lines: Vec::new(),
             scroll_offset: 0,
+            horizontal_offset: 0,
             follow: true,
+            wrap: true,
             status: "Connecting...".into(),
             stream: None,
             max_scroll_offset: Cell::new(0),
+            max_horizontal_offset: Cell::new(0),
         }
     }
 
@@ -117,6 +123,11 @@ impl Pane for LogsPane {
         let end = total.saturating_sub(offset);
         let start = end.saturating_sub(visible_height);
         let visible = &self.lines[start..end];
+        let viewport_width = inner.width as usize;
+        let max_horizontal =
+            visible.iter().map(|line| line.chars().count().saturating_sub(viewport_width)).max().unwrap_or(0);
+        self.max_horizontal_offset.set(max_horizontal);
+        let horizontal_offset = if self.wrap { 0 } else { self.horizontal_offset.min(max_horizontal) };
 
         let content = if visible.is_empty() {
             vec![Line::from(format!("Waiting for log lines... ({})", self.status))]
@@ -124,10 +135,16 @@ impl Pane for LogsPane {
             visible.iter().map(|l| Line::from(l.as_str())).collect()
         };
         let content_area = Rect { x: inner.x, y: inner.y, width: inner.width, height: inner.height.saturating_sub(1) };
-        frame.render_widget(Paragraph::new(content).wrap(Wrap { trim: false }), content_area);
+        let paragraph = if self.wrap {
+            Paragraph::new(content).wrap(Wrap { trim: false })
+        } else {
+            Paragraph::new(content).scroll((0, horizontal_offset as u16))
+        };
+        frame.render_widget(paragraph, content_area);
 
         let mode_text = if self.follow { "FOLLOW" } else { "PAUSED" };
-        let footer = format!("{mode_text} | {} lines | {}", self.lines.len(), self.status);
+        let wrap_mode = if self.wrap { "WRAP" } else { "NOWRAP" };
+        let footer = format!("{mode_text} | {wrap_mode} | {} lines | {}", self.lines.len(), self.status);
         let footer_area =
             Rect { x: inner.x, y: inner.y + inner.height.saturating_sub(1), width: inner.width, height: 1 };
         frame.render_widget(Paragraph::new(footer).style(theme.status_bar), footer_area);
@@ -145,10 +162,29 @@ impl Pane for LogsPane {
                     self.follow = true;
                 }
             }
+            PaneCommand::ScrollLeft => {
+                if !self.wrap {
+                    self.horizontal_offset = self.horizontal_offset.saturating_sub(4);
+                }
+            }
+            PaneCommand::ScrollRight => {
+                if !self.wrap {
+                    self.horizontal_offset =
+                        self.horizontal_offset.saturating_add(4).min(self.max_horizontal_offset.get());
+                }
+            }
             PaneCommand::ToggleFollow => {
                 self.follow = !self.follow;
                 if self.follow {
                     self.scroll_offset = 0;
+                }
+            }
+            PaneCommand::ToggleWrap => {
+                self.wrap = !self.wrap;
+                if self.wrap {
+                    self.horizontal_offset = 0;
+                } else {
+                    self.horizontal_offset = self.horizontal_offset.min(self.max_horizontal_offset.get());
                 }
             }
             _ => {}

@@ -53,6 +53,14 @@ fn dispatch_navigation_keys() {
     );
     assert_eq!(d.dispatch(press(KeyCode::PageUp)), Some((Command::Pane(PaneCommand::PageUp), false)));
     assert_eq!(d.dispatch(press(KeyCode::PageDown)), Some((Command::Pane(PaneCommand::PageDown), false)));
+    assert_eq!(
+        d.dispatch(press_mod(KeyCode::Char('H'), KeyModifiers::SHIFT)),
+        Some((Command::Pane(PaneCommand::ScrollLeft), false))
+    );
+    assert_eq!(
+        d.dispatch(press_mod(KeyCode::Char('L'), KeyModifiers::SHIFT)),
+        Some((Command::Pane(PaneCommand::ScrollRight), false))
+    );
 }
 
 #[test]
@@ -66,6 +74,7 @@ fn dispatch_browse_keys() {
     assert_eq!(d.dispatch(press(KeyCode::Char('s'))), Some((Command::SortByColumn, false)));
     assert_eq!(d.dispatch(press(KeyCode::Char('a'))), Some((Command::ToggleAllNamespaces, false)));
     assert_eq!(d.dispatch(press(KeyCode::Char('f'))), Some((Command::Pane(PaneCommand::ToggleFollow), false)));
+    assert_eq!(d.dispatch(press(KeyCode::Char('w'))), Some((Command::Pane(PaneCommand::ToggleWrap), false)));
 }
 
 #[test]

@@ -529,6 +529,7 @@ fn browse_command_from_name(name: &str) -> Option<Command> {
         "sort_column" => Some(Command::SortByColumn),
         "toggle_all_namespaces" => Some(Command::ToggleAllNamespaces),
         "toggle_follow" => Some(Command::Pane(PaneCommand::ToggleFollow)),
+        "toggle_wrap" => Some(Command::Pane(PaneCommand::ToggleWrap)),
         _ => None,
     }
 }
@@ -543,6 +544,7 @@ fn browse_command_description(name: &str) -> String {
         "sort_column" => "Sort",
         "toggle_all_namespaces" => "All NS",
         "toggle_follow" => "Follow",
+        "toggle_wrap" => "Wrap",
         _ => "Unknown",
     }
     .into()
@@ -558,6 +560,8 @@ fn navigation_command_from_name(name: &str) -> Option<Command> {
         "go_to_bottom" => Some(Command::Pane(PaneCommand::GoToBottom)),
         "page_up" => Some(Command::Pane(PaneCommand::PageUp)),
         "page_down" => Some(Command::Pane(PaneCommand::PageDown)),
+        "scroll_left" => Some(Command::Pane(PaneCommand::ScrollLeft)),
+        "scroll_right" => Some(Command::Pane(PaneCommand::ScrollRight)),
         _ => None,
     }
 }
@@ -572,6 +576,8 @@ fn navigation_command_description(name: &str) -> String {
         "go_to_bottom" => "Go to bottom",
         "page_up" => "Page up",
         "page_down" => "Page down",
+        "scroll_left" => "Left",
+        "scroll_right" => "Right",
         _ => "Unknown",
     }
     .into()

@@ -52,6 +52,8 @@ go_to_top = "g"
 go_to_bottom = "shift+g"
 page_up = "pageup"
 page_down = "pagedown"
+scroll_left = "shift+h"
+scroll_right = "shift+l"
 
 [keybindings.browse]
 view_yaml = "y"
@@ -62,6 +64,7 @@ resource_switcher = ":"
 sort_column = "s"
 toggle_all_namespaces = "a"
 toggle_follow = "f"
+toggle_wrap = "w"
 
 [keybindings.tui]
 split_vertical = "alt+v"
