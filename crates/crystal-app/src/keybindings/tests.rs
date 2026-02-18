@@ -73,6 +73,10 @@ fn dispatch_browse_keys() {
     assert_eq!(d.dispatch(press(KeyCode::Char('/'))), Some((Command::EnterMode(InputMode::FilterInput), false)));
     assert_eq!(d.dispatch(press(KeyCode::Char(':'))), Some((Command::EnterResourceSwitcher, false)));
     assert_eq!(d.dispatch(press(KeyCode::Char('s'))), Some((Command::SortByColumn, false)));
+    assert_eq!(
+        d.dispatch(press_mod(KeyCode::Char('S'), KeyModifiers::SHIFT)),
+        Some((Command::Pane(PaneCommand::ToggleSortOrder), false))
+    );
     assert_eq!(d.dispatch(press(KeyCode::Char('a'))), Some((Command::ToggleAllNamespaces, false)));
     assert_eq!(d.dispatch(press(KeyCode::Char('f'))), Some((Command::Pane(PaneCommand::ToggleFollow), false)));
     assert_eq!(d.dispatch(press(KeyCode::Char('w'))), Some((Command::Pane(PaneCommand::ToggleWrap), false)));
@@ -552,6 +556,7 @@ fn browse_command_config_names_map_correctly() {
     config.browse.insert("save_logs".into(), "f3".into());
     config.browse.insert("toggle_all_namespaces".into(), "f9".into());
     config.browse.insert("sort_column".into(), "f10".into());
+    config.browse.insert("toggle_sort_order".into(), "f4".into());
     config.browse.insert("filter".into(), "f11".into());
     config.browse.insert("resource_switcher".into(), "f12".into());
 
@@ -562,6 +567,7 @@ fn browse_command_config_names_map_correctly() {
     assert_eq!(d.dispatch(press(KeyCode::F(3))), Some((Command::SaveLogsToFile, false)));
     assert_eq!(d.dispatch(press(KeyCode::F(9))), Some((Command::ToggleAllNamespaces, false)));
     assert_eq!(d.dispatch(press(KeyCode::F(10))), Some((Command::SortByColumn, false)));
+    assert_eq!(d.dispatch(press(KeyCode::F(4))), Some((Command::Pane(PaneCommand::ToggleSortOrder), false)));
     assert_eq!(d.dispatch(press(KeyCode::F(11))), Some((Command::EnterMode(InputMode::FilterInput), false)));
     assert_eq!(d.dispatch(press(KeyCode::F(12))), Some((Command::EnterResourceSwitcher, false)));
 }

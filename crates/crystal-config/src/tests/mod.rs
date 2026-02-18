@@ -93,6 +93,7 @@ fn embedded_defaults_parse() {
     assert_eq!(config.keybindings.browse.get("view_yaml").unwrap(), "y");
     assert_eq!(config.keybindings.browse.get("save_logs").unwrap(), "ctrl+s");
     assert_eq!(config.keybindings.browse.get("filter").unwrap(), "/");
+    assert_eq!(config.keybindings.browse.get("toggle_sort_order").unwrap(), "shift+s");
     // mutate group
     assert_eq!(config.keybindings.mutate.get("delete").unwrap(), "ctrl+alt+d");
     // interact group

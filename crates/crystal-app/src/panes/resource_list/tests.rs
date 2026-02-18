@@ -159,3 +159,69 @@ fn filter_is_case_insensitive() {
     pane.handle_command(&PaneCommand::Filter("NGINX".into()));
     assert_eq!(pane.filtered_indices, vec![0, 3]);
 }
+
+#[test]
+fn age_column_sorts_by_duration_ascending() {
+    let mut pane = ResourceListPane::new(ResourceKind::Pods, vec!["NAME".into(), "AGE".into()]);
+    pane.state.set_items(vec![
+        vec!["pod-a".into(), "2h".into()],
+        vec!["pod-b".into(), "10m".into()],
+        vec!["pod-c".into(), "1d".into()],
+        vec!["pod-d".into(), "45s".into()],
+    ]);
+    pane.refresh_filter_and_sort();
+
+    pane.sort_by_column(1);
+    let names: Vec<&str> = pane.filtered_indices.iter().map(|&i| pane.state.items[i][0].as_str()).collect();
+    assert_eq!(names, vec!["pod-d", "pod-b", "pod-a", "pod-c"]);
+}
+
+#[test]
+fn age_column_sorts_by_duration_descending() {
+    let mut pane = ResourceListPane::new(ResourceKind::Pods, vec!["NAME".into(), "AGE".into()]);
+    pane.state.set_items(vec![
+        vec!["pod-a".into(), "2h".into()],
+        vec!["pod-b".into(), "10m".into()],
+        vec!["pod-c".into(), "1d".into()],
+        vec!["pod-d".into(), "45s".into()],
+    ]);
+    pane.refresh_filter_and_sort();
+
+    pane.sort_by_column(1);
+    pane.sort_by_column(1);
+    let names: Vec<&str> = pane.filtered_indices.iter().map(|&i| pane.state.items[i][0].as_str()).collect();
+    assert_eq!(names, vec!["pod-c", "pod-a", "pod-b", "pod-d"]);
+}
+
+#[test]
+fn restarts_column_sorts_numerically_ascending() {
+    let mut pane = ResourceListPane::new(ResourceKind::Pods, vec!["NAME".into(), "RESTARTS".into()]);
+    pane.state.set_items(vec![
+        vec!["pod-a".into(), "2".into()],
+        vec!["pod-b".into(), "10".into()],
+        vec!["pod-c".into(), "1".into()],
+        vec!["pod-d".into(), "0".into()],
+    ]);
+    pane.refresh_filter_and_sort();
+
+    pane.sort_by_column(1);
+    let names: Vec<&str> = pane.filtered_indices.iter().map(|&i| pane.state.items[i][0].as_str()).collect();
+    assert_eq!(names, vec!["pod-d", "pod-c", "pod-a", "pod-b"]);
+}
+
+#[test]
+fn restarts_column_sorts_numerically_descending() {
+    let mut pane = ResourceListPane::new(ResourceKind::Pods, vec!["NAME".into(), "RESTARTS".into()]);
+    pane.state.set_items(vec![
+        vec!["pod-a".into(), "2".into()],
+        vec!["pod-b".into(), "10".into()],
+        vec!["pod-c".into(), "1".into()],
+        vec!["pod-d".into(), "0".into()],
+    ]);
+    pane.refresh_filter_and_sort();
+
+    pane.sort_by_column(1);
+    pane.sort_by_column(1);
+    let names: Vec<&str> = pane.filtered_indices.iter().map(|&i| pane.state.items[i][0].as_str()).collect();
+    assert_eq!(names, vec!["pod-b", "pod-a", "pod-c", "pod-d"]);
+}

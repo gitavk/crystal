@@ -1,4 +1,5 @@
 use std::any::Any;
+use std::cmp::Ordering;
 
 use ratatui::prelude::{Frame, Rect};
 
@@ -51,11 +52,12 @@ impl ResourceListPane {
         let Some(col) = self.sort_column else { return };
         let asc = self.sort_ascending;
         let items = &self.state.items;
+        let header = self.state.headers.get(col).map(|s| s.as_str()).unwrap_or("");
 
         self.filtered_indices.sort_by(|&a, &b| {
             let va = items[a].get(col).map(|s| s.as_str()).unwrap_or("");
             let vb = items[b].get(col).map(|s| s.as_str()).unwrap_or("");
-            let ord = va.cmp(vb);
+            let ord = compare_cells(header, va, vb);
             if asc {
                 ord
             } else {
@@ -109,6 +111,88 @@ impl ResourceListPane {
             _ => None,
         }
     }
+}
+
+fn compare_cells(header: &str, a: &str, b: &str) -> Ordering {
+    if header.eq_ignore_ascii_case("age") {
+        return compare_age_cells(a, b);
+    }
+    if header.eq_ignore_ascii_case("restarts") {
+        return compare_numeric_cells(a, b);
+    }
+    a.cmp(b)
+}
+
+fn compare_age_cells(a: &str, b: &str) -> Ordering {
+    match (parse_age_seconds(a), parse_age_seconds(b)) {
+        (Some(va), Some(vb)) => va.cmp(&vb),
+        (Some(_), None) => Ordering::Less,
+        (None, Some(_)) => Ordering::Greater,
+        (None, None) => a.cmp(b),
+    }
+}
+
+fn compare_numeric_cells(a: &str, b: &str) -> Ordering {
+    match (parse_u64_cell(a), parse_u64_cell(b)) {
+        (Some(va), Some(vb)) => va.cmp(&vb),
+        (Some(_), None) => Ordering::Less,
+        (None, Some(_)) => Ordering::Greater,
+        (None, None) => a.cmp(b),
+    }
+}
+
+fn parse_u64_cell(raw: &str) -> Option<u64> {
+    raw.trim().parse::<u64>().ok()
+}
+
+fn parse_age_seconds(raw: &str) -> Option<u64> {
+    let s = raw.trim();
+    if s.is_empty() {
+        return None;
+    }
+
+    let bytes = s.as_bytes();
+    let mut i = 0usize;
+    let mut saw_token = false;
+    let mut total: u128 = 0;
+
+    while i < bytes.len() {
+        let start_num = i;
+        while i < bytes.len() && bytes[i].is_ascii_digit() {
+            i += 1;
+        }
+        if i == start_num {
+            return None;
+        }
+        let n = s[start_num..i].parse::<u128>().ok()?;
+
+        let start_unit = i;
+        while i < bytes.len() && bytes[i].is_ascii_alphabetic() {
+            i += 1;
+        }
+        if i == start_unit {
+            return None;
+        }
+        let unit = &s[start_unit..i].to_ascii_lowercase();
+        let mult: u128 = match unit.as_str() {
+            "s" => 1,
+            "m" => 60,
+            "h" => 3600,
+            "d" => 86400,
+            "w" => 604800,
+            "mo" => 2_629_800,
+            "y" => 31_557_600,
+            _ => return None,
+        };
+
+        total = total.checked_add(n.checked_mul(mult)?)?;
+        saw_token = true;
+    }
+
+    if !saw_token {
+        return None;
+    }
+    u64::try_from(total).ok()
 }
 
 impl Pane for ResourceListPane {
