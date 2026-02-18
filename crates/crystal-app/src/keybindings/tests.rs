@@ -364,16 +364,6 @@ fn parse_invalid_returns_none() {
 }
 
 #[test]
-fn global_hints_returns_expected_keys() {
-    let d = default_dispatcher();
-    let hints = d.global_hints();
-    assert!(!hints.is_empty());
-    let keys: Vec<&str> = hints.iter().map(|(k, _)| k.as_str()).collect();
-    assert!(keys.contains(&"alt+v"));
-    assert!(keys.contains(&"ctrl+q") || keys.contains(&"?"));
-}
-
-#[test]
 fn global_shortcuts_formatted() {
     let d = default_dispatcher();
     let shortcuts = d.global_shortcuts();

@@ -21,7 +21,12 @@ fn render_context_requires_theme() {
         tab_names: &[],
         active_tab: 0,
         mode_name: "Normal",
-        mode_hints: &[],
+        help_key: None,
+        namespace_key: None,
+        context_key: None,
+        close_pane_key: None,
+        new_tab_key: None,
+        quit_key: None,
         theme: &theme,
     };
     assert_eq!(ctx.active_tab, 0);

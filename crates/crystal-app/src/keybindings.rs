@@ -246,8 +246,8 @@ impl KeybindingDispatcher {
         self.mode
     }
 
-    pub fn global_hints(&self) -> Vec<(String, String)> {
-        let all_reverse: Vec<_> = self
+    pub fn key_for(&self, name: &str) -> Option<String> {
+        let all: Vec<_> = self
             .reverse_global
             .iter()
             .chain(&self.reverse_tui)
@@ -256,25 +256,7 @@ impl KeybindingDispatcher {
             .chain(&self.reverse_navigation)
             .chain(&self.reverse_mutate)
             .collect();
-
-        let priority = [
-            "split_vertical",
-            "split_horizontal",
-            "focus_next",
-            "close_pane",
-            "namespace_selector",
-            "context_selector",
-            "app_logs",
-            "help",
-            "quit",
-        ];
-        let mut hints = Vec::new();
-        for name in &priority {
-            if let Some((_, key_str, desc)) = all_reverse.iter().find(|(n, _, _)| n == name) {
-                hints.push((key_str.clone(), desc.clone()));
-            }
-        }
-        hints
+        all.iter().find(|(n, _, _)| n == name).map(|(_, key_str, _)| format_key_display(key_str))
     }
 
     pub fn global_shortcuts(&self) -> Vec<(String, String)> {

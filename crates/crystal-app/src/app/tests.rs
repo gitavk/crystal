@@ -210,15 +210,10 @@ fn fullscreen_is_per_tab() {
 }
 
 #[test]
-fn mode_hints_update_on_mode_switch() {
-    let d = test_dispatcher();
-
-    let normal_hints = d.global_hints();
-    assert!(!normal_hints.is_empty());
-
-    let mut d2 = KeybindingDispatcher::from_config(&crystal_config::Config::load().keybindings);
-    d2.set_mode(InputMode::NamespaceSelector);
-    assert_eq!(d2.mode(), InputMode::NamespaceSelector);
+fn mode_switch_updates_dispatcher() {
+    let mut d = KeybindingDispatcher::from_config(&crystal_config::Config::load().keybindings);
+    d.set_mode(InputMode::NamespaceSelector);
+    assert_eq!(d.mode(), InputMode::NamespaceSelector);
 }
 
 #[test]

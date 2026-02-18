@@ -228,9 +228,14 @@ impl App {
 
         while self.running {
             terminal.draw(|frame| {
-                let (mut ctx, tab_names, hints) = self.build_render_context();
+                let (mut ctx, tab_names, keys) = self.build_render_context();
                 ctx.tab_names = &tab_names;
-                ctx.mode_hints = &hints;
+                ctx.help_key = keys[0].as_deref();
+                ctx.namespace_key = keys[1].as_deref();
+                ctx.context_key = keys[2].as_deref();
+                ctx.close_pane_key = keys[3].as_deref();
+                ctx.new_tab_key = keys[4].as_deref();
+                ctx.quit_key = keys[5].as_deref();
                 crystal_tui::layout::render_root(frame, &ctx);
             })?;
 
@@ -1861,67 +1866,7 @@ impl App {
         }
     }
 
-    fn mode_hints(&self) -> Vec<(String, String)> {
-        let mut hints = match self.dispatcher.mode() {
-            InputMode::Normal => self.dispatcher.global_hints(),
-            InputMode::NamespaceSelector => {
-                vec![
-                    ("Up/Down".into(), "Navigate".into()),
-                    ("Enter".into(), "Select".into()),
-                    ("Esc".into(), "Cancel".into()),
-                ]
-            }
-            InputMode::ContextSelector => {
-                vec![
-                    ("Up/Down".into(), "Navigate".into()),
-                    ("Enter".into(), "Select".into()),
-                    ("Esc".into(), "Cancel".into()),
-                ]
-            }
-            InputMode::ResourceSwitcher => {
-                vec![
-                    ("Up/Down".into(), "Navigate".into()),
-                    ("Enter".into(), "Select".into()),
-                    ("Esc".into(), "Cancel".into()),
-                ]
-            }
-            InputMode::ConfirmDialog => {
-                vec![("y".into(), "Confirm".into()), ("n/Esc".into(), "Cancel".into())]
-            }
-            InputMode::FilterInput => {
-                vec![("Enter".into(), "Keep filter".into()), ("Esc".into(), "Clear & exit".into())]
-            }
-            InputMode::PortForwardInput => {
-                vec![
-                    ("Tab".into(), "Switch field".into()),
-                    ("Enter".into(), "Start".into()),
-                    ("Esc".into(), "Cancel".into()),
-                ]
-            }
-            InputMode::Insert => {
-                vec![("Esc".into(), "Normal mode".into())]
-            }
-            _ => vec![],
-        };
-
-        if let Some((_pod, local, remote)) = self.selected_pod_forward_mapping() {
-            hints.push(("PF".into(), format!("127.0.0.1:{local}->{remote}")));
-        }
-
-        hints
-    }
-
-    fn selected_pod_forward_mapping(&self) -> Option<(String, u16, u16)> {
-        let (kind, pod, namespace) = self.selected_resource_info()?;
-        if kind != ResourceKind::Pods {
-            return None;
-        }
-        let forward_id = self.pod_forward_index.get(&(namespace, pod.clone()))?;
-        let forward = self.active_forwards.get(forward_id)?;
-        Some((pod, forward.local_port(), forward.remote_port()))
-    }
-
-    fn build_render_context(&self) -> (RenderContext<'_>, Vec<String>, Vec<(String, String)>) {
+    fn build_render_context(&self) -> (RenderContext<'_>, Vec<String>, [Option<String>; 6]) {
         let namespace_selector = if self.dispatcher.mode() == InputMode::NamespaceSelector {
             Some(NamespaceSelectorView {
                 namespaces: &self.namespaces,
@@ -1960,7 +1905,14 @@ impl App {
         });
 
         let tab_names = self.tab_manager.tab_names();
-        let hints = self.mode_hints();
+        let keys = [
+            self.dispatcher.key_for("help"),
+            self.dispatcher.key_for("namespace_selector"),
+            self.dispatcher.key_for("context_selector"),
+            self.dispatcher.key_for("close_pane"),
+            self.dispatcher.key_for("new_tab"),
+            self.dispatcher.key_for("quit"),
+        ];
 
         let tab = self.tab_manager.active();
         let (pane_tree, focused_pane, fullscreen_pane) = (&tab.pane_tree, tab.focused_pane, tab.fullscreen_pane);
@@ -1981,19 +1933,23 @@ impl App {
             tab_names: &[],
             active_tab: self.tab_manager.active_index(),
             mode_name: self.mode_name(),
-            mode_hints: &[],
+            help_key: None,
+            namespace_key: None,
+            context_key: None,
+            close_pane_key: None,
+            new_tab_key: None,
+            quit_key: None,
             theme: &self.theme,
         };
 
-        (ctx, tab_names, hints)
+        (ctx, tab_names, keys)
     }
 
     fn update_active_tab_title(&mut self) {
         let tab_id = self.tab_manager.active().id;
-        let ctx = self.context_resolver.context_name().unwrap_or("noctx");
         let ns = self.active_namespace_label();
         let alias = self.active_view_alias();
-        let title = format!("{ctx}:{ns}|{alias}");
+        let title = format!("{ns}|{alias}");
         self.tab_manager.rename_tab(tab_id, &title);
     }
 
@@ -2006,7 +1962,12 @@ impl App {
                 }
             }
         }
-        self.context_resolver.namespace().unwrap_or("n/a").to_string()
+        let ns = self.context_resolver.namespace().unwrap_or("n/a");
+        if ns.len() > 25 {
+            format!("{}…", &ns[..24])
+        } else {
+            ns.to_string()
+        }
     }
 
     fn active_view_alias(&self) -> String {

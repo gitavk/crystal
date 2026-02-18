@@ -65,7 +65,12 @@ pub struct RenderContext<'a> {
     pub tab_names: &'a [String],
     pub active_tab: usize,
     pub mode_name: &'a str,
-    pub mode_hints: &'a [(String, String)],
+    pub help_key: Option<&'a str>,
+    pub namespace_key: Option<&'a str>,
+    pub context_key: Option<&'a str>,
+    pub close_pane_key: Option<&'a str>,
+    pub new_tab_key: Option<&'a str>,
+    pub quit_key: Option<&'a str>,
     pub theme: &'a Theme,
 }
 
@@ -148,9 +153,13 @@ fn render_body(frame: &mut Frame, area: Rect, ctx: &RenderContext) {
 fn render_status_bar(frame: &mut Frame, area: Rect, ctx: &RenderContext) {
     let widget = StatusBarWidget {
         mode: ctx.mode_name,
-        hints: ctx.mode_hints,
-        cluster: ctx.cluster_name,
-        namespace: ctx.namespace,
+        context: ctx.cluster_name,
+        help_key: ctx.help_key,
+        namespace_key: ctx.namespace_key,
+        context_key: ctx.context_key,
+        close_pane_key: ctx.close_pane_key,
+        new_tab_key: ctx.new_tab_key,
+        quit_key: ctx.quit_key,
         theme: ctx.theme,
     };
     widget.render(frame, area);
