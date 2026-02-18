@@ -2,7 +2,7 @@ use std::any::Any;
 use std::cell::Cell;
 
 use ratatui::prelude::*;
-use ratatui::widgets::{Block, Borders, Paragraph};
+use ratatui::widgets::{Block, Borders, Paragraph, Wrap};
 
 use crystal_core::{LogLine, LogStream, StreamStatus};
 use crystal_tui::pane::{Pane, PaneCommand, ViewType};
@@ -124,7 +124,7 @@ impl Pane for LogsPane {
             visible.iter().map(|l| Line::from(l.as_str())).collect()
         };
         let content_area = Rect { x: inner.x, y: inner.y, width: inner.width, height: inner.height.saturating_sub(1) };
-        frame.render_widget(Paragraph::new(content), content_area);
+        frame.render_widget(Paragraph::new(content).wrap(Wrap { trim: false }), content_area);
 
         let mode_text = if self.follow { "FOLLOW" } else { "PAUSED" };
         let footer = format!("{mode_text} | {} lines | {}", self.lines.len(), self.status);
