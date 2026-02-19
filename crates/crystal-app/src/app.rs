@@ -1188,6 +1188,7 @@ impl App {
     fn handle_resource_update(&mut self, pane_id: PaneId, headers: Vec<String>, rows: Vec<Vec<String>>) {
         if let Some(pane) = self.panes.get_mut(&pane_id) {
             if let Some(resource_pane) = pane.as_any_mut().downcast_mut::<ResourceListPane>() {
+                let previous_selected_resource = selected_resource_identity(resource_pane);
                 let configured_columns = resource_pane
                     .kind()
                     .map(|k| self.views_config.columns_for(resource_kind_config_key(k)))
@@ -1201,6 +1202,16 @@ impl App {
                 }
                 resource_pane.state.set_items(effective_rows);
                 resource_pane.refresh_filter_and_sort();
+                if let Some((name, namespace)) = previous_selected_resource {
+                    if let Some(item_idx) = find_item_index_by_identity(
+                        &resource_pane.state.headers,
+                        &resource_pane.state.items,
+                        &name,
+                        &namespace,
+                    ) {
+                        let _ = resource_pane.select_item_index(item_idx);
+                    }
+                }
             }
         }
     }
@@ -2249,6 +2260,36 @@ fn header_value(headers: &[String], row: &[String], header: &str, fallback_idx: 
         return row.get(idx).cloned();
     }
     row.get(fallback_idx).cloned()
+}
+
+fn selected_resource_identity(resource_pane: &ResourceListPane) -> Option<(String, String)> {
+    let selected_idx = match resource_pane.state.selected {
+        Some(s) => {
+            if resource_pane.filtered_indices.is_empty() {
+                s
+            } else {
+                *resource_pane.filtered_indices.get(s)?
+            }
+        }
+        None => return None,
+    };
+    let row = resource_pane.state.items.get(selected_idx)?;
+    let name = header_value(&resource_pane.state.headers, row, "NAME", 0)?;
+    let namespace = header_value(&resource_pane.state.headers, row, "NAMESPACE", usize::MAX).unwrap_or_default();
+    Some((name, namespace))
+}
+
+fn find_item_index_by_identity(
+    headers: &[String],
+    items: &[Vec<String>],
+    selected_name: &str,
+    selected_namespace: &str,
+) -> Option<usize> {
+    items.iter().position(|row| {
+        let name = header_value(headers, row, "NAME", 0);
+        let namespace = header_value(headers, row, "NAMESPACE", usize::MAX).unwrap_or_default();
+        name.as_deref() == Some(selected_name) && namespace == selected_namespace
+    })
 }
 
 async fn detect_remote_port(client: &kube::Client, pod_name: &str, namespace: &str) -> Option<u16> {

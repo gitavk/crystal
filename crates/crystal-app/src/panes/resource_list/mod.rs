@@ -45,7 +45,24 @@ impl ResourceListPane {
                 .map(|(i, _)| i)
                 .collect();
         }
-        self.state.selected = if self.filtered_indices.is_empty() { None } else { Some(0) };
+    }
+
+    fn selected_item_index(&self) -> Option<usize> {
+        let selected = self.state.selected?;
+        if self.filtered_indices.is_empty() {
+            Some(selected)
+        } else {
+            self.filtered_indices.get(selected).copied()
+        }
+    }
+
+    pub fn select_item_index(&mut self, item_idx: usize) -> bool {
+        if let Some(selected) = self.filtered_indices.iter().position(|&idx| idx == item_idx) {
+            self.state.selected = Some(selected);
+            true
+        } else {
+            false
+        }
     }
 
     pub fn apply_sort(&mut self) {
@@ -77,8 +94,20 @@ impl ResourceListPane {
     }
 
     pub fn refresh_filter_and_sort(&mut self) {
+        let prev_item_idx = self.selected_item_index();
+        let prev_selected = self.state.selected;
         self.apply_filter();
         self.apply_sort();
+        self.state.selected = if self.filtered_indices.is_empty() {
+            None
+        } else if let Some(prev_item_idx) = prev_item_idx {
+            self.filtered_indices
+                .iter()
+                .position(|&idx| idx == prev_item_idx)
+                .or_else(|| prev_selected.map(|sel| sel.min(self.filtered_indices.len().saturating_sub(1))))
+        } else {
+            Some(0)
+        };
     }
 
     fn filtered_items(&self) -> Vec<&Vec<String>> {
@@ -229,13 +258,11 @@ impl Pane for ResourceListPane {
             PaneCommand::SelectPrev | PaneCommand::ScrollUp => self.nav_prev(),
             PaneCommand::Filter(text) => {
                 self.filter_text = text.clone();
-                self.apply_filter();
-                self.apply_sort();
+                self.refresh_filter_and_sort();
             }
             PaneCommand::ClearFilter => {
                 self.filter_text.clear();
-                self.apply_filter();
-                self.apply_sort();
+                self.refresh_filter_and_sort();
             }
             PaneCommand::SortByColumn(col) => {
                 self.sort_by_column(*col);

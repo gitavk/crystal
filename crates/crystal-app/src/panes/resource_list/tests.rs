@@ -111,6 +111,39 @@ fn filtered_indices_stay_in_bounds_on_watcher_update() {
 }
 
 #[test]
+fn preserves_selected_item_across_refresh_when_still_present() {
+    let mut pane = sample_pane();
+    pane.state.selected = Some(2); // api-gateway-xyz
+
+    pane.state.set_items(vec![
+        vec!["redis-master-0".into(), "cache".into(), "Running".into()],
+        vec!["api-gateway-xyz".into(), "default".into(), "Running".into()],
+        vec!["nginx-pod-abc123".into(), "default".into(), "Running".into()],
+    ]);
+    pane.refresh_filter_and_sort();
+
+    assert_eq!(pane.filtered_indices, vec![0, 1, 2]);
+    assert_eq!(pane.state.selected, Some(2));
+}
+
+#[test]
+fn preserves_selected_item_across_refresh_with_filter() {
+    let mut pane = sample_pane();
+    pane.handle_command(&PaneCommand::Filter("nginx".into()));
+    pane.state.selected = Some(1); // nginx-sidecar-1 within filtered view
+
+    pane.state.set_items(vec![
+        vec!["nginx-sidecar-1".into(), "web".into(), "Running".into()],
+        vec!["api-gateway-xyz".into(), "default".into(), "Running".into()],
+        vec!["nginx-pod-abc123".into(), "default".into(), "Running".into()],
+    ]);
+    pane.refresh_filter_and_sort();
+
+    assert_eq!(pane.filtered_indices, vec![0, 2]);
+    assert_eq!(pane.state.selected, Some(1));
+}
+
+#[test]
 fn nav_next_wraps_within_filtered() {
     let mut pane = sample_pane();
     pane.handle_command(&PaneCommand::Filter("nginx".into()));

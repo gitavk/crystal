@@ -305,6 +305,33 @@ fn selected_resource_info_none_when_no_selection() {
 }
 
 #[test]
+fn selected_resource_identity_uses_filtered_selection() {
+    let headers = vec!["NAME".into(), "NAMESPACE".into(), "STATUS".into()];
+    let mut pane = ResourceListPane::new(ResourceKind::Pods, headers);
+    pane.state.set_items(vec![
+        vec!["pod-a".into(), "default".into(), "Running".into()],
+        vec!["pod-b".into(), "kube-system".into(), "Pending".into()],
+    ]);
+    pane.handle_command(&PaneCommand::Filter("pod-b".into()));
+
+    assert_eq!(selected_resource_identity(&pane), Some(("pod-b".into(), "kube-system".into())));
+}
+
+#[test]
+fn find_item_index_by_identity_matches_name_and_namespace() {
+    let headers = vec!["NAME".into(), "NAMESPACE".into(), "STATUS".into()];
+    let items = vec![
+        vec!["pod-a".into(), "default".into(), "Running".into()],
+        vec!["pod-b".into(), "kube-system".into(), "Pending".into()],
+        vec!["pod-b".into(), "default".into(), "Running".into()],
+    ];
+
+    assert_eq!(find_item_index_by_identity(&headers, &items, "pod-b", "default"), Some(2));
+    assert_eq!(find_item_index_by_identity(&headers, &items, "pod-b", "kube-system"), Some(1));
+    assert_eq!(find_item_index_by_identity(&headers, &items, "pod-c", "default"), None);
+}
+
+#[test]
 fn open_detail_pane_creates_split() {
     let (mut panes, mut tm) = make_test_app_with_ns_headers();
 
