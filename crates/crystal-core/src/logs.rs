@@ -1,10 +1,7 @@
 use std::time::Duration;
 
-use futures::AsyncBufReadExt;
-use futures::StreamExt;
-use k8s_openapi::api::core::v1::Pod;
-use kube::api::LogParams;
-use kube::{Api, Client};
+use tokio::io::{AsyncBufReadExt, BufReader};
+use tokio::process::Command;
 use tokio::sync::mpsc;
 use tracing::{debug, warn};
 
@@ -18,6 +15,7 @@ pub struct LogLine {
 
 #[derive(Debug, Clone)]
 pub struct LogRequest {
+    pub context: Option<String>,
     pub pod_name: String,
     pub namespace: String,
     pub container: Option<String>,
@@ -31,6 +29,7 @@ pub struct LogRequest {
 impl Default for LogRequest {
     fn default() -> Self {
         Self {
+            context: None,
             pod_name: String::new(),
             namespace: String::new(),
             container: None,
@@ -59,16 +58,13 @@ pub struct LogStream {
 }
 
 impl LogStream {
-    pub async fn start(client: &Client, request: LogRequest) -> anyhow::Result<Self> {
+    pub async fn start(request: LogRequest) -> anyhow::Result<Self> {
         let (tx, rx) = mpsc::unbounded_channel();
         let (status_tx, status_rx) = mpsc::unbounded_channel();
         let (cancel_tx, cancel_rx) = tokio::sync::watch::channel(false);
 
-        let client = client.clone();
-        let request = request.clone();
-
         tokio::spawn(async move {
-            stream_logs(client, request, tx, status_tx, cancel_rx).await;
+            stream_logs(request, tx, status_tx, cancel_rx).await;
         });
 
         Ok(Self { rx, status_rx, status: StreamStatus::Streaming, cancel: cancel_tx })
@@ -105,16 +101,15 @@ impl Drop for LogStream {
 }
 
 async fn stream_logs(
-    client: Client,
     request: LogRequest,
     tx: mpsc::UnboundedSender<LogLine>,
     status_tx: mpsc::UnboundedSender<StreamStatus>,
     mut cancel_rx: tokio::sync::watch::Receiver<bool>,
 ) {
-    let pods: Api<Pod> = Api::namespaced(client, &request.namespace);
     let container = request.container.clone().unwrap_or_default();
     let mut consecutive_failures: u32 = 0;
     let mut last_line_seen_at: Option<std::time::Instant> = None;
+    let mut ever_connected = false;
 
     loop {
         if *cancel_rx.borrow() || tx.is_closed() {
@@ -122,69 +117,61 @@ async fn stream_logs(
             return;
         }
 
-        let mut params = LogParams {
-            follow: request.follow,
-            previous: request.previous,
-            timestamps: request.timestamps,
-            ..Default::default()
-        };
+        let mut cmd = build_kubectl_command(&request, ever_connected, last_line_seen_at);
 
-        if let Some(tail) = request.tail_lines {
-            if consecutive_failures == 0 {
-                params.tail_lines = Some(tail);
-            }
-        }
-
-        if !container.is_empty() {
-            params.container = Some(container.clone());
-        }
-
-        let reconnect_since = reconnect_since_seconds(request.since_seconds, last_line_seen_at.map(|t| t.elapsed()));
-
-        if let Some(since) = reconnect_since {
-            params.since_seconds = Some(since);
-        }
-
-        match pods.log_stream(&request.pod_name, &params).await {
-            Ok(log_stream) => {
+        match cmd.spawn() {
+            Ok(mut child) => {
                 consecutive_failures = 0;
+                ever_connected = true;
                 let _ = status_tx.send(StreamStatus::Streaming);
 
-                let mut lines_stream = log_stream.lines();
+                let stdout = child.stdout.take().expect("stdout is piped");
+                let mut lines = BufReader::new(stdout).lines();
+                let mut stream_read_error = false;
+
                 loop {
                     tokio::select! {
-                        item = lines_stream.next() => {
-                            match item {
-                                Some(Ok(raw_line)) => {
+                        line_result = lines.next_line() => {
+                            match line_result {
+                                Ok(Some(raw_line)) => {
+                                    if is_kubectl_noise(&raw_line) {
+                                        continue;
+                                    }
                                     let log_line = parse_raw_log_line(&raw_line, &container);
                                     if tx.send(log_line).is_err() {
                                         return;
                                     }
                                     last_line_seen_at = Some(std::time::Instant::now());
                                 }
-                                Some(Err(e)) => {
-                                    warn!("Log stream error: {e}");
-                                    break;
-                                }
-                                None => {
-                                    debug!("Log stream ended");
+                                Ok(None) => {
+                                    debug!("kubectl logs exited");
                                     if !request.follow {
                                         let _ = status_tx.send(StreamStatus::Stopped);
                                         return;
                                     }
                                     break;
                                 }
+                                Err(e) => {
+                                    warn!("Log stream read error: {e}");
+                                    stream_read_error = true;
+                                    break;
+                                }
                             }
                         }
                         _ = cancel_rx.changed() => {
+                            let _ = child.kill().await;
                             let _ = status_tx.send(StreamStatus::Stopped);
                             return;
                         }
                     }
                 }
+
+                if stream_read_error {
+                    consecutive_failures += 1;
+                }
             }
             Err(e) => {
-                warn!("Failed to start log stream: {e}");
+                warn!("Failed to spawn kubectl logs: {e}");
                 consecutive_failures += 1;
             }
         }
@@ -206,6 +193,59 @@ async fn stream_logs(
             }
         }
     }
+}
+
+fn build_kubectl_command(
+    request: &LogRequest,
+    ever_connected: bool,
+    last_line_seen_at: Option<std::time::Instant>,
+) -> Command {
+    let mut cmd = Command::new("kubectl");
+    cmd.arg("logs");
+
+    if request.follow {
+        cmd.arg("--follow=true");
+    }
+    if request.timestamps {
+        cmd.arg("--timestamps=true");
+    }
+    if request.previous {
+        cmd.arg("--previous=true");
+    }
+    if let Some(ctx) = &request.context {
+        cmd.arg(format!("--context={ctx}"));
+    }
+
+    cmd.arg(format!("--namespace={}", request.namespace));
+    cmd.arg(&request.pod_name);
+
+    let container = request.container.as_deref().unwrap_or("");
+    if !container.is_empty() {
+        cmd.arg(format!("--container={container}"));
+    }
+
+    if ever_connected {
+        // Reconnect: always use --since to avoid re-fetching historical lines.
+        // Fall back to 1s if we haven't tracked a specific last-line timestamp.
+        let since = reconnect_since_seconds(request.since_seconds, last_line_seen_at.map(|t| t.elapsed()))
+            .unwrap_or(1);
+        cmd.arg(format!("--since={since}s"));
+    } else if let Some(since) = reconnect_since_seconds(request.since_seconds, None) {
+        cmd.arg(format!("--since={since}s"));
+    } else {
+        let tail = request.tail_lines.unwrap_or(0);
+        cmd.arg(format!("--tail={tail}"));
+    }
+
+    cmd.stdout(std::process::Stdio::piped());
+    cmd.stderr(std::process::Stdio::null());
+    cmd.kill_on_drop(true);
+    cmd
+}
+
+fn is_kubectl_noise(line: &str) -> bool {
+    let lower = line.to_ascii_lowercase();
+    lower.contains("fsnotify") || lower.contains("too many open files")
 }
 
 fn reconnect_since_seconds(request_since_seconds: Option<i64>, since_last_line: Option<Duration>) -> Option<i64> {
@@ -291,6 +331,7 @@ mod tests {
         assert!(req.timestamps);
         assert!(!req.previous);
         assert!(req.container.is_none());
+        assert!(req.context.is_none());
     }
 
     #[test]

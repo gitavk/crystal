@@ -1258,40 +1258,78 @@ impl App {
             return;
         }
 
-        let focused = self.tab_manager.active().focused_pane;
-        let pane = LogsPane::new(name.clone(), namespace.clone());
-        let view = ViewType::Logs(name.clone());
-        let Some(new_id) = self.tab_manager.split_pane(focused, SplitDirection::Horizontal, view) else {
+        if let Some(existing_id) = self.find_logs_pane_in_active_tab(&name, &namespace) {
+            self.set_focus(existing_id);
             return;
-        };
-        self.panes.insert(new_id, Box::new(pane));
-        self.set_focus(new_id);
+        }
 
+        let pane_id = if let Some(existing_id) = self.find_any_logs_pane_in_active_tab() {
+            // Reuse one logs pane per tab to avoid accumulating long-lived streams.
+            self.panes.insert(existing_id, Box::new(LogsPane::new(name.clone(), namespace.clone())));
+            self.set_focus(existing_id);
+            existing_id
+        } else {
+            let focused = self.tab_manager.active().focused_pane;
+            let pane = LogsPane::new(name.clone(), namespace.clone());
+            let view = ViewType::Logs(name.clone());
+            let Some(new_id) = self.tab_manager.split_pane(focused, SplitDirection::Horizontal, view) else {
+                return;
+            };
+            self.panes.insert(new_id, Box::new(pane));
+            self.set_focus(new_id);
+            new_id
+        };
+
+        self.start_logs_stream_for_pane(pane_id, name, namespace);
+    }
+
+    fn find_logs_pane_in_active_tab(&self, pod_name: &str, namespace: &str) -> Option<PaneId> {
+        self.tab_manager.active().pane_tree.leaf_ids().into_iter().find(|pane_id| {
+            self.panes
+                .get(pane_id)
+                .and_then(|pane| pane.as_any().downcast_ref::<LogsPane>())
+                .is_some_and(|logs| logs.pod_name() == pod_name && logs.namespace() == namespace)
+        })
+    }
+
+    fn find_any_logs_pane_in_active_tab(&self) -> Option<PaneId> {
+        self.tab_manager.active().pane_tree.leaf_ids().into_iter().find(|pane_id| {
+            self.panes
+                .get(pane_id)
+                .is_some_and(|pane| pane.as_any().downcast_ref::<LogsPane>().is_some())
+        })
+    }
+
+    fn start_logs_stream_for_pane(&mut self, pane_id: PaneId, name: String, namespace: String) {
         let Some(client) = &self.kube_client else {
+            self.attach_logs_error(pane_id, "No cluster connection".into());
             self.toasts.push(ToastMessage::error("No cluster connection"));
             return;
         };
         let kube_client = client.inner_client();
+        let context = client.context().to_string();
         let app_tx = self.app_tx.clone();
 
         tokio::spawn(async move {
             let mut request = crystal_core::LogRequest {
+                context: Some(context),
                 pod_name: name.clone(),
                 namespace: namespace.clone(),
                 container: None,
                 follow: true,
-                tail_lines: None,
+                tail_lines: Some(0),
                 since_seconds: None,
                 previous: false,
                 timestamps: true,
             };
 
+            // Snapshot: one-shot kube-rs call for history + multi-container detection.
             let pods: Api<Pod> = Api::namespaced(kube_client.clone(), &namespace);
             let mut snapshot_params = kube::api::LogParams {
                 follow: false,
                 previous: request.previous,
                 timestamps: true,
-                tail_lines: None,
+                tail_lines: Some(1000),
                 container: request.container.clone(),
                 ..Default::default()
             };
@@ -1311,37 +1349,16 @@ impl App {
                 let container = request.container.clone().unwrap_or_default();
                 let lines =
                     snapshot.lines().map(|raw| crystal_core::parse_raw_log_line(raw, &container)).collect::<Vec<_>>();
-                let _ = app_tx.send(AppEvent::LogsSnapshotReady { pane_id: new_id, lines });
+                let _ = app_tx.send(AppEvent::LogsSnapshotReady { pane_id, lines });
             } else if let Err(e) = snapshot_result {
                 let _ =
-                    app_tx.send(AppEvent::LogsStreamError { pane_id: new_id, error: format!("snapshot failed: {e}") });
+                    app_tx.send(AppEvent::LogsStreamError { pane_id, error: format!("snapshot failed: {e}") });
                 return;
             }
 
-            let mut start_result = crystal_core::LogStream::start(&kube_client, request.clone()).await;
-
-            // Multi-container pods can require an explicit container for logs.
-            if let Err(err) = &start_result {
-                let msg = err.to_string();
-                if msg.contains("container") && msg.contains("must be specified") {
-                    let pods: Api<Pod> = Api::namespaced(kube_client.clone(), &namespace);
-                    let detected_container = detect_container_name(&pods, &name, &msg).await;
-                    if let Some(container_name) = detected_container {
-                        request.container = Some(container_name);
-                        start_result = crystal_core::LogStream::start(&kube_client, request).await;
-                    }
-                }
-            }
-
-            match start_result {
-                Ok(stream) => {
-                    let _ = app_tx.send(AppEvent::LogsStreamReady { pane_id: new_id, stream });
-                }
-                Err(e) => {
-                    let error = e.to_string();
-                    let _ = app_tx.send(AppEvent::LogsStreamError { pane_id: new_id, error: error.clone() });
-                    let _ = app_tx.send(AppEvent::Toast(ToastMessage::error(format!("Failed to start logs: {error}"))));
-                }
+            // Live stream: kubectl logs -f subprocess — avoids long-lived kube-rs connections.
+            if let Ok(stream) = crystal_core::LogStream::start(request).await {
+                let _ = app_tx.send(AppEvent::LogsStreamReady { pane_id, stream });
             }
         });
     }
