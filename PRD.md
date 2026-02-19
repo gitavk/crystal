@@ -1,11 +1,11 @@
-# Crystal — Product Requirements Document
+# KubeTile — Product Requirements Document
 
 | Field       | Value                                      |
 |-------------|--------------------------------------------|
 | Version     | 0.1.0                                      |
 | Status      | Draft                                      |
-| Updated     | 2026-02-07                                 |
-| Name Note   | "KubeForge" was a former working title; **Crystal** is the canonical project name |
+| Updated     | 2026-02-19                                 |
+| Name Note   | **KubeTile** is the canonical project name |
 
 ---
 
@@ -199,7 +199,7 @@ Each stage has a self-contained markdown file containing:
 
 | Item | Convention | Example |
 |------|-----------|---------|
-| Crate names | `crystal-*` | `crystal-core` |
+| Crate names | `kubetile-*` | `kubetile-core` |
 | Module files | `snake_case.rs` | `resource_view.rs` |
 | Structs/Enums | `PascalCase` | `PodListView` |
 | Functions | `snake_case` | `fetch_pods` |

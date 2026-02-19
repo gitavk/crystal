@@ -1,10 +1,10 @@
-# Crystal
+# KubeTile
 
-Crystal is a terminal-based Kubernetes workspace focused on fast, keyboard-driven navigation and a flexible pane-and-tab layout. It aims to make everyday cluster inspection feel like working in a tiled, multi-view console without leaving the terminal.
+KubeTile is a terminal-based Kubernetes workspace focused on fast, keyboard-driven navigation and a flexible pane-and-tab layout. It aims to make everyday cluster inspection feel like working in a tiled, multi-view console without leaving the terminal.
 
 **Prerequisites**
 - `kubectl` must be installed and available in your `PATH` to use pod exec sessions.
-- Crystal now checks this on startup and shows a notification if `kubectl` is missing.
+- KubeTile now checks this on startup and shows a notification if `kubectl` is missing.
 
 **What it does today**
 1. Connects to your current Kubernetes context and shows live resource lists across multiple Kubernetes kinds (including Pods, Deployments, Services, StatefulSets, DaemonSets, Jobs, CronJobs, ConfigMaps, Secrets, Ingresses, Nodes, Namespaces, PVs, and PVCs).
