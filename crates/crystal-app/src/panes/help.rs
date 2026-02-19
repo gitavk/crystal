@@ -137,11 +137,11 @@ impl Pane for HelpPane {
 
         let sections: &[(&str, &[(String, String)])] = &[
             ("Global (Ctrl+)", &self.global_shortcuts),
-            ("Navigation", &self.navigation_shortcuts),
             ("Browse", &self.browse_shortcuts),
-            ("TUI (Alt+)", &self.tui_shortcuts),
             ("Interact", &self.interact_shortcuts),
             ("Mutate (Ctrl+Alt+)", &self.mutate_shortcuts),
+            ("TUI (Alt+)", &self.tui_shortcuts),
+            ("Navigation", &self.navigation_shortcuts),
         ];
 
         for (i, (title, shortcuts)) in sections.iter().enumerate() {

@@ -8,3 +8,4 @@ serde.workspace = true
 toml.workspace = true
 anyhow.workspace = true
 dirs = "6"
+indexmap = { version = "2", features = ["serde"] }

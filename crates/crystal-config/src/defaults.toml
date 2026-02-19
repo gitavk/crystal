@@ -56,32 +56,30 @@ scroll_left = "ctrl+left"   # deliberate chord
 scroll_right = "ctrl+right" # mirrors ctrl+left
 
 [keybindings.browse]
-view_yaml = "y"               # y = yaml; matches k9s
-view_describe = "d"           # d = describe; matches k9s
-view_logs = "l"               # l = logs; matches k9s
-save_logs = "ctrl+s"          # universal save (gedit, nano, VS Code)
-filter = "/"                  # vim/less/man forward-search
 resource_switcher = ":"       # vim command mode; faster than any chord
-sort_column = "s"             # s = sort
-toggle_sort_order = "shift+s" # S = reverse; capital-as-inverse is a common TUI idiom
 toggle_all_namespaces = "a"   # a = all; matches k9s
+filter = "/"                  # vim/less/man forward-search
+save_logs = "ctrl+s"          # universal save (gedit, nano, VS Code)
 toggle_follow = "f"           # f = follow
 toggle_wrap = "w"             # w = wrap
+sort_column = "s"             # s = sort
+toggle_sort_order = "shift+s" # S = reverse; capital-as-inverse is a common TUI idiom
+view_yaml = "y"               # y = yaml; matches k9s
+view_describe = "d"           # d = describe; matches k9s
 
 [keybindings.tui]
-split_vertical = "alt+v"      # v = vertical; alt prefix avoids text-input conflicts
-split_horizontal = "alt+h"    # h = horizontal
 close_pane = "alt+x"          # x = close
+new_tab = "ctrl+t"            # universal new-tab (every Linux browser)
+close_tab = "ctrl+w"          # universal close-tab (every Linux browser); pairs with ctrl+t
 toggle_fullscreen = "alt+f"   # follow tui basic principle
 focus_up = "alt+up"           # alt+arrows = pane focus; mirrors i3/sway/tmux
 focus_down = "alt+down"
 focus_left = "alt+left"
 focus_right = "alt+right"
+split_vertical = "alt+v"      # v = vertical; alt prefix avoids text-input conflicts
+split_horizontal = "alt+h"    # h = horizontal
 resize_grow = "alt+shift+up"  # shift distinguishes resize from plain alt+arrows (focus)
 resize_shrink = "alt+shift+down"
-new_tab = "ctrl+t"            # universal new-tab (every Linux browser)
-close_tab = "ctrl+w"          # universal close-tab (every Linux browser); pairs with ctrl+t
-open_terminal = "alt+enter"   # alt scopes enter to "open terminal here"
 focus_next = "tab"            # universal forward focus cycling (GTK, Qt, web)
 focus_prev = "shift+tab"      # universal backward focus cycling
 goto_tab_1 = "alt+1"          # alt+N = browser/tmux/i3 tab switching
@@ -93,15 +91,16 @@ goto_tab_6 = "alt+6"
 goto_tab_7 = "alt+7"
 goto_tab_8 = "alt+8"
 goto_tab_9 = "alt+9"
+open_terminal = "alt+enter"   # alt scopes enter to "open terminal here"
 
 [keybindings.global]
-quit = "ctrl+q"               # standard quit in htop, ranger, mc, ncmpcpp
 help = "f1"                   # dedicated Linux help key
-app_logs = "ctrl+shift+l"     # shift avoids ctrl+l = clear-screen muscle memory
-port_forwards = "ctrl+shift+p" # p = port forwards
-enter_insert = "i"            # vim insert mode
 namespace_selector = "ctrl+n" # n = namespace
 context_selector = "ctrl+k"   # k = kubernetes context
+quit = "ctrl+q"               # standard quit in htop, ranger, mc, ncmpcpp
+port_forwards = "ctrl+shift+p" # p = port forwards
+app_logs = "ctrl+shift+l"     # shift avoids ctrl+l = clear-screen muscle memory
+enter_insert = "i"            # vim insert mode
 
 [keybindings.mutate]
 delete = "ctrl+alt+d"          # triple modifier prevents accidental deletion of production resources
@@ -111,6 +110,7 @@ restart_rollout = "ctrl+alt+r" # triple modifier
 [keybindings.interact]
 exec = "e"                    # e = exec; matches k9s
 port_forward = "p"            # p = port-forward; matches k9s
+view_logs = "l"               # l = logs; matches k9s
 
 [views.pods]
 columns = ["name", "ready", "status", "restarts", "age", "node"]

@@ -260,39 +260,27 @@ impl KeybindingDispatcher {
     }
 
     pub fn global_shortcuts(&self) -> Vec<(String, String)> {
-        let mut sorted = self.reverse_global.clone();
-        sorted.sort_by(|a, b| a.0.cmp(&b.0));
-        sorted.into_iter().map(|(_, key_str, desc)| (format_key_display(&key_str), desc)).collect()
+        self.reverse_global.iter().map(|(_, key_str, desc)| (format_key_display(key_str), desc.clone())).collect()
     }
 
     pub fn navigation_shortcuts(&self) -> Vec<(String, String)> {
-        let mut sorted = self.reverse_navigation.clone();
-        sorted.sort_by(|a, b| a.0.cmp(&b.0));
-        sorted.into_iter().map(|(_, key_str, desc)| (format_key_display(&key_str), desc)).collect()
+        self.reverse_navigation.iter().map(|(_, key_str, desc)| (format_key_display(key_str), desc.clone())).collect()
     }
 
     pub fn browse_shortcuts(&self) -> Vec<(String, String)> {
-        let mut sorted = self.reverse_browse.clone();
-        sorted.sort_by(|a, b| a.0.cmp(&b.0));
-        sorted.into_iter().map(|(_, key_str, desc)| (format_key_display(&key_str), desc)).collect()
+        self.reverse_browse.iter().map(|(_, key_str, desc)| (format_key_display(key_str), desc.clone())).collect()
     }
 
     pub fn tui_shortcuts(&self) -> Vec<(String, String)> {
-        let mut sorted = self.reverse_tui.clone();
-        sorted.sort_by(|a, b| a.0.cmp(&b.0));
-        sorted.into_iter().map(|(_, key_str, desc)| (format_key_display(&key_str), desc)).collect()
+        self.reverse_tui.iter().map(|(_, key_str, desc)| (format_key_display(key_str), desc.clone())).collect()
     }
 
     pub fn interact_shortcuts(&self) -> Vec<(String, String)> {
-        let mut sorted = self.reverse_interact.clone();
-        sorted.sort_by(|a, b| a.0.cmp(&b.0));
-        sorted.into_iter().map(|(_, key_str, desc)| (format_key_display(&key_str), desc)).collect()
+        self.reverse_interact.iter().map(|(_, key_str, desc)| (format_key_display(key_str), desc.clone())).collect()
     }
 
     pub fn mutate_shortcuts(&self) -> Vec<(String, String)> {
-        let mut sorted = self.reverse_mutate.clone();
-        sorted.sort_by(|a, b| a.0.cmp(&b.0));
-        sorted.into_iter().map(|(_, key_str, desc)| (format_key_display(&key_str), desc)).collect()
+        self.reverse_mutate.iter().map(|(_, key_str, desc)| (format_key_display(key_str), desc.clone())).collect()
     }
 }
 
@@ -498,6 +486,7 @@ fn interact_command_from_name(name: &str) -> Option<Command> {
     match name {
         "exec" => Some(Command::ExecInto),
         "port_forward" => Some(Command::PortForward),
+        "view_logs" => Some(Command::ViewLogs),
         _ => None,
     }
 }
@@ -506,6 +495,7 @@ fn interact_command_description(name: &str) -> String {
     match name {
         "exec" => "Exec",
         "port_forward" => "Port Forward",
+        "view_logs" => "Logs",
         _ => "Unknown",
     }
     .into()

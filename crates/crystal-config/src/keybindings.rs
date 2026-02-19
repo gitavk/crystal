@@ -1,25 +1,26 @@
 use std::collections::HashMap;
 
+use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Default, Clone, Deserialize, Serialize)]
 pub struct KeybindingsConfig {
     #[serde(default)]
-    pub navigation: HashMap<String, String>,
+    pub navigation: IndexMap<String, String>,
     #[serde(default)]
-    pub browse: HashMap<String, String>,
+    pub browse: IndexMap<String, String>,
     #[serde(default)]
-    pub tui: HashMap<String, String>,
+    pub tui: IndexMap<String, String>,
     #[serde(default)]
-    pub global: HashMap<String, String>,
+    pub global: IndexMap<String, String>,
     #[serde(default)]
-    pub mutate: HashMap<String, String>,
+    pub mutate: IndexMap<String, String>,
     #[serde(default)]
-    pub interact: HashMap<String, String>,
+    pub interact: IndexMap<String, String>,
 }
 
 impl KeybindingsConfig {
-    fn group_entries(&self) -> [(&str, &HashMap<String, String>); 6] {
+    fn group_entries(&self) -> [(&str, &IndexMap<String, String>); 6] {
         [
             ("global", &self.global),
             ("mutate", &self.mutate),

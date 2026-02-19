@@ -1294,9 +1294,7 @@ impl App {
 
     fn find_any_logs_pane_in_active_tab(&self) -> Option<PaneId> {
         self.tab_manager.active().pane_tree.leaf_ids().into_iter().find(|pane_id| {
-            self.panes
-                .get(pane_id)
-                .is_some_and(|pane| pane.as_any().downcast_ref::<LogsPane>().is_some())
+            self.panes.get(pane_id).is_some_and(|pane| pane.as_any().downcast_ref::<LogsPane>().is_some())
         })
     }
 
@@ -1351,8 +1349,7 @@ impl App {
                     snapshot.lines().map(|raw| crystal_core::parse_raw_log_line(raw, &container)).collect::<Vec<_>>();
                 let _ = app_tx.send(AppEvent::LogsSnapshotReady { pane_id, lines });
             } else if let Err(e) = snapshot_result {
-                let _ =
-                    app_tx.send(AppEvent::LogsStreamError { pane_id, error: format!("snapshot failed: {e}") });
+                let _ = app_tx.send(AppEvent::LogsStreamError { pane_id, error: format!("snapshot failed: {e}") });
                 return;
             }
 

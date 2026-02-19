@@ -227,8 +227,7 @@ fn build_kubectl_command(
     if ever_connected {
         // Reconnect: always use --since to avoid re-fetching historical lines.
         // Fall back to 1s if we haven't tracked a specific last-line timestamp.
-        let since = reconnect_since_seconds(request.since_seconds, last_line_seen_at.map(|t| t.elapsed()))
-            .unwrap_or(1);
+        let since = reconnect_since_seconds(request.since_seconds, last_line_seen_at.map(|t| t.elapsed())).unwrap_or(1);
         cmd.arg(format!("--since={since}s"));
     } else if let Some(since) = reconnect_since_seconds(request.since_seconds, None) {
         cmd.arg(format!("--since={since}s"));
