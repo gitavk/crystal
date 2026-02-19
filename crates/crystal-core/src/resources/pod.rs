@@ -30,6 +30,7 @@ impl fmt::Display for PodPhase {
 pub struct PodSummary {
     pub name: String,
     pub namespace: String,
+    pub uid: Option<String>,
     pub status: PodPhase,
     pub ready: String,
     pub restarts: i32,
@@ -63,6 +64,7 @@ impl ResourceSummary for PodSummary {
             ("RESTARTS", self.restarts.to_string()),
             ("AGE", format_duration(self.age)),
             ("NODE", self.node.clone().unwrap_or_default()),
+            ("UID", self.uid.clone().unwrap_or_default()),
         ]
     }
 
@@ -75,6 +77,7 @@ impl ResourceSummary for PodSummary {
             self.restarts.to_string(),
             format_duration(self.age),
             self.node.clone().unwrap_or_default(),
+            self.uid.clone().unwrap_or_default(),
         ]
     }
 
@@ -103,6 +106,7 @@ impl From<&Pod> for PodSummary {
         let metadata = &pod.metadata;
         let name = metadata.name.clone().unwrap_or_default();
         let namespace = metadata.namespace.clone().unwrap_or_else(|| "default".into());
+        let uid = metadata.uid.clone();
 
         let status = pod
             .status
@@ -134,7 +138,7 @@ impl From<&Pod> for PodSummary {
 
         let node = pod.spec.as_ref().and_then(|s| s.node_name.clone());
 
-        Self { name, namespace, status, ready, restarts, age, node }
+        Self { name, namespace, uid, status, ready, restarts, age, node }
     }
 }
 

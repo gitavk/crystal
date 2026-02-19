@@ -1,4 +1,5 @@
 use std::sync::atomic::{AtomicU64, Ordering};
+use std::time::{Duration, Instant};
 
 use k8s_openapi::api::core::v1::Pod;
 use kube::{Api, Client};
@@ -38,6 +39,8 @@ pub struct PortForward {
     remote_port: u16,
     pod_name: String,
     namespace: String,
+    pod_uid: Option<String>,
+    started_at: Instant,
     handle: JoinHandle<()>,
     shutdown_tx: tokio::sync::watch::Sender<bool>,
 }
@@ -67,6 +70,8 @@ impl PortForward {
         remote_port: u16,
     ) -> anyhow::Result<Self> {
         let id = NEXT_FORWARD_ID.fetch_add(1, Ordering::Relaxed);
+        let pods: Api<Pod> = Api::namespaced(client.clone(), namespace);
+        let pod_uid = pods.get(pod_name).await.ok().and_then(|pod| pod.metadata.uid);
 
         // Bind to local port early to fail fast if port is in use
         let listener = TcpListener::bind(format!("127.0.0.1:{}", local_port)).await?;
@@ -97,6 +102,8 @@ impl PortForward {
             remote_port,
             pod_name: pod_name_str,
             namespace: namespace_str,
+            pod_uid,
+            started_at: Instant::now(),
             handle,
             shutdown_tx,
         })
@@ -131,6 +138,16 @@ impl PortForward {
     /// Get the namespace of the pod.
     pub fn namespace(&self) -> &str {
         &self.namespace
+    }
+
+    /// Get the UID of the pod when the forward was created.
+    pub fn pod_uid(&self) -> Option<&str> {
+        self.pod_uid.as_deref()
+    }
+
+    /// Get how long this forward has existed.
+    pub fn age(&self) -> Duration {
+        self.started_at.elapsed()
     }
 
     /// Get the unique identifier for this forward.
@@ -245,6 +262,8 @@ mod tests {
             remote_port: 80,
             pod_name: "test-pod".to_string(),
             namespace: "default".to_string(),
+            pod_uid: Some("pod-uid-1".to_string()),
+            started_at: Instant::now(),
             handle,
             shutdown_tx,
         };
@@ -254,6 +273,7 @@ mod tests {
         assert_eq!(pf.remote_port(), 80);
         assert_eq!(pf.pod_name(), "test-pod");
         assert_eq!(pf.namespace(), "default");
+        assert_eq!(pf.pod_uid(), Some("pod-uid-1"));
     }
 
     #[tokio::test]
@@ -269,6 +289,8 @@ mod tests {
             remote_port: 80,
             pod_name: "test".to_string(),
             namespace: "default".to_string(),
+            pod_uid: None,
+            started_at: Instant::now(),
             handle,
             shutdown_tx,
         };
@@ -309,6 +331,8 @@ mod tests {
             remote_port: 80,
             pod_name: "pod1".to_string(),
             namespace: "default".to_string(),
+            pod_uid: None,
+            started_at: Instant::now(),
             handle: handle1,
             shutdown_tx: shutdown_tx1,
         };
@@ -319,6 +343,8 @@ mod tests {
             remote_port: 90,
             pod_name: "pod2".to_string(),
             namespace: "default".to_string(),
+            pod_uid: None,
+            started_at: Instant::now(),
             handle: handle2,
             shutdown_tx: shutdown_tx2,
         };

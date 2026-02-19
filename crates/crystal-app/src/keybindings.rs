@@ -310,6 +310,13 @@ fn normalize_key_event(key: KeyEvent) -> KeyEvent {
     // Normalize Shift+char: crossterm may report Shift+'g' or just 'G' with SHIFT.
     // Canonicalize to uppercase char + SHIFT modifier.
     if let KeyCode::Char(c) = key.code {
+        // In most terminals Ctrl+Shift+<letter> is indistinguishable from Ctrl+<letter>.
+        // Canonicalize all Ctrl+letter to lowercase without SHIFT for stable matching.
+        if key.modifiers.contains(KeyModifiers::CONTROL) && c.is_ascii_alphabetic() {
+            let mut modifiers = key.modifiers;
+            modifiers -= KeyModifiers::SHIFT;
+            return KeyEvent::new(KeyCode::Char(c.to_ascii_lowercase()), modifiers);
+        }
         if c.is_ascii_lowercase() && key.modifiers.contains(KeyModifiers::SHIFT) {
             return KeyEvent::new(KeyCode::Char(c.to_ascii_uppercase()), key.modifiers);
         }
@@ -437,7 +444,8 @@ pub fn parse_key_string(s: &str) -> Option<KeyEvent> {
         _ => return None,
     };
 
-    Some(KeyEvent::new(code, modifiers))
+    let parsed = KeyEvent::new(code, modifiers);
+    Some(normalize_key_event(parsed))
 }
 
 fn global_command_from_name(name: &str) -> Option<Command> {
@@ -445,6 +453,7 @@ fn global_command_from_name(name: &str) -> Option<Command> {
         "quit" => Some(Command::Quit),
         "help" => Some(Command::ShowHelp),
         "app_logs" => Some(Command::ToggleAppLogsTab),
+        "port_forwards" => Some(Command::TogglePortForwardsTab),
         "enter_insert" => Some(Command::EnterMode(InputMode::Insert)),
         "namespace_selector" => Some(Command::EnterMode(InputMode::NamespaceSelector)),
         "context_selector" => Some(Command::EnterMode(InputMode::ContextSelector)),
@@ -457,6 +466,7 @@ fn global_command_description(name: &str) -> String {
         "quit" => "Quit",
         "help" => "Help",
         "app_logs" => "App logs",
+        "port_forwards" => "Port forwards",
         "enter_insert" => "Insert mode",
         "namespace_selector" => "Namespace",
         "context_selector" => "Context",

@@ -98,6 +98,7 @@ goto_tab_9 = "alt+9"
 quit = "ctrl+q"               # standard quit in htop, ranger, mc, ncmpcpp
 help = "f1"                   # dedicated Linux help key
 app_logs = "ctrl+shift+l"     # shift avoids ctrl+l = clear-screen muscle memory
+port_forwards = "ctrl+shift+p" # p = port forwards
 enter_insert = "i"            # vim insert mode
 namespace_selector = "ctrl+n" # n = namespace
 context_selector = "ctrl+k"   # k = kubernetes context

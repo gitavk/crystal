@@ -16,12 +16,14 @@ pub enum AppEvent {
     /// This erases the generic S type so AppEvent doesn't need type params.
     ResourceUpdate {
         pane_id: PaneId,
+        watcher_seq: u64,
         #[allow(dead_code)]
         headers: Vec<String>,
         rows: Vec<Vec<String>>,
     },
     ResourceError {
         pane_id: PaneId,
+        watcher_seq: u64,
         error: String,
     },
     Toast(ToastMessage),

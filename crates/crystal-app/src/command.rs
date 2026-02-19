@@ -20,6 +20,7 @@ pub enum Command {
     Quit,
     ShowHelp,
     ToggleAppLogsTab,
+    TogglePortForwardsTab,
     FocusNextPane,
     FocusPrevPane,
     FocusDirection(Direction),

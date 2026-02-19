@@ -15,7 +15,7 @@ fn default_pod() -> Pod {
     serde_json::from_value(serde_json::json!({
         "apiVersion": "v1",
         "kind": "Pod",
-        "metadata": { "name": "nginx", "namespace": "default" },
+        "metadata": { "name": "nginx", "namespace": "default", "uid": "pod-uid-1" },
         "spec": { "nodeName": "node-1", "containers": [{ "name": "nginx", "image": "nginx:latest" }] },
         "status": {
             "phase": "Running",
@@ -217,8 +217,8 @@ fn pod_phase_display() {
 #[test]
 fn pod_summary_columns_and_row_length() {
     let s = PodSummary::from(&default_pod());
-    assert_eq!(s.columns().len(), 7);
-    assert_eq!(s.row().len(), 7);
+    assert_eq!(s.columns().len(), 8);
+    assert_eq!(s.row().len(), 8);
 }
 
 #[test]
@@ -230,6 +230,7 @@ fn pod_summary_from_k8s() {
     assert_eq!(s.ready, "1/1");
     assert_eq!(s.restarts, 0);
     assert_eq!(s.node, Some("node-1".into()));
+    assert_eq!(s.uid, Some("pod-uid-1".into()));
 }
 
 #[test]
@@ -237,6 +238,7 @@ fn pod_summary_row_values() {
     let s = PodSummary {
         name: "nginx".into(),
         namespace: "default".into(),
+        uid: Some("pod-uid-1".into()),
         status: PodPhase::Running,
         ready: "1/1".into(),
         restarts: 0,
@@ -244,7 +246,7 @@ fn pod_summary_row_values() {
         node: Some("node-1".into()),
     };
     let row = s.row();
-    assert_eq!(row, vec!["nginx", "default", "1/1", "Running", "0", "5m", "node-1"]);
+    assert_eq!(row, vec!["nginx", "default", "1/1", "Running", "0", "5m", "node-1", "pod-uid-1"]);
 }
 
 #[test]
@@ -269,10 +271,11 @@ fn pod_summary_missing_status() {
 }
 
 #[test]
-fn pod_summary_columns_returns_seven_entries() {
+fn pod_summary_columns_returns_eight_entries() {
     let summary = PodSummary {
         name: "nginx".into(),
         namespace: "default".into(),
+        uid: Some("pod-uid-1".into()),
         status: PodPhase::Running,
         ready: "1/1".into(),
         restarts: 0,
@@ -280,10 +283,11 @@ fn pod_summary_columns_returns_seven_entries() {
         node: Some("node-1".into()),
     };
     let cols = summary.columns();
-    assert_eq!(cols.len(), 7);
+    assert_eq!(cols.len(), 8);
     assert_eq!(cols[0], ("NAME", "nginx".into()));
     assert_eq!(cols[2], ("STATUS", "Running".into()));
     assert_eq!(cols[5], ("AGE", "1h".into()));
+    assert_eq!(cols[7], ("UID", "pod-uid-1".into()));
 }
 
 #[test]
@@ -291,6 +295,7 @@ fn resource_summary_trait_is_object_safe() {
     let summary = PodSummary {
         name: "test".into(),
         namespace: "default".into(),
+        uid: None,
         status: PodPhase::Pending,
         ready: "0/1".into(),
         restarts: 2,
@@ -307,6 +312,7 @@ fn pod_summary_row_includes_namespace_column() {
     let summary = PodSummary {
         name: "nginx".into(),
         namespace: "default".into(),
+        uid: Some("pod-uid-1".into()),
         status: PodPhase::Running,
         ready: "1/1".into(),
         restarts: 3,
@@ -314,7 +320,7 @@ fn pod_summary_row_includes_namespace_column() {
         node: Some("node-1".into()),
     };
     let row = summary.row();
-    assert_eq!(row.len(), 7);
+    assert_eq!(row.len(), 8);
     assert_eq!(row[0], "nginx");
     assert_eq!(row[1], "default");
     assert_eq!(row[2], "1/1");
@@ -322,6 +328,7 @@ fn pod_summary_row_includes_namespace_column() {
     assert_eq!(row[4], "3");
     assert_eq!(row[5], "2h");
     assert_eq!(row[6], "node-1");
+    assert_eq!(row[7], "pod-uid-1");
 }
 
 #[test]
@@ -329,6 +336,7 @@ fn pod_summary_detail_sections_has_metadata_and_status() {
     let summary = PodSummary {
         name: "web".into(),
         namespace: "prod".into(),
+        uid: None,
         status: PodPhase::Pending,
         ready: "0/2".into(),
         restarts: 0,
@@ -348,6 +356,7 @@ fn pod_summary_detail_sections_includes_node_when_present() {
     let summary = PodSummary {
         name: "api".into(),
         namespace: "default".into(),
+        uid: None,
         status: PodPhase::Running,
         ready: "1/1".into(),
         restarts: 0,

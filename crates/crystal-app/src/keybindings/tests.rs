@@ -38,6 +38,8 @@ fn dispatch_global_keys() {
     assert_eq!(d.dispatch(ctrl(KeyCode::Char('k'))), Some((Command::EnterMode(InputMode::ContextSelector), false)));
     assert_eq!(d.dispatch(ctrl(KeyCode::Char('n'))), Some((Command::EnterMode(InputMode::NamespaceSelector), false)));
     assert_eq!(d.dispatch(press(KeyCode::Char('i'))), Some((Command::EnterMode(InputMode::Insert), false)));
+    assert_eq!(d.dispatch(ctrl(KeyCode::Char('l'))), Some((Command::ToggleAppLogsTab, false)));
+    assert_eq!(d.dispatch(ctrl(KeyCode::Char('p'))), Some((Command::TogglePortForwardsTab, false)));
 }
 
 #[test]

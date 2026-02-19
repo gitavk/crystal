@@ -34,7 +34,9 @@ use crystal_tui::widgets::toast::{ToastLevel, ToastMessage};
 use crate::command::{Command, InputMode};
 use crate::event::{AppEvent, EventHandler};
 use crate::keybindings::KeybindingDispatcher;
-use crate::panes::{AppLogsPane, ExecPane, HelpPane, LogsPane, ResourceDetailPane, ResourceListPane, YamlPane};
+use crate::panes::{
+    AppLogsPane, ExecPane, HelpPane, LogsPane, PortForwardsPane, ResourceDetailPane, ResourceListPane, YamlPane,
+};
 use crate::resource_switcher::ResourceSwitcher;
 
 #[derive(Debug, Clone)]
@@ -117,6 +119,7 @@ pub struct App {
     /// When a pane switches resource type, its watcher is cancelled and a new one spawned.
     /// Dropping a ResourceWatcher cancels its background task automatically.
     active_watchers: HashMap<PaneId, ResourceWatcher>,
+    watcher_seq_by_pane: HashMap<PaneId, u64>,
     active_forwards: HashMap<ForwardId, crystal_core::PortForward>,
     pod_forward_index: HashMap<(String, String), ForwardId>,
     filter_input_buffer: String,
@@ -183,6 +186,7 @@ impl App {
             context_selected: 0,
             tab_scopes: HashMap::new(),
             active_watchers: HashMap::new(),
+            watcher_seq_by_pane: HashMap::new(),
             active_forwards: HashMap::new(),
             pod_forward_index: HashMap::new(),
             filter_input_buffer: String::new(),
@@ -261,8 +265,16 @@ impl App {
                 self.toasts.retain(|t| !t.is_expired());
             }
             AppEvent::Resize(_, _) => {}
-            AppEvent::ResourceUpdate { pane_id, headers, rows } => self.handle_resource_update(pane_id, headers, rows),
-            AppEvent::ResourceError { pane_id, error } => self.handle_resource_error(pane_id, error),
+            AppEvent::ResourceUpdate { pane_id, watcher_seq, headers, rows } => {
+                if self.watcher_seq_by_pane.get(&pane_id).copied() == Some(watcher_seq) {
+                    self.handle_resource_update(pane_id, headers, rows);
+                }
+            }
+            AppEvent::ResourceError { pane_id, watcher_seq, error } => {
+                if self.watcher_seq_by_pane.get(&pane_id).copied() == Some(watcher_seq) {
+                    self.handle_resource_error(pane_id, error);
+                }
+            }
             AppEvent::Toast(toast) => {
                 match toast.level {
                     ToastLevel::Success => tracing::info!("{}", toast.text),
@@ -306,6 +318,8 @@ impl App {
     fn start_watcher_for_pane(&mut self, pane_id: PaneId, kind: &ResourceKind, namespace: &str) {
         // Cancel existing watcher if any (dropping it cancels the background task)
         self.active_watchers.remove(&pane_id);
+        let watcher_seq = self.watcher_seq_by_pane.get(&pane_id).copied().unwrap_or(0).wrapping_add(1);
+        self.watcher_seq_by_pane.insert(pane_id, watcher_seq);
 
         let Some(client) = &self.kube_client else {
             return;
@@ -317,6 +331,7 @@ impl App {
         // Helper to bridge ResourceEvent<S> to AppEvent::ResourceUpdate
         fn spawn_bridge<S>(
             pane_id: PaneId,
+            watcher_seq: u64,
             mut rx: mpsc::Receiver<ResourceEvent<S>>,
             app_tx: mpsc::UnboundedSender<AppEvent>,
         ) where
@@ -332,9 +347,9 @@ impl App {
                                 items[0].columns().into_iter().map(|(h, _)| h.to_string()).collect()
                             };
                             let rows = items.iter().map(|item| item.row()).collect();
-                            AppEvent::ResourceUpdate { pane_id, headers, rows }
+                            AppEvent::ResourceUpdate { pane_id, watcher_seq, headers, rows }
                         }
-                        ResourceEvent::Error(error) => AppEvent::ResourceError { pane_id, error },
+                        ResourceEvent::Error(error) => AppEvent::ResourceError { pane_id, watcher_seq, error },
                     };
                     if app_tx.send(app_event).is_err() {
                         break;
@@ -355,14 +370,14 @@ impl App {
                 let (tx, rx) = mpsc::channel(16);
                 let watcher = ResourceWatcher::watch::<$k8s_type, $summary_type>(api, tx);
                 self.active_watchers.insert(pane_id, watcher);
-                spawn_bridge(pane_id, rx, app_tx);
+                spawn_bridge(pane_id, watcher_seq, rx, app_tx);
             }};
             (cluster $k8s_type:ty, $summary_type:ty) => {{
                 let api: Api<$k8s_type> = Api::all(kube_client.clone());
                 let (tx, rx) = mpsc::channel(16);
                 let watcher = ResourceWatcher::watch::<$k8s_type, $summary_type>(api, tx);
                 self.active_watchers.insert(pane_id, watcher);
-                spawn_bridge(pane_id, rx, app_tx);
+                spawn_bridge(pane_id, watcher_seq, rx, app_tx);
             }};
         }
 
@@ -412,6 +427,7 @@ impl App {
             }
             Command::ShowHelp => self.toggle_help(),
             Command::ToggleAppLogsTab => self.toggle_app_logs_tab(),
+            Command::TogglePortForwardsTab => self.toggle_port_forwards_tab(),
             Command::FocusNextPane => self.focus_next(),
             Command::FocusPrevPane => self.focus_prev(),
             Command::SplitVertical => self.split_focused(SplitDirection::Vertical),
@@ -652,7 +668,16 @@ impl App {
             }
 
             Command::DeleteResource => {
-                self.initiate_delete();
+                let focused = self.tab_manager.active().focused_pane;
+                let is_port_forwards = self
+                    .panes
+                    .get(&focused)
+                    .is_some_and(|p| matches!(p.view_type(), ViewType::Plugin(name) if name == "PortForwards"));
+                if is_port_forwards {
+                    self.stop_selected_port_forward();
+                } else {
+                    self.initiate_delete();
+                }
             }
             Command::ConfirmAction => {
                 self.execute_confirmed_action();
@@ -801,6 +826,7 @@ impl App {
             for id in pane_ids {
                 self.panes.remove(&id);
                 self.active_watchers.remove(&id);
+                self.watcher_seq_by_pane.remove(&id);
             }
             self.load_active_scope();
             self.update_active_tab_title();
@@ -827,6 +853,27 @@ impl App {
         self.update_active_tab_title();
     }
 
+    fn toggle_port_forwards_tab(&mut self) {
+        let active_tab_id = self.tab_manager.active().id;
+        if self.is_port_forwards_tab(active_tab_id) {
+            self.close_tab();
+            return;
+        }
+
+        if let Some(idx) = self.find_port_forwards_tab_index() {
+            self.switch_to_tab_index(idx);
+            return;
+        }
+
+        self.sync_active_scope();
+        let tab_id = self.tab_manager.new_tab("Port Forwards", ViewType::Plugin("PortForwards".into()));
+        let pane_id = self.tab_manager.tabs().iter().find(|t| t.id == tab_id).unwrap().focused_pane;
+        self.panes.insert(pane_id, Box::new(PortForwardsPane::new()));
+        self.refresh_port_forwards_panes();
+        self.sync_active_scope();
+        self.update_active_tab_title();
+    }
+
     fn is_app_logs_tab(&self, tab_id: u32) -> bool {
         let Some(tab) = self.tab_manager.tabs().iter().find(|t| t.id == tab_id) else {
             return false;
@@ -842,6 +889,21 @@ impl App {
         self.tab_manager.tabs().iter().position(|tab| self.is_app_logs_tab(tab.id))
     }
 
+    fn is_port_forwards_tab(&self, tab_id: u32) -> bool {
+        let Some(tab) = self.tab_manager.tabs().iter().find(|t| t.id == tab_id) else {
+            return false;
+        };
+        tab.pane_tree.leaf_ids().iter().all(|pane_id| {
+            self.panes
+                .get(pane_id)
+                .is_some_and(|p| matches!(p.view_type(), ViewType::Plugin(name) if name == "PortForwards"))
+        })
+    }
+
+    fn find_port_forwards_tab_index(&self) -> Option<usize> {
+        self.tab_manager.tabs().iter().position(|tab| self.is_port_forwards_tab(tab.id))
+    }
+
     fn reset_last_tab_to_pods(&mut self, old_tab_id: u32, old_pane_ids: Vec<PaneId>) {
         let ns = self.context_resolver.namespace().unwrap_or("default").to_string();
         let old_scope = self.tab_scopes.get(&old_tab_id).cloned();
@@ -855,6 +917,7 @@ impl App {
         for id in old_pane_ids {
             self.panes.remove(&id);
             self.active_watchers.remove(&id);
+            self.watcher_seq_by_pane.remove(&id);
         }
 
         self.tab_scopes.remove(&old_tab_id);
@@ -1007,6 +1070,7 @@ impl App {
         if self.tab_manager.active_mut().pane_tree.close(target) {
             self.panes.remove(&target);
             self.active_watchers.remove(&target);
+            self.watcher_seq_by_pane.remove(&target);
             if let Some(ref mut fs) = self.tab_manager.active_mut().fullscreen_pane {
                 if *fs == target {
                     self.tab_manager.active_mut().fullscreen_pane = None;
@@ -1122,7 +1186,6 @@ impl App {
     }
 
     fn handle_resource_update(&mut self, pane_id: PaneId, headers: Vec<String>, rows: Vec<Vec<String>>) {
-        let pod_forward_index = self.pod_forward_index.clone();
         if let Some(pane) = self.panes.get_mut(&pane_id) {
             if let Some(resource_pane) = pane.as_any_mut().downcast_mut::<ResourceListPane>() {
                 let configured_columns = resource_pane
@@ -1130,16 +1193,8 @@ impl App {
                     .map(|k| self.views_config.columns_for(resource_kind_config_key(k)))
                     .unwrap_or(&[]);
 
-                let (mut effective_headers, mut effective_rows) =
+                let (effective_headers, effective_rows) =
                     crystal_config::views::filter_columns(configured_columns, &headers, &rows);
-
-                if matches!(resource_pane.kind(), Some(ResourceKind::Pods)) {
-                    effective_headers = with_pod_forward_header(&effective_headers);
-                    effective_rows = effective_rows
-                        .into_iter()
-                        .map(|row| with_pod_forward_cell(row, &pod_forward_index, &effective_headers))
-                        .collect();
-                }
 
                 if !effective_headers.is_empty() {
                     resource_pane.state.headers = effective_headers;
@@ -1393,7 +1448,7 @@ impl App {
                     let _ = app_tx
                         .send(AppEvent::Toast(ToastMessage::success(format!("Stopped port-forward for {pod_name}"))));
                 });
-                self.refresh_pod_forward_indicators();
+                self.refresh_port_forwards_panes();
                 return;
             }
         }
@@ -1484,14 +1539,14 @@ impl App {
         let id = forward.id();
         self.pod_forward_index.insert((ns, pod.clone()), id);
         self.active_forwards.insert(id, forward);
-        self.refresh_pod_forward_indicators();
+        self.refresh_port_forwards_panes();
         self.toasts.push(ToastMessage::success(format!("Forwarding {pod}:{remote} -> 127.0.0.1:{local}")));
     }
 
     fn stop_all_port_forwards(&mut self) {
         let forwards: Vec<crystal_core::PortForward> = self.active_forwards.drain().map(|(_, f)| f).collect();
         self.pod_forward_index.clear();
-        self.refresh_pod_forward_indicators();
+        self.refresh_port_forwards_panes();
         for forward in forwards {
             tokio::spawn(async move {
                 let _ = forward.stop().await;
@@ -1499,22 +1554,43 @@ impl App {
         }
     }
 
-    fn refresh_pod_forward_indicators(&mut self) {
-        let pod_forward_index = self.pod_forward_index.clone();
-        if let Some(pane) = self.panes.get_mut(&self.pods_pane_id) {
-            if let Some(rp) = pane.as_any_mut().downcast_mut::<ResourceListPane>() {
-                if rp.state.headers.is_empty() {
-                    return;
-                }
-                let headers = with_pod_forward_header(&rp.state.headers);
-                rp.state.headers = headers.clone();
-                for row in &mut rp.state.items {
-                    let updated = with_pod_forward_cell(std::mem::take(row), &pod_forward_index, &headers);
-                    *row = updated;
-                }
-                rp.refresh_filter_and_sort();
+    fn refresh_port_forwards_panes(&mut self) {
+        let mut rows: Vec<(ForwardId, String, String, u16, u16, Duration)> = self
+            .active_forwards
+            .values()
+            .map(|f| {
+                (f.id(), f.pod_name().to_string(), f.namespace().to_string(), f.local_port(), f.remote_port(), f.age())
+            })
+            .collect();
+        rows.sort_by(|a, b| a.5.cmp(&b.5).reverse());
+
+        for pane in self.panes.values_mut() {
+            if let Some(pf) = pane.as_any_mut().downcast_mut::<PortForwardsPane>() {
+                pf.set_items(rows.clone());
             }
         }
+    }
+
+    fn stop_selected_port_forward(&mut self) {
+        let focused = self.tab_manager.active().focused_pane;
+        let Some(pane) = self.panes.get(&focused) else { return };
+        let Some(pf_pane) = pane.as_any().downcast_ref::<PortForwardsPane>() else {
+            return;
+        };
+        let Some(forward_id) = pf_pane.selected_forward_id() else { return };
+        let Some(forward) = self.active_forwards.remove(&forward_id) else {
+            return;
+        };
+
+        let key = (forward.namespace().to_string(), forward.pod_name().to_string());
+        self.pod_forward_index.remove(&key);
+        self.refresh_port_forwards_panes();
+        let pod_name = forward.pod_name().to_string();
+        let app_tx = self.app_tx.clone();
+        tokio::spawn(async move {
+            let _ = forward.stop().await;
+            let _ = app_tx.send(AppEvent::Toast(ToastMessage::success(format!("Stopped port-forward for {pod_name}"))));
+        });
     }
 
     fn focused_supports_insert_mode(&self) -> bool {
@@ -1646,6 +1722,7 @@ impl App {
         let pane_ids: Vec<PaneId> = self.tab_manager.active().pane_tree.leaf_ids();
         for pane_id in &pane_ids {
             self.active_watchers.remove(pane_id);
+            self.watcher_seq_by_pane.remove(pane_id);
         }
         for pane_id in pane_ids {
             let (kind, all_namespaces, headers) = {
@@ -2031,7 +2108,6 @@ fn resource_kind_config_key(kind: &ResourceKind) -> &'static str {
 
 fn pods_headers() -> Vec<String> {
     vec![
-        "PF".into(),
         "NAME".into(),
         "NAMESPACE".into(),
         "STATUS".into(),
@@ -2114,16 +2190,6 @@ fn first_container_from_logs_error(error_msg: &str) -> Option<String> {
         .map(|s| s.trim_matches('"').to_string())
 }
 
-fn with_pod_forward_header(headers: &[String]) -> Vec<String> {
-    if headers.iter().any(|h| h == "PF") {
-        return headers.to_vec();
-    }
-    let mut updated = Vec::with_capacity(headers.len() + 1);
-    updated.push("PF".to_string());
-    updated.extend(headers.iter().cloned());
-    updated
-}
-
 fn home_downloads_dir() -> Option<PathBuf> {
     env::var_os("HOME").map(PathBuf::from).map(|home| home.join("Downloads"))
 }
@@ -2161,30 +2227,6 @@ fn sanitize_filename_component(input: &str) -> String {
         "unknown".to_string()
     } else {
         out
-    }
-}
-
-fn with_pod_forward_cell(
-    mut row: Vec<String>,
-    pod_forward_index: &HashMap<(String, String), ForwardId>,
-    headers: &[String],
-) -> Vec<String> {
-    let name = header_value(headers, &row, "NAME", 0).unwrap_or_default();
-    let namespace = header_value(headers, &row, "NAMESPACE", usize::MAX).unwrap_or_default();
-    let active = pod_forward_index.contains_key(&(namespace, name));
-    set_pod_forward_cell(&mut row, active);
-    row
-}
-
-fn set_pod_forward_cell(row: &mut Vec<String>, active: bool) {
-    if row.is_empty() {
-        row.push(if active { "ON".into() } else { String::new() });
-        return;
-    }
-    if row[0] == "ON" || row[0].is_empty() {
-        row[0] = if active { "ON".into() } else { String::new() };
-    } else {
-        row.insert(0, if active { "ON".into() } else { String::new() });
     }
 }
 
