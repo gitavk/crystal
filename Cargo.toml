@@ -6,7 +6,7 @@ members = [
     "crates/kubetile-core",
     "crates/crystal-tui",
     "crates/kubetile-config",
-    "crates/crystal-terminal",
+    "crates/kubetile-terminal",
 ]
 
 [workspace.dependencies]

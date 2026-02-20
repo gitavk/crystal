@@ -2,7 +2,7 @@ use ratatui::prelude::*;
 use ratatui::widgets::Paragraph;
 
 use crate::theme::Theme;
-use crystal_terminal::render_terminal_screen;
+use kubetile_terminal::render_terminal_screen;
 
 pub type SessionId = u64;
 

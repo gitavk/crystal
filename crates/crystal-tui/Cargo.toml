@@ -9,4 +9,4 @@ crossterm.workspace = true
 vt100.workspace = true
 anyhow.workspace = true
 kubetile-config = { path = "../kubetile-config" }
-crystal-terminal = { path = "../crystal-terminal" }
+kubetile-terminal = { path = "../kubetile-terminal" }
