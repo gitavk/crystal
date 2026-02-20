@@ -3,10 +3,10 @@ use std::any::Any;
 use ratatui::prelude::*;
 use ratatui::widgets::{Block, Borders, Paragraph, Scrollbar, ScrollbarOrientation, ScrollbarState};
 
-use crystal_tui::pane::{Pane, PaneCommand, ResourceKind, ViewType};
-use crystal_tui::theme::Theme;
-use crystal_tui::widgets::breadcrumb::BreadcrumbWidget;
 use kubetile_core::resource::DetailSection;
+use kubetile_tui::pane::{Pane, PaneCommand, ResourceKind, ViewType};
+use kubetile_tui::theme::Theme;
+use kubetile_tui::widgets::breadcrumb::BreadcrumbWidget;
 
 #[allow(dead_code)]
 pub struct ResourceDetailPane {

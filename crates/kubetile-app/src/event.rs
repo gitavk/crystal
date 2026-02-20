@@ -1,9 +1,9 @@
 use std::time::Duration;
 
 use crossterm::event::{self, Event, KeyEvent};
-use crystal_tui::pane::{PaneId, ResourceKind};
-use crystal_tui::widgets::toast::ToastMessage;
 use kubetile_core::{KubeClient, LogLine, LogStream, PortForward};
+use kubetile_tui::pane::{PaneId, ResourceKind};
+use kubetile_tui::widgets::toast::ToastMessage;
 use tokio::sync::mpsc;
 
 pub enum AppEvent {

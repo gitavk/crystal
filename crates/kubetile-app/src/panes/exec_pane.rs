@@ -7,9 +7,9 @@ use portable_pty::{native_pty_system, Child, CommandBuilder, MasterPty, PtySize}
 use ratatui::prelude::*;
 use ratatui::widgets::{Block, Borders, Paragraph};
 
-use crystal_tui::pane::{Pane, PaneCommand, ViewType};
-use crystal_tui::theme::Theme;
 use kubetile_terminal::render_terminal_screen;
+use kubetile_tui::pane::{Pane, PaneCommand, ViewType};
+use kubetile_tui::theme::Theme;
 
 pub struct ExecPane {
     view_type: ViewType,

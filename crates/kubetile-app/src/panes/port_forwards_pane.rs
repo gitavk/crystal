@@ -1,9 +1,9 @@
 use std::any::Any;
 use std::time::Duration;
 
-use crystal_tui::pane::{Pane, PaneCommand, ViewType};
-use crystal_tui::widgets::resource_list::ResourceListWidget;
 use kubetile_core::ForwardId;
+use kubetile_tui::pane::{Pane, PaneCommand, ViewType};
+use kubetile_tui::widgets::resource_list::ResourceListWidget;
 use ratatui::prelude::{Frame, Rect};
 
 use crate::state::ResourceListState;
@@ -73,7 +73,7 @@ impl PortForwardsPane {
 }
 
 impl Pane for PortForwardsPane {
-    fn render(&self, frame: &mut Frame, area: Rect, focused: bool, theme: &crystal_tui::theme::Theme) {
+    fn render(&self, frame: &mut Frame, area: Rect, focused: bool, theme: &kubetile_tui::theme::Theme) {
         let items: Vec<&Vec<String>> = self.state.items.iter().collect();
         let widget = ResourceListWidget {
             title: "Port Forwards",

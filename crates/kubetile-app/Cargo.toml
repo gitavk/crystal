@@ -8,7 +8,7 @@ name = "crystal"
 path = "src/main.rs"
 
 [dependencies]
-crystal-tui = { path = "../crystal-tui" }
+kubetile-tui = { path = "../kubetile-tui" }
 kubetile-config = { path = "../kubetile-config" }
 kubetile-core = { path = "../kubetile-core" }
 kubetile-terminal = { path = "../kubetile-terminal" }

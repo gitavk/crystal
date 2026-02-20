@@ -4,8 +4,8 @@ use std::cell::Cell;
 use ratatui::prelude::*;
 use ratatui::widgets::{Block, Borders, Paragraph, Scrollbar, ScrollbarOrientation, ScrollbarState};
 
-use crystal_tui::pane::{Pane, PaneCommand, ResourceKind, ViewType};
-use crystal_tui::theme::Theme;
+use kubetile_tui::pane::{Pane, PaneCommand, ResourceKind, ViewType};
+use kubetile_tui::theme::Theme;
 
 #[allow(dead_code)]
 pub struct YamlPane {

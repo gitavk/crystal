@@ -3,8 +3,8 @@ use std::cmp::Ordering;
 
 use ratatui::prelude::{Frame, Rect};
 
-use crystal_tui::pane::{Pane, PaneCommand, ResourceKind, ViewType};
-use crystal_tui::widgets::resource_list::ResourceListWidget;
+use kubetile_tui::pane::{Pane, PaneCommand, ResourceKind, ViewType};
+use kubetile_tui::widgets::resource_list::ResourceListWidget;
 
 use crate::state::ResourceListState;
 
@@ -225,7 +225,7 @@ fn parse_age_seconds(raw: &str) -> Option<u64> {
 }
 
 impl Pane for ResourceListPane {
-    fn render(&self, frame: &mut Frame, area: Rect, focused: bool, theme: &crystal_tui::theme::Theme) {
+    fn render(&self, frame: &mut Frame, area: Rect, focused: bool, theme: &kubetile_tui::theme::Theme) {
         let title = match &self.view_type {
             ViewType::ResourceList(kind) => kind.display_name(),
             _ => "Resources",

@@ -4,7 +4,7 @@ resolver = "2"
 members = [
     "crates/kubetile-app",
     "crates/kubetile-core",
-    "crates/crystal-tui",
+    "crates/kubetile-tui",
     "crates/kubetile-config",
     "crates/kubetile-terminal",
 ]

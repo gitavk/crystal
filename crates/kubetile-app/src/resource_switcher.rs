@@ -1,4 +1,4 @@
-use crystal_tui::pane::ResourceKind;
+use kubetile_tui::pane::ResourceKind;
 
 pub struct ResourceSwitcher {
     input: String,

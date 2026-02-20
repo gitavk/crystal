@@ -17,19 +17,19 @@ use ratatui::backend::Backend;
 use ratatui::Terminal;
 use tokio::sync::mpsc;
 
-use crystal_tui::layout::{
-    ConfirmDialogView, ContextSelectorView, NamespaceSelectorView, PortForwardDialogView, RenderContext,
-    ResourceSwitcherView,
-};
-use crystal_tui::pane::{
-    find_pane_in_direction, Direction, Pane, PaneCommand, PaneId, ResourceKind, SplitDirection, ViewType,
-};
-use crystal_tui::tab::TabManager;
-use crystal_tui::widgets::toast::{ToastLevel, ToastMessage};
 use kubetile_core::informer::{ResourceEvent, ResourceWatcher};
 use kubetile_core::resource::{DetailSection, ResourceSummary};
 use kubetile_core::*;
 use kubetile_core::{ContextResolver, KubeClient};
+use kubetile_tui::layout::{
+    ConfirmDialogView, ContextSelectorView, NamespaceSelectorView, PortForwardDialogView, RenderContext,
+    ResourceSwitcherView,
+};
+use kubetile_tui::pane::{
+    find_pane_in_direction, Direction, Pane, PaneCommand, PaneId, ResourceKind, SplitDirection, ViewType,
+};
+use kubetile_tui::tab::TabManager;
+use kubetile_tui::widgets::toast::{ToastLevel, ToastMessage};
 
 use crate::command::{Command, InputMode};
 use crate::event::{AppEvent, EventHandler};
@@ -131,7 +131,7 @@ pub struct App {
     panes: HashMap<PaneId, Box<dyn Pane>>,
     pods_pane_id: PaneId,
     app_tx: mpsc::UnboundedSender<AppEvent>,
-    theme: crystal_tui::theme::Theme,
+    theme: kubetile_tui::theme::Theme,
     views_config: kubetile_config::ViewsConfig,
 }
 
@@ -139,7 +139,7 @@ impl App {
     pub async fn new(
         tick_rate_ms: u64,
         dispatcher: KeybindingDispatcher,
-        theme: crystal_tui::theme::Theme,
+        theme: kubetile_tui::theme::Theme,
         views_config: kubetile_config::ViewsConfig,
     ) -> Self {
         let mut context_resolver = ContextResolver::new();
@@ -240,7 +240,7 @@ impl App {
                 ctx.close_pane_key = keys[3].as_deref();
                 ctx.new_tab_key = keys[4].as_deref();
                 ctx.quit_key = keys[5].as_deref();
-                crystal_tui::layout::render_root(frame, &ctx);
+                kubetile_tui::layout::render_root(frame, &ctx);
             })?;
 
             let first = events.next().await?;
@@ -2001,8 +2001,8 @@ impl App {
             local_port: &pf.local_input,
             remote_port: &pf.remote_input,
             active_field: match pf.active_field {
-                PortForwardField::Local => crystal_tui::layout::PortForwardFieldView::Local,
-                PortForwardField::Remote => crystal_tui::layout::PortForwardFieldView::Remote,
+                PortForwardField::Local => kubetile_tui::layout::PortForwardFieldView::Local,
+                PortForwardField::Remote => kubetile_tui::layout::PortForwardFieldView::Remote,
             },
         });
 
@@ -2377,7 +2377,7 @@ impl Pane for EmptyPane {
         frame: &mut ratatui::prelude::Frame,
         area: ratatui::prelude::Rect,
         focused: bool,
-        theme: &crystal_tui::theme::Theme,
+        theme: &kubetile_tui::theme::Theme,
     ) {
         use ratatui::widgets::{Block, Borders, Paragraph};
 
@@ -2395,7 +2395,7 @@ impl Pane for EmptyPane {
         frame.render_widget(msg, inner);
     }
 
-    fn handle_command(&mut self, _cmd: &crystal_tui::pane::PaneCommand) {}
+    fn handle_command(&mut self, _cmd: &kubetile_tui::pane::PaneCommand) {}
 
     fn view_type(&self) -> &ViewType {
         &self.0

@@ -1,4 +1,4 @@
-use crystal_tui::pane::{Pane, PaneCommand, ResourceKind};
+use kubetile_tui::pane::{Pane, PaneCommand, ResourceKind};
 
 use super::ResourceListPane;
 

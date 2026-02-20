@@ -1,5 +1,5 @@
-use crystal_tui::pane::{Direction, PaneCommand};
 use kubetile_core::{ForwardId, SessionId};
+use kubetile_tui::pane::{Direction, PaneCommand};
 
 pub use crate::keybindings::InputMode;
 

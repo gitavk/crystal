@@ -1,7 +1,7 @@
 use super::*;
 use crossterm::event::KeyCode;
-use crystal_tui::pane::{PaneCommand, PaneTree};
 use kubetile_core::resource::DetailSection;
+use kubetile_tui::pane::{PaneCommand, PaneTree};
 use tokio_util::sync::CancellationToken;
 
 use crate::keybindings::KeybindingDispatcher;
@@ -353,7 +353,7 @@ fn open_yaml_pane_creates_split() {
     let (mut panes, mut tm) = make_test_app_with_ns_headers();
 
     let focused = tm.active().focused_pane;
-    let theme = crystal_tui::theme::Theme::default();
+    let theme = kubetile_tui::theme::Theme::default();
     let yaml_pane = YamlPane::new(ResourceKind::Pods, "pod-a".into(), "apiVersion: v1\nkind: Pod".into(), &theme);
     let view = ViewType::Yaml(ResourceKind::Pods, "pod-a".into());
 
@@ -393,7 +393,7 @@ fn back_on_yaml_pane_closes_it() {
     let (mut panes, mut tm) = make_test_app_with_ns_headers();
 
     let focused = tm.active().focused_pane;
-    let theme = crystal_tui::theme::Theme::default();
+    let theme = kubetile_tui::theme::Theme::default();
     let yaml_pane = YamlPane::new(ResourceKind::Pods, "pod-a".into(), "kind: Pod".into(), &theme);
     let view = ViewType::Yaml(ResourceKind::Pods, "pod-a".into());
     let yaml_id = tm.split_pane(focused, SplitDirection::Horizontal, view).unwrap();
@@ -611,7 +611,7 @@ fn insert_mode_hints_contain_esc() {
 async fn enter_insert_mode_is_gated_by_focused_pane_type() {
     let dispatcher = test_dispatcher();
     let mut app =
-        App::new(50, dispatcher, crystal_tui::theme::Theme::default(), kubetile_config::ViewsConfig::default()).await;
+        App::new(50, dispatcher, kubetile_tui::theme::Theme::default(), kubetile_config::ViewsConfig::default()).await;
     app.dispatcher.set_mode(InputMode::Normal);
 
     app.handle_command(Command::EnterMode(InputMode::Insert));
@@ -631,7 +631,7 @@ async fn enter_insert_mode_is_gated_by_focused_pane_type() {
 async fn exec_spawns_kubectl_and_enters_insert_mode() {
     let dispatcher = test_dispatcher();
     let mut app =
-        App::new(50, dispatcher, crystal_tui::theme::Theme::default(), kubetile_config::ViewsConfig::default()).await;
+        App::new(50, dispatcher, kubetile_tui::theme::Theme::default(), kubetile_config::ViewsConfig::default()).await;
     app.dispatcher.set_mode(InputMode::Normal);
 
     app.with_pods_pane(|pane| {

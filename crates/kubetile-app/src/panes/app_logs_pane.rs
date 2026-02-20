@@ -4,7 +4,7 @@ use ratatui::prelude::*;
 use ratatui::widgets::{Block, Borders, Paragraph};
 
 use crate::app_log;
-use crystal_tui::pane::{Pane, PaneCommand, ViewType};
+use kubetile_tui::pane::{Pane, PaneCommand, ViewType};
 
 pub struct AppLogsPane {
     view_type: ViewType,
@@ -33,7 +33,7 @@ impl AppLogsPane {
 }
 
 impl Pane for AppLogsPane {
-    fn render(&self, frame: &mut Frame, area: Rect, focused: bool, theme: &crystal_tui::theme::Theme) {
+    fn render(&self, frame: &mut Frame, area: Rect, focused: bool, theme: &kubetile_tui::theme::Theme) {
         let border_style = if focused { theme.border_active } else { theme.border };
         let mode = if self.follow { "follow" } else { "paused" };
         let block = Block::default()
