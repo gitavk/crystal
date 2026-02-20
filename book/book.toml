@@ -8,3 +8,8 @@ src = "src"
 [output.html]
 git-repository-url = "https://github.com/gitavk/KubeTile"
 edit-url-template = "https://github.com/gitavk/KubeTile/edit/main/book/src/{path}"
+additional-css = ["theme/custom.css"]
+input-404 = "404.md"
+
+[output.html.search]
+enable = true

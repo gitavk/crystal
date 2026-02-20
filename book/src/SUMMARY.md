@@ -5,3 +5,5 @@
 - [Keybindings](keybindings.md)
 - [Configuration](configuration.md)
 - [Views](views.md)
+
+[404](404.md)
