@@ -1,0 +1,10 @@
+[book]
+title = "KubeTile"
+authors = ["KubeTile contributors"]
+language = "en"
+multilingual = false
+src = "src"
+
+[output.html]
+git-repository-url = "https://github.com/gitavk/KubeTile"
+edit-url-template = "https://github.com/gitavk/KubeTile/edit/main/book/src/{path}"
