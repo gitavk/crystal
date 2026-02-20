@@ -1,4 +1,4 @@
-use crystal_config::ThemeConfig;
+use kubetile_config::ThemeConfig;
 use ratatui::style::{Color, Style};
 
 #[derive(Debug, Clone)]

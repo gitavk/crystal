@@ -1,13 +1,13 @@
 use super::*;
 use crossterm::event::KeyCode;
-use kubetile_core::resource::DetailSection;
 use crystal_tui::pane::{PaneCommand, PaneTree};
+use kubetile_core::resource::DetailSection;
 use tokio_util::sync::CancellationToken;
 
 use crate::keybindings::KeybindingDispatcher;
 
 fn test_dispatcher() -> KeybindingDispatcher {
-    let config = crystal_config::Config::load();
+    let config = kubetile_config::Config::load();
     KeybindingDispatcher::from_config(&config.keybindings)
 }
 
@@ -211,7 +211,7 @@ fn fullscreen_is_per_tab() {
 
 #[test]
 fn mode_switch_updates_dispatcher() {
-    let mut d = KeybindingDispatcher::from_config(&crystal_config::Config::load().keybindings);
+    let mut d = KeybindingDispatcher::from_config(&kubetile_config::Config::load().keybindings);
     d.set_mode(InputMode::NamespaceSelector);
     assert_eq!(d.mode(), InputMode::NamespaceSelector);
 }
@@ -611,7 +611,7 @@ fn insert_mode_hints_contain_esc() {
 async fn enter_insert_mode_is_gated_by_focused_pane_type() {
     let dispatcher = test_dispatcher();
     let mut app =
-        App::new(50, dispatcher, crystal_tui::theme::Theme::default(), crystal_config::ViewsConfig::default()).await;
+        App::new(50, dispatcher, crystal_tui::theme::Theme::default(), kubetile_config::ViewsConfig::default()).await;
     app.dispatcher.set_mode(InputMode::Normal);
 
     app.handle_command(Command::EnterMode(InputMode::Insert));
@@ -631,7 +631,7 @@ async fn enter_insert_mode_is_gated_by_focused_pane_type() {
 async fn exec_spawns_kubectl_and_enters_insert_mode() {
     let dispatcher = test_dispatcher();
     let mut app =
-        App::new(50, dispatcher, crystal_tui::theme::Theme::default(), crystal_config::ViewsConfig::default()).await;
+        App::new(50, dispatcher, crystal_tui::theme::Theme::default(), kubetile_config::ViewsConfig::default()).await;
     app.dispatcher.set_mode(InputMode::Normal);
 
     app.with_pods_pane(|pane| {

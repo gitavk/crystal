@@ -149,7 +149,7 @@ fn config_type_alias_works() {
 
 #[test]
 fn save_and_load_roundtrip() {
-    let dir = std::env::temp_dir().join("crystal_config_test");
+    let dir = std::env::temp_dir().join("kubetile_config_test");
     let _ = std::fs::remove_dir_all(&dir);
     std::fs::create_dir_all(&dir).unwrap();
     let path = dir.join("config.toml");

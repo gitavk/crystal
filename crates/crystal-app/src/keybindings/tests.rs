@@ -2,7 +2,7 @@ use super::*;
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 
 fn default_dispatcher() -> KeybindingDispatcher {
-    let config = crystal_config::Config::default();
+    let config = kubetile_config::Config::default();
     KeybindingDispatcher::from_config(&config.keybindings)
 }
 
@@ -140,7 +140,7 @@ fn global_shadows_lower_priority_group() {
 
 #[test]
 fn config_merge_overrides() {
-    let mut config = crystal_config::Config::load();
+    let mut config = kubetile_config::Config::load();
     config.keybindings.global.insert("quit".into(), "ctrl+x".into());
     let d = KeybindingDispatcher::from_config(&config.keybindings);
 
@@ -590,7 +590,7 @@ fn all_bindings_returns_entries_for_all_groups() {
 
 #[test]
 fn from_config_builds_all_five_maps() {
-    let config = crystal_config::Config::load();
+    let config = kubetile_config::Config::load();
     let d = KeybindingDispatcher::from_config(&config.keybindings);
 
     assert!(!d.global_shortcuts().is_empty());

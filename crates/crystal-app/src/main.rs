@@ -35,13 +35,13 @@ async fn main() -> anyhow::Result<()> {
     let cli = Cli::parse();
 
     if cli.init_config {
-        let path = crystal_config::AppConfig::init_default()?;
+        let path = kubetile_config::AppConfig::init_default()?;
         println!("Config written to {}", path.display());
         return Ok(());
     }
 
     if cli.print_config {
-        let config = crystal_config::AppConfig::load();
+        let config = kubetile_config::AppConfig::load();
         println!("{}", toml::to_string_pretty(&config)?);
         return Ok(());
     }
@@ -63,7 +63,7 @@ async fn main() -> anyhow::Result<()> {
     let backend = CrosstermBackend::new(io::stdout());
     let mut terminal = Terminal::new(backend)?;
 
-    let config = crystal_config::Config::load();
+    let config = kubetile_config::Config::load();
     let dispatcher = KeybindingDispatcher::from_config(&config.keybindings);
     let theme = crystal_tui::theme::Theme::from_config(&config.theme);
     let mut app = App::new(config.tick_rate_ms(), dispatcher, theme, config.views).await;

@@ -3,7 +3,7 @@ use crate::keybindings::KeybindingDispatcher;
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 
 fn default_dispatcher() -> KeybindingDispatcher {
-    let config = crystal_config::Config::load();
+    let config = kubetile_config::Config::load();
     KeybindingDispatcher::from_config(&config.keybindings)
 }
 

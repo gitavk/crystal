@@ -1,9 +1,9 @@
 use std::any::Any;
 use std::time::Duration;
 
-use kubetile_core::ForwardId;
 use crystal_tui::pane::{Pane, PaneCommand, ViewType};
 use crystal_tui::widgets::resource_list::ResourceListWidget;
+use kubetile_core::ForwardId;
 use ratatui::prelude::{Frame, Rect};
 
 use crate::state::ResourceListState;

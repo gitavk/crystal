@@ -17,10 +17,6 @@ use ratatui::backend::Backend;
 use ratatui::Terminal;
 use tokio::sync::mpsc;
 
-use kubetile_core::informer::{ResourceEvent, ResourceWatcher};
-use kubetile_core::resource::{DetailSection, ResourceSummary};
-use kubetile_core::*;
-use kubetile_core::{ContextResolver, KubeClient};
 use crystal_tui::layout::{
     ConfirmDialogView, ContextSelectorView, NamespaceSelectorView, PortForwardDialogView, RenderContext,
     ResourceSwitcherView,
@@ -30,6 +26,10 @@ use crystal_tui::pane::{
 };
 use crystal_tui::tab::TabManager;
 use crystal_tui::widgets::toast::{ToastLevel, ToastMessage};
+use kubetile_core::informer::{ResourceEvent, ResourceWatcher};
+use kubetile_core::resource::{DetailSection, ResourceSummary};
+use kubetile_core::*;
+use kubetile_core::{ContextResolver, KubeClient};
 
 use crate::command::{Command, InputMode};
 use crate::event::{AppEvent, EventHandler};
@@ -132,7 +132,7 @@ pub struct App {
     pods_pane_id: PaneId,
     app_tx: mpsc::UnboundedSender<AppEvent>,
     theme: crystal_tui::theme::Theme,
-    views_config: crystal_config::ViewsConfig,
+    views_config: kubetile_config::ViewsConfig,
 }
 
 impl App {
@@ -140,7 +140,7 @@ impl App {
         tick_rate_ms: u64,
         dispatcher: KeybindingDispatcher,
         theme: crystal_tui::theme::Theme,
-        views_config: crystal_config::ViewsConfig,
+        views_config: kubetile_config::ViewsConfig,
     ) -> Self {
         let mut context_resolver = ContextResolver::new();
         let kube_client = match KubeClient::from_kubeconfig().await {
@@ -1195,7 +1195,7 @@ impl App {
                     .unwrap_or(&[]);
 
                 let (effective_headers, effective_rows) =
-                    crystal_config::views::filter_columns(configured_columns, &headers, &rows);
+                    kubetile_config::views::filter_columns(configured_columns, &headers, &rows);
 
                 if !effective_headers.is_empty() {
                     resource_pane.state.headers = effective_headers;

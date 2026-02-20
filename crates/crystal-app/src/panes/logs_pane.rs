@@ -4,9 +4,9 @@ use std::cell::Cell;
 use ratatui::prelude::*;
 use ratatui::widgets::{Block, Borders, Paragraph, Wrap};
 
-use kubetile_core::{LogLine, LogStream, StreamStatus};
 use crystal_tui::pane::{Pane, PaneCommand, ViewType};
 use crystal_tui::theme::Theme;
+use kubetile_core::{LogLine, LogStream, StreamStatus};
 
 const MAX_LOG_LINES: usize = 5000;
 
@@ -340,8 +340,8 @@ fn sanitize_log_text(input: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::{sanitize_log_text, LogsPane};
-    use kubetile_core::LogLine;
     use crystal_tui::pane::{Pane, PaneCommand};
+    use kubetile_core::LogLine;
 
     #[test]
     fn sanitize_strips_ansi_sequences() {

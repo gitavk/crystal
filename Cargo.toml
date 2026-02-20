@@ -5,7 +5,7 @@ members = [
     "crates/crystal-app",
     "crates/kubetile-core",
     "crates/crystal-tui",
-    "crates/crystal-config",
+    "crates/kubetile-config",
     "crates/crystal-terminal",
 ]
 

@@ -2,8 +2,8 @@ use std::collections::HashMap;
 
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 
-use crystal_config::KeybindingsConfig;
 use crystal_tui::pane::{Direction, PaneCommand};
+use kubetile_config::KeybindingsConfig;
 
 use crate::command::Command;
 

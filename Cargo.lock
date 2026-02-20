@@ -367,12 +367,12 @@ dependencies = [
  "anyhow",
  "clap",
  "crossterm",
- "crystal-config",
  "crystal-terminal",
  "crystal-tui",
  "jiff",
  "k8s-openapi",
  "kube",
+ "kubetile-config",
  "kubetile-core",
  "portable-pty",
  "ratatui",
@@ -382,17 +382,6 @@ dependencies = [
  "tracing",
  "tracing-subscriber",
  "vt100",
-]
-
-[[package]]
-name = "crystal-config"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "dirs",
- "indexmap",
- "serde",
- "toml",
 ]
 
 [[package]]
@@ -414,8 +403,8 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "crossterm",
- "crystal-config",
  "crystal-terminal",
+ "kubetile-config",
  "ratatui",
  "vt100",
 ]
@@ -1193,6 +1182,17 @@ dependencies = [
  "tokio",
  "tokio-util",
  "tracing",
+]
+
+[[package]]
+name = "kubetile-config"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "dirs",
+ "indexmap",
+ "serde",
+ "toml",
 ]
 
 [[package]]
