@@ -19,9 +19,9 @@ use crate::app::App;
 use crate::keybindings::KeybindingDispatcher;
 
 #[derive(Parser)]
-#[command(name = "crystal", about = "Keyboard-driven Kubernetes TUI IDE")]
+#[command(name = "kubetile", about = "Keyboard-driven Kubernetes TUI IDE")]
 struct Cli {
-    /// Generate default config file at ~/.config/crystal/config.toml
+    /// Generate default config file at ~/.config/kubetile/config.toml
     #[arg(long)]
     init_config: bool,
 

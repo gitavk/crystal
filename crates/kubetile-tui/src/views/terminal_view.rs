@@ -102,7 +102,7 @@ mod tests {
 
     #[test]
     fn title_bar_renders_in_first_row() {
-        let view = TerminalView::new(1, "[crystal:minikube/default] /bin/bash".into());
+        let view = TerminalView::new(1, "[kubetile:minikube/default] /bin/bash".into());
         let parser = make_screen(24, 80, b"");
         let area = Rect::new(0, 0, 80, 25);
         let theme = Theme::default();
@@ -116,7 +116,7 @@ mod tests {
             .unwrap();
 
         let result_buf = terminal.backend().buffer().clone();
-        let title = "[crystal:minikube/default] /bin/bash";
+        let title = "[kubetile:minikube/default] /bin/bash";
         for (i, ch) in title.chars().enumerate() {
             assert_eq!(result_buf[(i as u16, 0)].symbol(), ch.to_string(), "char at position {i}");
         }

@@ -14,9 +14,9 @@ impl ContextEnv {
     pub fn to_env_map(&self) -> HashMap<String, String> {
         let mut env: HashMap<String, String> = std::env::vars().collect();
         env.insert("KUBECONFIG".into(), self.kubeconfig.to_string_lossy().into_owned());
-        env.insert("CRYSTAL_CONTEXT".into(), self.context.clone());
-        env.insert("CRYSTAL_NAMESPACE".into(), self.namespace.clone());
-        env.insert("CRYSTAL_CLUSTER".into(), self.cluster_name.clone());
+        env.insert("KUBETILE_CONTEXT".into(), self.context.clone());
+        env.insert("KUBETILE_NAMESPACE".into(), self.namespace.clone());
+        env.insert("KUBETILE_CLUSTER".into(), self.cluster_name.clone());
         env
     }
 
@@ -26,7 +26,7 @@ impl ContextEnv {
             "export KUBECONFIG='{kubeconfig}'\n\
              kubectl config use-context '{context}'\n\
              kubectl config set-context --current --namespace='{namespace}'\n\
-             export PS1='[crystal:{cluster}/{namespace}] $ '\n",
+             export PS1='[kubetile:{cluster}/{namespace}] $ '\n",
             kubeconfig = self.kubeconfig.display(),
             context = self.context,
             namespace = self.namespace,
@@ -55,11 +55,11 @@ mod tests {
     }
 
     #[test]
-    fn env_map_contains_crystal_vars() {
+    fn env_map_contains_kubetile_vars() {
         let env = sample_env().to_env_map();
-        assert_eq!(env.get("CRYSTAL_CONTEXT").unwrap(), "prod-east");
-        assert_eq!(env.get("CRYSTAL_NAMESPACE").unwrap(), "default");
-        assert_eq!(env.get("CRYSTAL_CLUSTER").unwrap(), "prod-east-cluster");
+        assert_eq!(env.get("KUBETILE_CONTEXT").unwrap(), "prod-east");
+        assert_eq!(env.get("KUBETILE_NAMESPACE").unwrap(), "default");
+        assert_eq!(env.get("KUBETILE_CLUSTER").unwrap(), "prod-east-cluster");
     }
 
     #[test]
@@ -83,7 +83,7 @@ mod tests {
     #[test]
     fn init_script_sets_ps1() {
         let script = sample_env().shell_init_script();
-        assert!(script.contains("[crystal:prod-east-cluster/default]"));
+        assert!(script.contains("[kubetile:prod-east-cluster/default]"));
     }
 
     #[test]

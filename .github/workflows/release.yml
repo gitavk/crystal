@@ -43,25 +43,25 @@ jobs:
     - name: Prepare staging directory for packaging
       run: |
         mkdir -p staging/usr/bin
-        cp target/release/crystal staging/usr/bin/
-        mkdir -p staging/usr/share/doc/crystal
-        cp README.md staging/usr/share/doc/crystal/README
-        mkdir -p staging/usr/share/licenses/crystal
-        cp LICENSE staging/usr/share/licenses/crystal/
+        cp target/release/kubetile staging/usr/bin/
+        mkdir -p staging/usr/share/doc/kubetile
+        cp README.md staging/usr/share/doc/kubetile/README
+        mkdir -p staging/usr/share/licenses/kubetile
+        cp LICENSE staging/usr/share/licenses/kubetile/
 
     - name: Build .tar.gz archive
-      run: tar -czvf crystal-${RELEASE_TAG}-x86_64-unknown-linux-gnu.tar.gz -C staging .
+      run: tar -czvf kubetile-${RELEASE_TAG}-x86_64-unknown-linux-gnu.tar.gz -C staging .
 
     - name: Build .deb package
       run: |
         cargo install cargo-deb
-        cargo deb --no-build --manifest-path crates/crystal-app/Cargo.toml --output crystal_${{ env.VERSION }}_amd64.deb
+        cargo deb --no-build --manifest-path crates/kubetile-app/Cargo.toml --output kubetile_${{ env.VERSION }}_amd64.deb
 
     - name: Build .rpm package
       run: |
         sudo apt-get update && sudo apt-get install -y ruby-dev
         sudo gem install fpm
-        fpm -s dir -t rpm -n crystal -v ${{ env.VERSION }} \
+        fpm -s dir -t rpm -n kubetile -v ${{ env.VERSION }} \
           --description "A terminal-based Kubernetes workspace" \
           --maintainer "${{ env.MAINTAINER_NAME }} <${{ env.MAINTAINER_EMAIL }}>" \
           --license "MIT" \
@@ -69,9 +69,9 @@ jobs:
 
     - name: Update and push downloads page
       env:
-        TAR_FILE: crystal-${{ env.RELEASE_TAG }}-x86_64-unknown-linux-gnu.tar.gz
-        MAC_FILE: crystal-${{ env.RELEASE_TAG }}-aarch64-apple-darwin.tar.gz
-        DEB_FILE: crystal_${{ env.VERSION }}_amd64.deb
+        TAR_FILE: kubetile-${{ env.RELEASE_TAG }}-x86_64-unknown-linux-gnu.tar.gz
+        MAC_FILE: kubetile-${{ env.RELEASE_TAG }}-aarch64-apple-darwin.tar.gz
+        DEB_FILE: kubetile_${{ env.VERSION }}_amd64.deb
         DOWNLOAD_URL_BASE: ${{ github.server_url }}/${{ github.repository }}/releases/download/${{ env.RELEASE_TAG }}
       run: |
         # This script updates the downloads page with the new release artifacts.
@@ -163,12 +163,12 @@ jobs:
     - name: Package mac artifact
       run: |
         mkdir -p macos-artifact/usr/local/bin
-        cp target/aarch64-apple-darwin/release/crystal macos-artifact/usr/local/bin/
-        mkdir -p macos-artifact/usr/local/share/doc/crystal
-        cp README.md macos-artifact/usr/local/share/doc/crystal/README
-        mkdir -p macos-artifact/usr/local/share/licenses/crystal
-        cp LICENSE macos-artifact/usr/local/share/licenses/crystal/
-        tar -czvf crystal-${RELEASE_TAG}-aarch64-apple-darwin.tar.gz -C macos-artifact .
+        cp target/aarch64-apple-darwin/release/kubetile macos-artifact/usr/local/bin/
+        mkdir -p macos-artifact/usr/local/share/doc/kubetile
+        cp README.md macos-artifact/usr/local/share/doc/kubetile/README
+        mkdir -p macos-artifact/usr/local/share/licenses/kubetile
+        cp LICENSE macos-artifact/usr/local/share/licenses/kubetile/
+        tar -czvf kubetile-${RELEASE_TAG}-aarch64-apple-darwin.tar.gz -C macos-artifact .
 
     - name: Upload mac artifact
-      run: gh release upload "${RELEASE_TAG}" "crystal-${RELEASE_TAG}-aarch64-apple-darwin.tar.gz" --clobber
+      run: gh release upload "${RELEASE_TAG}" "kubetile-${RELEASE_TAG}-aarch64-apple-darwin.tar.gz" --clobber

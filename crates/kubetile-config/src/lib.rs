@@ -64,7 +64,7 @@ impl AppConfig {
     }
 
     pub fn default_path() -> PathBuf {
-        dirs::config_dir().unwrap_or_else(|| PathBuf::from(".")).join("crystal").join("config.toml")
+        dirs::config_dir().unwrap_or_else(|| PathBuf::from(".")).join("kubetile").join("config.toml")
     }
 
     pub fn save(&self, path: &Path) -> anyhow::Result<()> {
@@ -89,7 +89,7 @@ impl AppConfig {
     }
 
     fn user_config_path() -> Option<PathBuf> {
-        dirs::config_dir().map(|d| d.join("crystal").join("config.toml"))
+        dirs::config_dir().map(|d| d.join("kubetile").join("config.toml"))
     }
 
     fn merge(&mut self, user: AppConfig) {

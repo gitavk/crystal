@@ -4,7 +4,7 @@ version = "0.1.0"
 edition = "2021"
 
 [[bin]]
-name = "crystal"
+name = "kubetile"
 path = "src/main.rs"
 
 [dependencies]
@@ -28,11 +28,11 @@ portable-pty.workspace = true
 jiff.workspace = true
 
 [package.metadata.deb]
-maintainer = "crystal"
-copyright = "2026, Crystal Project"
+maintainer = "kubetile"
+copyright = "2026, KubeTile Project"
 license-file = ["../../LICENSE", "0"]
 depends = "libc6"
 assets = [
-    ["target/release/crystal", "usr/bin/", "755"],
-    ["../../README.md", "usr/share/doc/crystal/README", "644"],
+    ["target/release/kubetile", "usr/bin/", "755"],
+    ["../../README.md", "usr/share/doc/kubetile/README", "644"],
 ]

@@ -11,7 +11,7 @@
 
 ## 1. Executive Summary
 
-Crystal is a terminal-based Kubernetes IDE built in Rust, inspired by the observability of Lens, the speed of k9s, and the pane/tab UX of zellij. It provides a 100% keyboard-driven workflow for managing Kubernetes clusters — resource views, context-aware terminals, pod exec, log streaming, and a WASM-based plugin system — all without leaving the terminal. Crystal serves a dual purpose: a real tool for platform engineers and SREs, and a "Learn Rust by Building" tutorial series where each development stage produces a working, self-contained increment.
+KubeTile is a terminal-based Kubernetes IDE built in Rust, inspired by the observability of Lens, the speed of k9s, and the pane/tab UX of zellij. It provides a 100% keyboard-driven workflow for managing Kubernetes clusters — resource views, context-aware terminals, pod exec, log streaming, and a WASM-based plugin system — all without leaving the terminal. KubeTile serves a dual purpose: a real tool for platform engineers and SREs, and a "Learn Rust by Building" tutorial series where each development stage produces a working, self-contained increment.
 
 ---
 
@@ -109,7 +109,7 @@ Crystal is a terminal-based Kubernetes IDE built in Rust, inspired by the observ
 
 ```
 ┌─────────────────────────────────────────────────────────┐
-│                    Crystal TUI                           │
+│                    KubeTile TUI                           │
 │  ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌───────────┐  │
 │  │  Tab Bar  │ │  Panes   │ │  Status  │ │  Command  │  │
 │  │          │ │ (zellij)  │ │   Bar    │ │  Palette  │  │
@@ -134,7 +134,7 @@ Crystal is a terminal-based Kubernetes IDE built in Rust, inspired by the observ
 - **Event bus pattern** for decoupling TUI from data layer
 - **Informer cache** via kube-rs watcher to avoid repeated API calls
 - **WASM runtime** (wasmtime) for sandboxed, polyglot plugin support
-- **Cargo workspace** with multiple crates (`kubetile-core`, `crystal-tui`, `crystal-plugins`, etc.)
+- **Cargo workspace** with multiple crates (`kubetile-core`, `kubetile-tui`, `kubetile-plugins`, etc.)
 
 ---
 

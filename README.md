@@ -23,4 +23,4 @@ KubeTile is a terminal-based Kubernetes workspace focused on fast, keyboard-driv
 1. No interactive scale workflow yet (scale action scaffolding exists but is not wired through the UI).
 2. No plugin system.
 
-Crystal is under active development as an incremental learning project, so the feature set is intentionally focused on the foundation of the UI and core Kubernetes browsing flow.
+KubeTile is under active development as an incremental learning project, so the feature set is intentionally focused on the foundation of the UI and core Kubernetes browsing flow.

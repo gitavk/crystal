@@ -2,9 +2,9 @@
 
 set -e
 
-CLUSTER_NAME="crystal-demo"
+CLUSTER_NAME="kubetile-demo"
 
-echo "🚀 Starting Crystal Demo Setup..."
+echo "🚀 Starting KubeTile Demo Setup..."
 
 # Check if kind is installed
 if ! command -v kind &> /dev/null; then
@@ -38,5 +38,5 @@ kubectl apply -f manifests/
 
 echo ""
 echo "✅ Setup complete!"
-echo "You can now run 'crystal' to explore the cluster."
+echo "You can now run 'kubetile' to explore the cluster."
 echo "Use './cleanup.sh' to remove the cluster when finished."

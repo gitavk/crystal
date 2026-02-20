@@ -132,11 +132,11 @@ mod tests {
     #[test]
     fn spawn_with_custom_env() {
         let mut env = HashMap::new();
-        env.insert("CRYSTAL_TEST_VAR".to_string(), "crystal_value".to_string());
+        env.insert("KUBETILE_TEST_VAR".to_string(), "kubetile_value".to_string());
 
         let mut session = PtySession::spawn(default_shell(), None, env, (80, 24)).unwrap();
 
-        session.write(b"echo $CRYSTAL_TEST_VAR\n").unwrap();
+        session.write(b"echo $KUBETILE_TEST_VAR\n").unwrap();
 
         thread::sleep(Duration::from_millis(500));
 
@@ -148,13 +148,13 @@ mod tests {
                 Ok(n) => output.push_str(&String::from_utf8_lossy(&buf[..n])),
                 Err(_) => break,
             }
-            if output.contains("crystal_value") {
+            if output.contains("kubetile_value") {
                 break;
             }
             thread::sleep(Duration::from_millis(100));
         }
 
-        assert!(output.contains("crystal_value"), "Expected 'crystal_value' in output, got: {output}");
+        assert!(output.contains("kubetile_value"), "Expected 'kubetile_value' in output, got: {output}");
         session.kill().unwrap();
     }
 }
