@@ -3,7 +3,7 @@
     <head>
         <!-- Book generated using mdBook -->
         <meta charset="UTF-8">
-        <title>Introduction - KubeTile</title>
+        <title>Configuration - KubeTile</title>
 
 
         <!-- Custom HTML head -->
@@ -89,7 +89,7 @@
 
         <nav id="sidebar" class="sidebar" aria-label="Table of contents">
             <div class="sidebar-scrollbox">
-                <ol class="chapter"><li class="chapter-item expanded "><a href="introduction.html" class="active"><strong aria-hidden="true">1.</strong> Introduction</a></li><li class="chapter-item expanded "><a href="installation.html"><strong aria-hidden="true">2.</strong> Installation</a></li><li class="chapter-item expanded "><a href="keybindings.html"><strong aria-hidden="true">3.</strong> Keybindings</a></li><li class="chapter-item expanded "><a href="configuration.html"><strong aria-hidden="true">4.</strong> Configuration</a></li><li class="chapter-item expanded "><a href="views.html"><strong aria-hidden="true">5.</strong> Views</a></li><li class="chapter-item expanded affix "><a href="404.html">404</a></li></ol>
+                <ol class="chapter"><li class="chapter-item expanded "><a href="introduction.html"><strong aria-hidden="true">1.</strong> Introduction</a></li><li class="chapter-item expanded "><a href="installation.html"><strong aria-hidden="true">2.</strong> Installation</a></li><li class="chapter-item expanded "><a href="keybindings.html"><strong aria-hidden="true">3.</strong> Keybindings</a></li><li class="chapter-item expanded "><a href="configuration.html" class="active"><strong aria-hidden="true">4.</strong> Configuration</a></li><li class="chapter-item expanded "><a href="views.html"><strong aria-hidden="true">5.</strong> Views</a></li><li class="chapter-item expanded affix "><a href="404.html">404</a></li></ol>
             </div>
             <div id="sidebar-resize-handle" class="sidebar-resize-handle">
                 <div class="sidebar-resize-indicator"></div>
@@ -151,7 +151,7 @@
                         <a href="https://github.com/gitavk/KubeTile" title="Git repository" aria-label="Git repository">
                             <i id="git-repository-button" class="fa fa-github"></i>
                         </a>
-                        <a href="https://github.com/gitavk/KubeTile/edit/main/book/src/src/introduction.md" title="Suggest an edit" aria-label="Suggest an edit">
+                        <a href="https://github.com/gitavk/KubeTile/edit/main/book/src/src/configuration.md" title="Suggest an edit" aria-label="Suggest an edit">
                             <i id="git-edit-button" class="fa fa-edit"></i>
                         </a>
 
@@ -180,18 +180,99 @@
 
                 <div id="content" class="content">
                     <main>
-                        <h1 id="kubetile"><a class="header" href="#kubetile">KubeTile</a></h1>
-<p>KubeTile is a keyboard-driven, plugin-based Kubernetes TUI written in Rust.</p>
-<blockquote>
-<p>Documentation is a work in progress. More pages coming soon.</p>
-</blockquote>
+                        <h1 id="configuration"><a class="header" href="#configuration">Configuration</a></h1>
+<p>KubeTile reads <code>~/.config/kubetile/config.toml</code> on startup. All keys are optional — omitted keys fall back to defaults.</p>
+<h2 id="general"><a class="header" href="#general">General</a></h2>
+<pre><code class="language-toml">[general]
+tick_rate_ms = 250          # UI refresh rate in milliseconds
+default_namespace = "default"
+default_view = "pods"       # View shown when opening a new pane
+editor = "$EDITOR"          # Editor used to open YAML (env var or path)
+shell = "$SHELL"            # Shell used for terminal panes
+log_tail_lines = 1000       # Lines of logs to fetch initially
+confirm_delete = true       # Require confirmation before deleting resources
+show_managed_fields = false # Show managedFields in YAML view
+</code></pre>
+<h2 id="terminal"><a class="header" href="#terminal">Terminal</a></h2>
+<pre><code class="language-toml">[terminal]
+scrollback_lines = 10000
+cursor_style = "block"      # "block" | "underline" | "bar"
+</code></pre>
+<h2 id="features"><a class="header" href="#features">Features</a></h2>
+<pre><code class="language-toml">[features]
+hot_reload = true           # Reload config without restarting
+command_palette = true
+port_forward = true
+</code></pre>
+<h2 id="theme"><a class="header" href="#theme">Theme</a></h2>
+<p>Colors accept hex values (<code>"#89b4fa"</code>) or <code>"default"</code> to use the terminal default.</p>
+<pre><code class="language-toml">[theme]
+accent = "#89b4fa"
+bg = "default"
+fg = "#cdd6f4"
+header-bg = "#1e1e2e"
+header-fg = "#cdd6f4"
+selection-bg = "#45475a"
+selection-fg = "#cdd6f4"
+border = "#585b70"
+border-active = "#89b4fa"
+text-dim = "#6c7086"
+overlay-bg = "#1e1e2e"
+
+# Status colours
+status-running = "#a6e3a1"
+status-pending = "#f9e2af"
+status-failed = "#f38ba8"
+status-unknown = "#585b70"
+
+# YAML syntax highlighting
+yaml-key = "#89b4fa"
+yaml-string = "#a6e3a1"
+yaml-number = "#fab387"
+yaml-boolean = "#cba6f7"
+yaml-null = "#585b70"
+
+# Insert-mode indicator
+insert-mode-bg = "#a6e3a1"
+insert-mode-fg = "#1e1e2e"
+</code></pre>
+<h2 id="keybindings"><a class="header" href="#keybindings">Keybindings</a></h2>
+<p>Override individual keys. See <a href="keybindings.html">Keybindings</a> for the full reference.</p>
+<pre><code class="language-toml">[keybindings.global]
+quit = "ctrl+q"
+
+[keybindings.navigation]
+scroll_up = "k"
+scroll_down = "j"
+
+[keybindings.browse]
+filter = "/"
+view_yaml = "y"
+
+# ... etc.
+</code></pre>
+<h2 id="view-columns"><a class="header" href="#view-columns">View columns</a></h2>
+<p>Control which columns appear in each resource list.</p>
+<pre><code class="language-toml">[views.pods]
+columns = ["name", "ready", "status", "restarts", "age", "node"]
+
+[views.deployments]
+columns = ["name", "ready", "up-to-date", "available", "age"]
+
+[views.services]
+columns = ["name", "type", "cluster-ip", "external-ip", "ports", "age"]
+</code></pre>
+<p>Available resource kinds: <code>pods</code>, <code>deployments</code>, <code>services</code>, <code>statefulsets</code>, <code>daemonsets</code>, <code>jobs</code>, <code>cronjobs</code>, <code>configmaps</code>, <code>secrets</code>, <code>ingresses</code>, <code>nodes</code>, <code>namespaces</code>.</p>
 
                     </main>
 
                     <nav class="nav-wrapper" aria-label="Page navigation">
                         <!-- Mobile navigation buttons -->
+                            <a rel="prev" href="keybindings.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                                <i class="fa fa-angle-left"></i>
+                            </a>
 
-                            <a rel="next prefetch" href="installation.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                            <a rel="next prefetch" href="views.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                                 <i class="fa fa-angle-right"></i>
                             </a>
 
@@ -201,8 +282,11 @@
             </div>
 
             <nav class="nav-wide-wrapper" aria-label="Page navigation">
+                    <a rel="prev" href="keybindings.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                        <i class="fa fa-angle-left"></i>
+                    </a>
 
-                    <a rel="next prefetch" href="installation.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                    <a rel="next prefetch" href="views.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                         <i class="fa fa-angle-right"></i>
                     </a>
             </nav>

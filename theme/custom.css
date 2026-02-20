@@ -1,0 +1,8 @@
+:root {
+  --sidebar-width: 260px;
+}
+/* Tighten up table rendering for keybinding tables */
+table td:first-child {
+  font-family: monospace;
+  white-space: nowrap;
+}

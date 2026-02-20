@@ -3,7 +3,7 @@
     <head>
         <!-- Book generated using mdBook -->
         <meta charset="UTF-8">
-        <title>Introduction - KubeTile</title>
+        <title>Installation - KubeTile</title>
 
 
         <!-- Custom HTML head -->
@@ -89,7 +89,7 @@
 
         <nav id="sidebar" class="sidebar" aria-label="Table of contents">
             <div class="sidebar-scrollbox">
-                <ol class="chapter"><li class="chapter-item expanded "><a href="introduction.html" class="active"><strong aria-hidden="true">1.</strong> Introduction</a></li><li class="chapter-item expanded "><a href="installation.html"><strong aria-hidden="true">2.</strong> Installation</a></li><li class="chapter-item expanded "><a href="keybindings.html"><strong aria-hidden="true">3.</strong> Keybindings</a></li><li class="chapter-item expanded "><a href="configuration.html"><strong aria-hidden="true">4.</strong> Configuration</a></li><li class="chapter-item expanded "><a href="views.html"><strong aria-hidden="true">5.</strong> Views</a></li><li class="chapter-item expanded affix "><a href="404.html">404</a></li></ol>
+                <ol class="chapter"><li class="chapter-item expanded "><a href="introduction.html"><strong aria-hidden="true">1.</strong> Introduction</a></li><li class="chapter-item expanded "><a href="installation.html" class="active"><strong aria-hidden="true">2.</strong> Installation</a></li><li class="chapter-item expanded "><a href="keybindings.html"><strong aria-hidden="true">3.</strong> Keybindings</a></li><li class="chapter-item expanded "><a href="configuration.html"><strong aria-hidden="true">4.</strong> Configuration</a></li><li class="chapter-item expanded "><a href="views.html"><strong aria-hidden="true">5.</strong> Views</a></li><li class="chapter-item expanded affix "><a href="404.html">404</a></li></ol>
             </div>
             <div id="sidebar-resize-handle" class="sidebar-resize-handle">
                 <div class="sidebar-resize-indicator"></div>
@@ -151,7 +151,7 @@
                         <a href="https://github.com/gitavk/KubeTile" title="Git repository" aria-label="Git repository">
                             <i id="git-repository-button" class="fa fa-github"></i>
                         </a>
-                        <a href="https://github.com/gitavk/KubeTile/edit/main/book/src/src/introduction.md" title="Suggest an edit" aria-label="Suggest an edit">
+                        <a href="https://github.com/gitavk/KubeTile/edit/main/book/src/src/installation.md" title="Suggest an edit" aria-label="Suggest an edit">
                             <i id="git-edit-button" class="fa fa-edit"></i>
                         </a>
 
@@ -180,18 +180,31 @@
 
                 <div id="content" class="content">
                     <main>
-                        <h1 id="kubetile"><a class="header" href="#kubetile">KubeTile</a></h1>
-<p>KubeTile is a keyboard-driven, plugin-based Kubernetes TUI written in Rust.</p>
-<blockquote>
-<p>Documentation is a work in progress. More pages coming soon.</p>
-</blockquote>
+                        <h1 id="installation"><a class="header" href="#installation">Installation</a></h1>
+<h2 id="from-source-requires-rust--175"><a class="header" href="#from-source-requires-rust--175">From source (requires Rust ≥ 1.75)</a></h2>
+<pre><code class="language-bash">git clone https://github.com/gitavk/KubeTile
+cd KubeTile
+cargo build --release
+# Binary is at target/release/kubetile
+</code></pre>
+<h2 id="requirements"><a class="header" href="#requirements">Requirements</a></h2>
+<ul>
+<li>A valid <code>~/.kube/config</code> pointing at a reachable cluster</li>
+<li>A terminal with 256-color support</li>
+</ul>
+<h2 id="running"><a class="header" href="#running">Running</a></h2>
+<pre><code class="language-bash">./target/release/kubetile
+</code></pre>
 
                     </main>
 
                     <nav class="nav-wrapper" aria-label="Page navigation">
                         <!-- Mobile navigation buttons -->
+                            <a rel="prev" href="introduction.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                                <i class="fa fa-angle-left"></i>
+                            </a>
 
-                            <a rel="next prefetch" href="installation.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                            <a rel="next prefetch" href="keybindings.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                                 <i class="fa fa-angle-right"></i>
                             </a>
 
@@ -201,8 +214,11 @@
             </div>
 
             <nav class="nav-wide-wrapper" aria-label="Page navigation">
+                    <a rel="prev" href="introduction.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                        <i class="fa fa-angle-left"></i>
+                    </a>
 
-                    <a rel="next prefetch" href="installation.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                    <a rel="next prefetch" href="keybindings.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                         <i class="fa fa-angle-right"></i>
                     </a>
             </nav>
