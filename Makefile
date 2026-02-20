@@ -24,7 +24,7 @@ confirm:
 .PHONY: dev
 
 dev:
-	@cargo run -p crystal-app
+	@cargo run -p kubetile-app
 
 ## fmt: format code
 .PHONY: fmt

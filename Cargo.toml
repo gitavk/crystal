@@ -2,7 +2,7 @@
 resolver = "2"
 # Crate naming convention: kubetile-*
 members = [
-    "crates/crystal-app",
+    "crates/kubetile-app",
     "crates/kubetile-core",
     "crates/crystal-tui",
     "crates/kubetile-config",

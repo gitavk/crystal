@@ -361,30 +361,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "crystal-app"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "clap",
- "crossterm",
- "crystal-terminal",
- "crystal-tui",
- "jiff",
- "k8s-openapi",
- "kube",
- "kubetile-config",
- "kubetile-core",
- "portable-pty",
- "ratatui",
- "tokio",
- "tokio-util",
- "toml",
- "tracing",
- "tracing-subscriber",
- "vt100",
-]
-
-[[package]]
 name = "crystal-terminal"
 version = "0.1.0"
 dependencies = [
@@ -1182,6 +1158,30 @@ dependencies = [
  "tokio",
  "tokio-util",
  "tracing",
+]
+
+[[package]]
+name = "kubetile-app"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "clap",
+ "crossterm",
+ "crystal-terminal",
+ "crystal-tui",
+ "jiff",
+ "k8s-openapi",
+ "kube",
+ "kubetile-config",
+ "kubetile-core",
+ "portable-pty",
+ "ratatui",
+ "tokio",
+ "tokio-util",
+ "toml",
+ "tracing",
+ "tracing-subscriber",
+ "vt100",
 ]
 
 [[package]]
