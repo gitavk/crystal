@@ -135,7 +135,7 @@ impl ActionExecutor {
         let patch = serde_json::json!({
             "spec": { "replicas": replicas }
         });
-        let pp = PatchParams::apply("crystal");
+        let pp = PatchParams::apply("kubetile");
 
         match kind {
             ResourceKind::Deployments => {
@@ -164,7 +164,7 @@ impl ActionExecutor {
                 }
             }
         });
-        let pp = PatchParams::apply("crystal");
+        let pp = PatchParams::apply("kubetile");
         let api: Api<Deployment> = Api::namespaced(self.client.clone(), ns);
         api.patch(name, &pp, &Patch::Merge(&patch)).await?;
         Ok(())

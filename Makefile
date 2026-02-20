@@ -50,10 +50,10 @@ lint:
 test:
 	@cargo test --all
 
-## test-core: run crystal-core tests only
+## test-core: run kubetile-core tests only
 .PHONY: test-core
 test-core:
-	@cargo test -p crystal-core
+	@cargo test -p kubetile-core
 
 ## coverage: show test coverage in terminal (requires cargo-llvm-cov)
 .PHONY: coverage

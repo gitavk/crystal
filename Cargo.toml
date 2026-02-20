@@ -2,11 +2,11 @@
 resolver = "2"
 # Crate naming convention: kubetile-*
 members = [
-    "crates/kubetile-app",
+    "crates/crystal-app",
     "crates/kubetile-core",
-    "crates/kubetile-tui",
-    "crates/kubetile-config",
-    "crates/kubetile-terminal",
+    "crates/crystal-tui",
+    "crates/crystal-config",
+    "crates/crystal-terminal",
 ]
 
 [workspace.dependencies]

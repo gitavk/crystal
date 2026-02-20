@@ -17,10 +17,10 @@ use ratatui::backend::Backend;
 use ratatui::Terminal;
 use tokio::sync::mpsc;
 
-use crystal_core::informer::{ResourceEvent, ResourceWatcher};
-use crystal_core::resource::{DetailSection, ResourceSummary};
-use crystal_core::*;
-use crystal_core::{ContextResolver, KubeClient};
+use kubetile_core::informer::{ResourceEvent, ResourceWatcher};
+use kubetile_core::resource::{DetailSection, ResourceSummary};
+use kubetile_core::*;
+use kubetile_core::{ContextResolver, KubeClient};
 use crystal_tui::layout::{
     ConfirmDialogView, ContextSelectorView, NamespaceSelectorView, PortForwardDialogView, RenderContext,
     ResourceSwitcherView,
@@ -120,7 +120,7 @@ pub struct App {
     /// Dropping a ResourceWatcher cancels its background task automatically.
     active_watchers: HashMap<PaneId, ResourceWatcher>,
     watcher_seq_by_pane: HashMap<PaneId, u64>,
-    active_forwards: HashMap<ForwardId, crystal_core::PortForward>,
+    active_forwards: HashMap<ForwardId, kubetile_core::PortForward>,
     pod_forward_index: HashMap<(String, String), ForwardId>,
     filter_input_buffer: String,
     resource_switcher: Option<ResourceSwitcher>,
@@ -696,7 +696,7 @@ impl App {
                     let name_clone = name.clone();
 
                     tokio::spawn(async move {
-                        let executor = crystal_core::ActionExecutor::new(kube_client);
+                        let executor = kubetile_core::ActionExecutor::new(kube_client);
                         let result = dispatch_get_yaml(&executor, &kind, &name, &ns).await;
                         let event = match result {
                             Ok(yaml) => AppEvent::YamlReady {
@@ -725,7 +725,7 @@ impl App {
                     let name_clone = name.clone();
 
                     tokio::spawn(async move {
-                        let executor = crystal_core::ActionExecutor::new(kube_client);
+                        let executor = kubetile_core::ActionExecutor::new(kube_client);
                         let result = dispatch_describe(&executor, &kind, &name, &ns).await;
                         let event = match result {
                             Ok(text) => AppEvent::YamlReady {
@@ -755,7 +755,7 @@ impl App {
                         let app_tx = self.app_tx.clone();
 
                         tokio::spawn(async move {
-                            let executor = crystal_core::ActionExecutor::new(kube_client);
+                            let executor = kubetile_core::ActionExecutor::new(kube_client);
                             let toast = match executor.restart_rollout(&name, &ns).await {
                                 Ok(()) => ToastMessage::success(format!("Restarted {name}")),
                                 Err(e) => ToastMessage::error(format!("Restart failed: {e}")),
@@ -1320,7 +1320,7 @@ impl App {
         let app_tx = self.app_tx.clone();
 
         tokio::spawn(async move {
-            let mut request = crystal_core::LogRequest {
+            let mut request = kubetile_core::LogRequest {
                 context: Some(context),
                 pod_name: name.clone(),
                 namespace: namespace.clone(),
@@ -1357,7 +1357,7 @@ impl App {
             if let Ok(snapshot) = snapshot_result {
                 let container = request.container.clone().unwrap_or_default();
                 let lines =
-                    snapshot.lines().map(|raw| crystal_core::parse_raw_log_line(raw, &container)).collect::<Vec<_>>();
+                    snapshot.lines().map(|raw| kubetile_core::parse_raw_log_line(raw, &container)).collect::<Vec<_>>();
                 let _ = app_tx.send(AppEvent::LogsSnapshotReady { pane_id, lines });
             } else if let Err(e) = snapshot_result {
                 let _ = app_tx.send(AppEvent::LogsStreamError { pane_id, error: format!("snapshot failed: {e}") });
@@ -1365,7 +1365,7 @@ impl App {
             }
 
             // Live stream: kubectl logs -f subprocess — avoids long-lived kube-rs connections.
-            if let Ok(stream) = crystal_core::LogStream::start(request).await {
+            if let Ok(stream) = kubetile_core::LogStream::start(request).await {
                 let _ = app_tx.send(AppEvent::LogsStreamReady { pane_id, stream });
             }
         });
@@ -1401,7 +1401,7 @@ impl App {
         }
     }
 
-    fn attach_logs_stream(&mut self, pane_id: PaneId, stream: crystal_core::LogStream) {
+    fn attach_logs_stream(&mut self, pane_id: PaneId, stream: kubetile_core::LogStream) {
         if let Some(pane) = self.panes.get_mut(&pane_id) {
             if let Some(logs_pane) = pane.as_any_mut().downcast_mut::<LogsPane>() {
                 logs_pane.attach_stream(stream);
@@ -1544,7 +1544,7 @@ impl App {
         let app_tx = self.app_tx.clone();
 
         tokio::spawn(async move {
-            match crystal_core::PortForward::start(&kube_client, &pod, &namespace, local_port, remote_port).await {
+            match kubetile_core::PortForward::start(&kube_client, &pod, &namespace, local_port, remote_port).await {
                 Ok(forward) => {
                     let _ = app_tx.send(AppEvent::PortForwardReady { forward });
                 }
@@ -1556,7 +1556,7 @@ impl App {
         });
     }
 
-    fn attach_port_forward(&mut self, forward: crystal_core::PortForward) {
+    fn attach_port_forward(&mut self, forward: kubetile_core::PortForward) {
         let pod = forward.pod_name().to_string();
         let ns = forward.namespace().to_string();
         let remote = forward.remote_port();
@@ -1569,7 +1569,7 @@ impl App {
     }
 
     fn stop_all_port_forwards(&mut self) {
-        let forwards: Vec<crystal_core::PortForward> = self.active_forwards.drain().map(|(_, f)| f).collect();
+        let forwards: Vec<kubetile_core::PortForward> = self.active_forwards.drain().map(|(_, f)| f).collect();
         self.pod_forward_index.clear();
         self.refresh_port_forwards_panes();
         for forward in forwards {
@@ -1885,7 +1885,7 @@ impl App {
                 let display_name = format!("{} {}", kind.short_name(), name);
 
                 tokio::spawn(async move {
-                    let executor = crystal_core::ActionExecutor::new(kube_client);
+                    let executor = kubetile_core::ActionExecutor::new(kube_client);
                     let result = match kind {
                         ResourceKind::Pods => {
                             executor.delete::<k8s_openapi::api::core::v1::Pod>(&name, &namespace).await
@@ -2144,7 +2144,7 @@ fn pods_headers() -> Vec<String> {
 }
 
 async fn dispatch_get_yaml(
-    executor: &crystal_core::ActionExecutor,
+    executor: &kubetile_core::ActionExecutor,
     kind: &ResourceKind,
     name: &str,
     ns: &str,
@@ -2169,7 +2169,7 @@ async fn dispatch_get_yaml(
 }
 
 async fn dispatch_describe(
-    executor: &crystal_core::ActionExecutor,
+    executor: &kubetile_core::ActionExecutor,
     kind: &ResourceKind,
     name: &str,
     ns: &str,

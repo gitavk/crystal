@@ -1,7 +1,7 @@
 use std::any::Any;
 use std::time::Duration;
 
-use crystal_core::ForwardId;
+use kubetile_core::ForwardId;
 use crystal_tui::pane::{Pane, PaneCommand, ViewType};
 use crystal_tui::widgets::resource_list::ResourceListWidget;
 use ratatui::prelude::{Frame, Rect};
@@ -39,7 +39,7 @@ impl PortForwardsPane {
                     namespace,
                     local.to_string(),
                     remote.to_string(),
-                    crystal_core::resource::format_duration(age),
+                    kubetile_core::resource::format_duration(age),
                 ]
             })
             .collect();

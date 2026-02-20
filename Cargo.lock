@@ -368,12 +368,12 @@ dependencies = [
  "clap",
  "crossterm",
  "crystal-config",
- "crystal-core",
  "crystal-terminal",
  "crystal-tui",
  "jiff",
  "k8s-openapi",
  "kube",
+ "kubetile-core",
  "portable-pty",
  "ratatui",
  "tokio",
@@ -393,26 +393,6 @@ dependencies = [
  "indexmap",
  "serde",
  "toml",
-]
-
-[[package]]
-name = "crystal-core"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "futures",
- "jiff",
- "k8s-openapi",
- "kube",
- "portable-pty",
- "serde",
- "serde_json",
- "serde_yaml",
- "tempfile",
- "tokio",
- "tokio-util",
- "tracing",
- "vt100",
 ]
 
 [[package]]
@@ -1213,6 +1193,26 @@ dependencies = [
  "tokio",
  "tokio-util",
  "tracing",
+]
+
+[[package]]
+name = "kubetile-core"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "futures",
+ "jiff",
+ "k8s-openapi",
+ "kube",
+ "portable-pty",
+ "serde",
+ "serde_json",
+ "serde_yaml",
+ "tempfile",
+ "tokio",
+ "tokio-util",
+ "tracing",
+ "vt100",
 ]
 
 [[package]]

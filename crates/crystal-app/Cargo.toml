@@ -10,7 +10,7 @@ path = "src/main.rs"
 [dependencies]
 crystal-tui = { path = "../crystal-tui" }
 crystal-config = { path = "../crystal-config" }
-crystal-core = { path = "../crystal-core" }
+kubetile-core = { path = "../kubetile-core" }
 crystal-terminal = { path = "../crystal-terminal" }
 kube.workspace = true
 k8s-openapi.workspace = true

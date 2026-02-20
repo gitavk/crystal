@@ -1,6 +1,6 @@
 use super::*;
 use crossterm::event::KeyCode;
-use crystal_core::resource::DetailSection;
+use kubetile_core::resource::DetailSection;
 use crystal_tui::pane::{PaneCommand, PaneTree};
 use tokio_util::sync::CancellationToken;
 

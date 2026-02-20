@@ -134,7 +134,7 @@ Crystal is a terminal-based Kubernetes IDE built in Rust, inspired by the observ
 - **Event bus pattern** for decoupling TUI from data layer
 - **Informer cache** via kube-rs watcher to avoid repeated API calls
 - **WASM runtime** (wasmtime) for sandboxed, polyglot plugin support
-- **Cargo workspace** with multiple crates (`crystal-core`, `crystal-tui`, `crystal-plugins`, etc.)
+- **Cargo workspace** with multiple crates (`kubetile-core`, `crystal-tui`, `crystal-plugins`, etc.)
 
 ---
 

@@ -4,7 +4,7 @@ use std::cell::Cell;
 use ratatui::prelude::*;
 use ratatui::widgets::{Block, Borders, Paragraph, Wrap};
 
-use crystal_core::{LogLine, LogStream, StreamStatus};
+use kubetile_core::{LogLine, LogStream, StreamStatus};
 use crystal_tui::pane::{Pane, PaneCommand, ViewType};
 use crystal_tui::theme::Theme;
 
@@ -340,7 +340,7 @@ fn sanitize_log_text(input: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::{sanitize_log_text, LogsPane};
-    use crystal_core::LogLine;
+    use kubetile_core::LogLine;
     use crystal_tui::pane::{Pane, PaneCommand};
 
     #[test]
