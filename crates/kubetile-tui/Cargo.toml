@@ -1,0 +1,12 @@
+[package]
+name = "kubetile-tui"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+ratatui.workspace = true
+crossterm.workspace = true
+vt100.workspace = true
+anyhow.workspace = true
+kubetile-config = { path = "../kubetile-config" }
+kubetile-terminal = { path = "../kubetile-terminal" }

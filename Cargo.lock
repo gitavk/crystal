@@ -361,86 +361,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "crystal-app"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "clap",
- "crossterm",
- "crystal-config",
- "crystal-core",
- "crystal-terminal",
- "crystal-tui",
- "jiff",
- "k8s-openapi",
- "kube",
- "portable-pty",
- "ratatui",
- "tokio",
- "tokio-util",
- "toml",
- "tracing",
- "tracing-subscriber",
- "vt100",
-]
-
-[[package]]
-name = "crystal-config"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "dirs",
- "indexmap",
- "serde",
- "toml",
-]
-
-[[package]]
-name = "crystal-core"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "futures",
- "jiff",
- "k8s-openapi",
- "kube",
- "portable-pty",
- "serde",
- "serde_json",
- "serde_yaml",
- "tempfile",
- "tokio",
- "tokio-util",
- "tracing",
- "vt100",
-]
-
-[[package]]
-name = "crystal-terminal"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "crossterm",
- "portable-pty",
- "ratatui",
- "tokio",
- "tracing",
- "vt100",
-]
-
-[[package]]
-name = "crystal-tui"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "crossterm",
- "crystal-config",
- "crystal-terminal",
- "ratatui",
- "vt100",
-]
-
-[[package]]
 name = "darling"
 version = "0.23.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1213,6 +1133,86 @@ dependencies = [
  "tokio",
  "tokio-util",
  "tracing",
+]
+
+[[package]]
+name = "kubetile-app"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "clap",
+ "crossterm",
+ "jiff",
+ "k8s-openapi",
+ "kube",
+ "kubetile-config",
+ "kubetile-core",
+ "kubetile-terminal",
+ "kubetile-tui",
+ "portable-pty",
+ "ratatui",
+ "tokio",
+ "tokio-util",
+ "toml",
+ "tracing",
+ "tracing-subscriber",
+ "vt100",
+]
+
+[[package]]
+name = "kubetile-config"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "dirs",
+ "indexmap",
+ "serde",
+ "toml",
+]
+
+[[package]]
+name = "kubetile-core"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "futures",
+ "jiff",
+ "k8s-openapi",
+ "kube",
+ "portable-pty",
+ "serde",
+ "serde_json",
+ "serde_yaml",
+ "tempfile",
+ "tokio",
+ "tokio-util",
+ "tracing",
+ "vt100",
+]
+
+[[package]]
+name = "kubetile-terminal"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "crossterm",
+ "portable-pty",
+ "ratatui",
+ "tokio",
+ "tracing",
+ "vt100",
+]
+
+[[package]]
+name = "kubetile-tui"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "crossterm",
+ "kubetile-config",
+ "kubetile-terminal",
+ "ratatui",
+ "vt100",
 ]
 
 [[package]]

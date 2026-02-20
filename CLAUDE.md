@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Crystal is a keyboard-driven, plugin-based Kubernetes TUI IDE written in Rust. It aims to combine observability and interaction features inspired by Lens and k9s, with a terminal UI inspired by zellij.
+KubeTile is a keyboard-driven, plugin-based Kubernetes TUI IDE written in Rust. It aims to combine observability and interaction features inspired by Lens and k9s, with a terminal UI inspired by zellij.
 
 ## Tech Stack
 

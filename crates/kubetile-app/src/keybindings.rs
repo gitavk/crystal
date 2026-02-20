@@ -1,0 +1,618 @@
+use std::collections::HashMap;
+
+use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+
+use kubetile_config::KeybindingsConfig;
+use kubetile_tui::pane::{Direction, PaneCommand};
+
+use crate::command::Command;
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[allow(dead_code)]
+pub enum InputMode {
+    Normal,
+    Pane,
+    Tab,
+    Search,
+    Command,
+    Insert,
+    NamespaceSelector,
+    ContextSelector,
+    ResourceSwitcher,
+    ConfirmDialog,
+    FilterInput,
+    PortForwardInput,
+}
+
+#[allow(dead_code)]
+pub struct KeybindingDispatcher {
+    mode: InputMode,
+    global_bindings: HashMap<KeyEvent, Command>,
+    mutate_bindings: HashMap<KeyEvent, Command>,
+    interact_bindings: HashMap<KeyEvent, Command>,
+    browse_bindings: HashMap<KeyEvent, Command>,
+    navigation_bindings: HashMap<KeyEvent, Command>,
+    tui_bindings: HashMap<KeyEvent, Command>,
+    reverse_global: Vec<(String, String, String)>,
+    reverse_mutate: Vec<(String, String, String)>,
+    reverse_interact: Vec<(String, String, String)>,
+    reverse_browse: Vec<(String, String, String)>,
+    reverse_navigation: Vec<(String, String, String)>,
+    reverse_tui: Vec<(String, String, String)>,
+}
+
+impl KeybindingDispatcher {
+    pub fn from_config(config: &KeybindingsConfig) -> Self {
+        let mut global_bindings = HashMap::new();
+        let mut reverse_global = Vec::new();
+        for (name, key_str) in &config.global {
+            if let Some(cmd) = global_command_from_name(name) {
+                if let Some(key) = parse_key_string(key_str) {
+                    global_bindings.insert(key, cmd);
+                    reverse_global.push((name.clone(), key_str.clone(), global_command_description(name)));
+                }
+            }
+        }
+
+        let mut mutate_bindings = HashMap::new();
+        let mut reverse_mutate = Vec::new();
+        for (name, key_str) in &config.mutate {
+            if let Some(cmd) = mutate_command_from_name(name) {
+                if let Some(key) = parse_key_string(key_str) {
+                    mutate_bindings.insert(key, cmd);
+                    reverse_mutate.push((name.clone(), key_str.clone(), mutate_command_description(name)));
+                }
+            }
+        }
+
+        let mut interact_bindings = HashMap::new();
+        let mut reverse_interact = Vec::new();
+        for (name, key_str) in &config.interact {
+            if let Some(cmd) = interact_command_from_name(name) {
+                if let Some(key) = parse_key_string(key_str) {
+                    interact_bindings.insert(key, cmd);
+                    reverse_interact.push((name.clone(), key_str.clone(), interact_command_description(name)));
+                }
+            }
+        }
+
+        let mut browse_bindings = HashMap::new();
+        let mut reverse_browse = Vec::new();
+        for (name, key_str) in &config.browse {
+            if let Some(cmd) = browse_command_from_name(name) {
+                if let Some(key) = parse_key_string(key_str) {
+                    browse_bindings.insert(key, cmd);
+                    reverse_browse.push((name.clone(), key_str.clone(), browse_command_description(name)));
+                }
+            }
+        }
+
+        let mut navigation_bindings = HashMap::new();
+        let mut reverse_navigation = Vec::new();
+        for (name, key_str) in &config.navigation {
+            if let Some(cmd) = navigation_command_from_name(name) {
+                if let Some(key) = parse_key_string(key_str) {
+                    navigation_bindings.insert(key, cmd);
+                    reverse_navigation.push((name.clone(), key_str.clone(), navigation_command_description(name)));
+                }
+            }
+        }
+
+        let mut tui_bindings = HashMap::new();
+        let mut reverse_tui = Vec::new();
+        for (name, key_str) in &config.tui {
+            if let Some(cmd) = tui_command_from_name(name) {
+                if let Some(key) = parse_key_string(key_str) {
+                    tui_bindings.insert(key, cmd);
+                    reverse_tui.push((name.clone(), key_str.clone(), tui_command_description(name)));
+                }
+            }
+        }
+
+        Self {
+            mode: InputMode::Normal,
+            global_bindings,
+            mutate_bindings,
+            interact_bindings,
+            browse_bindings,
+            navigation_bindings,
+            tui_bindings,
+            reverse_global,
+            reverse_mutate,
+            reverse_interact,
+            reverse_browse,
+            reverse_navigation,
+            reverse_tui,
+        }
+    }
+
+    pub fn dispatch(&self, key: KeyEvent) -> Option<(Command, bool)> {
+        let key = normalize_key_event(key);
+
+        match self.mode {
+            InputMode::Insert => {
+                if key.code == KeyCode::Esc {
+                    return Some((Command::ExitMode, false));
+                }
+                let s = key_to_input_string(key);
+                if s.is_empty() {
+                    return None;
+                }
+                return Some((Command::Pane(PaneCommand::SendInput(s)), false));
+            }
+            InputMode::ResourceSwitcher => match key.code {
+                KeyCode::Enter => return Some((Command::ResourceSwitcherConfirm, false)),
+                KeyCode::Esc => return Some((Command::DenyAction, false)),
+                KeyCode::Up => return Some((Command::Pane(PaneCommand::SelectPrev), false)),
+                KeyCode::Down => return Some((Command::Pane(PaneCommand::SelectNext), false)),
+                KeyCode::Char(c) => return Some((Command::ResourceSwitcherInput(c), false)),
+                KeyCode::Backspace => return Some((Command::ResourceSwitcherBackspace, false)),
+                _ => return None,
+            },
+            InputMode::ConfirmDialog => match key.code {
+                KeyCode::Char('y') => return Some((Command::ConfirmAction, false)),
+                KeyCode::Char('n') | KeyCode::Esc => return Some((Command::DenyAction, false)),
+                _ => return None,
+            },
+            InputMode::FilterInput => match key.code {
+                KeyCode::Esc => return Some((Command::FilterCancel, false)),
+                KeyCode::Enter => return Some((Command::ExitMode, false)),
+                KeyCode::Char(c) => return Some((Command::FilterInput(c), false)),
+                KeyCode::Backspace => return Some((Command::FilterBackspace, false)),
+                _ => return None,
+            },
+            InputMode::PortForwardInput => match key.code {
+                KeyCode::Esc => return Some((Command::PortForwardCancel, false)),
+                KeyCode::Enter => return Some((Command::PortForwardConfirm, false)),
+                KeyCode::Tab | KeyCode::BackTab | KeyCode::Left | KeyCode::Right | KeyCode::Up | KeyCode::Down => {
+                    return Some((Command::PortForwardToggleField, false));
+                }
+                KeyCode::Char(c) if c.is_ascii_digit() => return Some((Command::PortForwardInput(c), false)),
+                KeyCode::Backspace => return Some((Command::PortForwardBackspace, false)),
+                _ => return None,
+            },
+            _ => {}
+        }
+
+        if let Some(cmd) = self.global_bindings.get(&key) {
+            return Some((cmd.clone(), false));
+        }
+
+        match self.mode {
+            InputMode::Insert => unreachable!("handled above"),
+            InputMode::Normal => {
+                if let Some(cmd) = self.mutate_bindings.get(&key) {
+                    return Some((cmd.clone(), true));
+                }
+                self.interact_bindings
+                    .get(&key)
+                    .or_else(|| self.browse_bindings.get(&key))
+                    .or_else(|| self.navigation_bindings.get(&key))
+                    .or_else(|| self.tui_bindings.get(&key))
+                    .cloned()
+                    .map(|cmd| (cmd, false))
+            }
+            InputMode::NamespaceSelector => match key.code {
+                KeyCode::Enter => Some((Command::NamespaceConfirm, false)),
+                KeyCode::Esc => Some((Command::ExitMode, false)),
+                KeyCode::Up => Some((Command::Pane(PaneCommand::SelectPrev), false)),
+                KeyCode::Down => Some((Command::Pane(PaneCommand::SelectNext), false)),
+                KeyCode::Char(c) => Some((Command::NamespaceInput(c), false)),
+                KeyCode::Backspace => Some((Command::NamespaceBackspace, false)),
+                _ => None,
+            },
+            InputMode::ContextSelector => match key.code {
+                KeyCode::Enter => Some((Command::ContextConfirm, false)),
+                KeyCode::Esc => Some((Command::ExitMode, false)),
+                KeyCode::Up => Some((Command::Pane(PaneCommand::SelectPrev), false)),
+                KeyCode::Down => Some((Command::Pane(PaneCommand::SelectNext), false)),
+                KeyCode::Char(c) => Some((Command::ContextInput(c), false)),
+                KeyCode::Backspace => Some((Command::ContextBackspace, false)),
+                _ => None,
+            },
+            InputMode::Search | InputMode::Command => None,
+            InputMode::Pane | InputMode::Tab => None,
+            InputMode::ResourceSwitcher
+            | InputMode::ConfirmDialog
+            | InputMode::FilterInput
+            | InputMode::PortForwardInput => {
+                unreachable!("handled above")
+            }
+        }
+    }
+
+    #[allow(dead_code)]
+    pub fn all_bindings(&self) -> Vec<(String, String, String)> {
+        let mut result = Vec::new();
+        fn collect(result: &mut Vec<(String, String, String)>, group: &str, reverse: &[(String, String, String)]) {
+            for (_, key_str, desc) in reverse {
+                result.push((group.to_string(), format_key_display(key_str), desc.clone()));
+            }
+        }
+        collect(&mut result, "Global", &self.reverse_global);
+        collect(&mut result, "Mutate", &self.reverse_mutate);
+        collect(&mut result, "Interact", &self.reverse_interact);
+        collect(&mut result, "Browse", &self.reverse_browse);
+        collect(&mut result, "Navigation", &self.reverse_navigation);
+        collect(&mut result, "TUI", &self.reverse_tui);
+        result
+    }
+
+    pub fn set_mode(&mut self, mode: InputMode) {
+        self.mode = mode;
+    }
+
+    pub fn mode(&self) -> InputMode {
+        self.mode
+    }
+
+    pub fn key_for(&self, name: &str) -> Option<String> {
+        let all: Vec<_> = self
+            .reverse_global
+            .iter()
+            .chain(&self.reverse_tui)
+            .chain(&self.reverse_browse)
+            .chain(&self.reverse_interact)
+            .chain(&self.reverse_navigation)
+            .chain(&self.reverse_mutate)
+            .collect();
+        all.iter().find(|(n, _, _)| n == name).map(|(_, key_str, _)| format_key_display(key_str))
+    }
+
+    pub fn global_shortcuts(&self) -> Vec<(String, String)> {
+        self.reverse_global.iter().map(|(_, key_str, desc)| (format_key_display(key_str), desc.clone())).collect()
+    }
+
+    pub fn navigation_shortcuts(&self) -> Vec<(String, String)> {
+        self.reverse_navigation.iter().map(|(_, key_str, desc)| (format_key_display(key_str), desc.clone())).collect()
+    }
+
+    pub fn browse_shortcuts(&self) -> Vec<(String, String)> {
+        self.reverse_browse.iter().map(|(_, key_str, desc)| (format_key_display(key_str), desc.clone())).collect()
+    }
+
+    pub fn tui_shortcuts(&self) -> Vec<(String, String)> {
+        self.reverse_tui.iter().map(|(_, key_str, desc)| (format_key_display(key_str), desc.clone())).collect()
+    }
+
+    pub fn interact_shortcuts(&self) -> Vec<(String, String)> {
+        self.reverse_interact.iter().map(|(_, key_str, desc)| (format_key_display(key_str), desc.clone())).collect()
+    }
+
+    pub fn mutate_shortcuts(&self) -> Vec<(String, String)> {
+        self.reverse_mutate.iter().map(|(_, key_str, desc)| (format_key_display(key_str), desc.clone())).collect()
+    }
+}
+
+fn normalize_key_event(key: KeyEvent) -> KeyEvent {
+    if key.code == KeyCode::Tab && key.modifiers.contains(KeyModifiers::SHIFT) {
+        let mut modifiers = key.modifiers;
+        modifiers -= KeyModifiers::SHIFT;
+        return KeyEvent::new(KeyCode::BackTab, modifiers);
+    }
+    if key.code == KeyCode::BackTab && key.modifiers.contains(KeyModifiers::SHIFT) {
+        let mut modifiers = key.modifiers;
+        modifiers -= KeyModifiers::SHIFT;
+        return KeyEvent::new(KeyCode::BackTab, modifiers);
+    }
+    // Normalize Shift+char: crossterm may report Shift+'g' or just 'G' with SHIFT.
+    // Canonicalize to uppercase char + SHIFT modifier.
+    if let KeyCode::Char(c) = key.code {
+        // In most terminals Ctrl+Shift+<letter> is indistinguishable from Ctrl+<letter>.
+        // Canonicalize all Ctrl+letter to lowercase without SHIFT for stable matching.
+        if key.modifiers.contains(KeyModifiers::CONTROL) && c.is_ascii_alphabetic() {
+            let mut modifiers = key.modifiers;
+            modifiers -= KeyModifiers::SHIFT;
+            return KeyEvent::new(KeyCode::Char(c.to_ascii_lowercase()), modifiers);
+        }
+        if c.is_ascii_lowercase() && key.modifiers.contains(KeyModifiers::SHIFT) {
+            return KeyEvent::new(KeyCode::Char(c.to_ascii_uppercase()), key.modifiers);
+        }
+        if c.is_ascii_uppercase() && !key.modifiers.contains(KeyModifiers::SHIFT) {
+            return KeyEvent::new(key.code, key.modifiers | KeyModifiers::SHIFT);
+        }
+    }
+    key
+}
+
+fn format_key_display(key_str: &str) -> String {
+    key_str
+        .split('+')
+        .map(|part| {
+            let mut chars = part.chars();
+            match chars.next() {
+                Some(c) => {
+                    let upper: String = c.to_uppercase().collect();
+                    format!("{upper}{}", chars.as_str())
+                }
+                None => String::new(),
+            }
+        })
+        .collect::<Vec<_>>()
+        .join("+")
+}
+
+fn key_to_input_string(key: KeyEvent) -> String {
+    if key.modifiers.contains(KeyModifiers::CONTROL) {
+        if let KeyCode::Char(c) = key.code {
+            let byte = (c as u8).wrapping_sub(b'a').wrapping_add(1);
+            return String::from(byte as char);
+        }
+    }
+
+    match key.code {
+        KeyCode::Char(c) => c.to_string(),
+        KeyCode::Enter => "\r".into(),
+        KeyCode::Tab => "\t".into(),
+        KeyCode::Backspace => "\x7f".into(),
+        KeyCode::Esc => "\x1b".into(),
+        KeyCode::Up => "\x1b[A".into(),
+        KeyCode::Down => "\x1b[B".into(),
+        KeyCode::Right => "\x1b[C".into(),
+        KeyCode::Left => "\x1b[D".into(),
+        KeyCode::Home => "\x1b[H".into(),
+        KeyCode::End => "\x1b[F".into(),
+        KeyCode::PageUp => "\x1b[5~".into(),
+        KeyCode::PageDown => "\x1b[6~".into(),
+        KeyCode::Delete => "\x1b[3~".into(),
+        KeyCode::F(n) => match n {
+            1 => "\x1bOP".into(),
+            2 => "\x1bOQ".into(),
+            3 => "\x1bOR".into(),
+            4 => "\x1bOS".into(),
+            5 => "\x1b[15~".into(),
+            6 => "\x1b[17~".into(),
+            7 => "\x1b[18~".into(),
+            8 => "\x1b[19~".into(),
+            9 => "\x1b[20~".into(),
+            10 => "\x1b[21~".into(),
+            11 => "\x1b[23~".into(),
+            12 => "\x1b[24~".into(),
+            _ => String::new(),
+        },
+        _ => String::new(),
+    }
+}
+
+pub fn parse_key_string(s: &str) -> Option<KeyEvent> {
+    let trimmed = s.trim();
+    let parts: Vec<&str> = trimmed.split('+').collect();
+
+    let mut modifiers = KeyModifiers::NONE;
+
+    let key_part_raw = if parts.len() == 1 {
+        parts[0]
+    } else {
+        for &modifier in &parts[..parts.len() - 1] {
+            match modifier.to_ascii_lowercase().as_str() {
+                "alt" => modifiers |= KeyModifiers::ALT,
+                "ctrl" => modifiers |= KeyModifiers::CONTROL,
+                "shift" => modifiers |= KeyModifiers::SHIFT,
+                _ => return None,
+            }
+        }
+        parts[parts.len() - 1]
+    };
+
+    let key_lower = key_part_raw.to_ascii_lowercase();
+    let code = match key_lower.as_str() {
+        "tab" if modifiers.contains(KeyModifiers::SHIFT) => {
+            modifiers -= KeyModifiers::SHIFT;
+            KeyCode::BackTab
+        }
+        "tab" => KeyCode::Tab,
+        "enter" => KeyCode::Enter,
+        "esc" => KeyCode::Esc,
+        "backspace" => KeyCode::Backspace,
+        "delete" => KeyCode::Delete,
+        "up" => KeyCode::Up,
+        "down" => KeyCode::Down,
+        "left" => KeyCode::Left,
+        "right" => KeyCode::Right,
+        "home" => KeyCode::Home,
+        "end" => KeyCode::End,
+        "pageup" => KeyCode::PageUp,
+        "pagedown" => KeyCode::PageDown,
+        "space" => KeyCode::Char(' '),
+        _ if key_part_raw.len() == 1 => {
+            let ch = key_part_raw.chars().next().unwrap();
+            if ch.is_ascii_uppercase() {
+                modifiers |= KeyModifiers::SHIFT;
+                KeyCode::Char(ch)
+            } else if modifiers.contains(KeyModifiers::SHIFT) && ch.is_ascii_lowercase() {
+                KeyCode::Char(ch.to_ascii_uppercase())
+            } else {
+                KeyCode::Char(ch)
+            }
+        }
+        s if s.starts_with('f') => {
+            let n: u8 = s[1..].parse().ok()?;
+            KeyCode::F(n)
+        }
+        _ => return None,
+    };
+
+    let parsed = KeyEvent::new(code, modifiers);
+    Some(normalize_key_event(parsed))
+}
+
+fn global_command_from_name(name: &str) -> Option<Command> {
+    match name {
+        "quit" => Some(Command::Quit),
+        "help" => Some(Command::ShowHelp),
+        "app_logs" => Some(Command::ToggleAppLogsTab),
+        "port_forwards" => Some(Command::TogglePortForwardsTab),
+        "enter_insert" => Some(Command::EnterMode(InputMode::Insert)),
+        "namespace_selector" => Some(Command::EnterMode(InputMode::NamespaceSelector)),
+        "context_selector" => Some(Command::EnterMode(InputMode::ContextSelector)),
+        _ => None,
+    }
+}
+
+fn global_command_description(name: &str) -> String {
+    match name {
+        "quit" => "Quit",
+        "help" => "Help",
+        "app_logs" => "App logs",
+        "port_forwards" => "Port forwards",
+        "enter_insert" => "Insert mode",
+        "namespace_selector" => "Namespace",
+        "context_selector" => "Context",
+        _ => "Unknown",
+    }
+    .into()
+}
+
+fn mutate_command_from_name(name: &str) -> Option<Command> {
+    match name {
+        "delete" => Some(Command::DeleteResource),
+        "scale" => Some(Command::ScaleResource),
+        "restart_rollout" => Some(Command::RestartRollout),
+        _ => None,
+    }
+}
+
+fn mutate_command_description(name: &str) -> String {
+    match name {
+        "delete" => "Delete",
+        "scale" => "Scale",
+        "restart_rollout" => "Restart",
+        _ => "Unknown",
+    }
+    .into()
+}
+
+fn interact_command_from_name(name: &str) -> Option<Command> {
+    match name {
+        "exec" => Some(Command::ExecInto),
+        "port_forward" => Some(Command::PortForward),
+        "view_logs" => Some(Command::ViewLogs),
+        _ => None,
+    }
+}
+
+fn interact_command_description(name: &str) -> String {
+    match name {
+        "exec" => "Exec",
+        "port_forward" => "Port Forward",
+        "view_logs" => "Logs",
+        _ => "Unknown",
+    }
+    .into()
+}
+
+fn browse_command_from_name(name: &str) -> Option<Command> {
+    match name {
+        "view_yaml" => Some(Command::ViewYaml),
+        "view_describe" => Some(Command::ViewDescribe),
+        "view_logs" => Some(Command::ViewLogs),
+        "save_logs" => Some(Command::SaveLogsToFile),
+        "filter" => Some(Command::EnterMode(InputMode::FilterInput)),
+        "resource_switcher" => Some(Command::EnterResourceSwitcher),
+        "sort_column" => Some(Command::SortByColumn),
+        "toggle_sort_order" => Some(Command::Pane(PaneCommand::ToggleSortOrder)),
+        "toggle_all_namespaces" => Some(Command::ToggleAllNamespaces),
+        "toggle_follow" => Some(Command::Pane(PaneCommand::ToggleFollow)),
+        "toggle_wrap" => Some(Command::Pane(PaneCommand::ToggleWrap)),
+        _ => None,
+    }
+}
+
+fn browse_command_description(name: &str) -> String {
+    match name {
+        "view_yaml" => "View YAML",
+        "view_describe" => "Describe",
+        "view_logs" => "Logs",
+        "save_logs" => "Save Logs",
+        "filter" => "Filter",
+        "resource_switcher" => "Resources",
+        "sort_column" => "Sort",
+        "toggle_sort_order" => "Sort Order",
+        "toggle_all_namespaces" => "All NS",
+        "toggle_follow" => "Follow",
+        "toggle_wrap" => "Wrap",
+        _ => "Unknown",
+    }
+    .into()
+}
+
+fn navigation_command_from_name(name: &str) -> Option<Command> {
+    match name {
+        "scroll_up" | "select_prev" => Some(Command::Pane(PaneCommand::SelectPrev)),
+        "scroll_down" | "select_next" => Some(Command::Pane(PaneCommand::SelectNext)),
+        "select" => Some(Command::Pane(PaneCommand::Select)),
+        "back" => Some(Command::Pane(PaneCommand::Back)),
+        "go_to_top" => Some(Command::Pane(PaneCommand::GoToTop)),
+        "go_to_bottom" => Some(Command::Pane(PaneCommand::GoToBottom)),
+        "page_up" => Some(Command::Pane(PaneCommand::PageUp)),
+        "page_down" => Some(Command::Pane(PaneCommand::PageDown)),
+        "scroll_left" => Some(Command::Pane(PaneCommand::ScrollLeft)),
+        "scroll_right" => Some(Command::Pane(PaneCommand::ScrollRight)),
+        _ => None,
+    }
+}
+
+fn navigation_command_description(name: &str) -> String {
+    match name {
+        "scroll_up" | "select_prev" => "Up",
+        "scroll_down" | "select_next" => "Down",
+        "select" => "Select",
+        "back" => "Back",
+        "go_to_top" => "Go to top",
+        "go_to_bottom" => "Go to bottom",
+        "page_up" => "Page up",
+        "page_down" => "Page down",
+        "scroll_left" => "Left",
+        "scroll_right" => "Right",
+        _ => "Unknown",
+    }
+    .into()
+}
+
+fn tui_command_from_name(name: &str) -> Option<Command> {
+    match name {
+        "split_vertical" => Some(Command::SplitVertical),
+        "split_horizontal" => Some(Command::SplitHorizontal),
+        "close_pane" => Some(Command::ClosePane),
+        "toggle_fullscreen" => Some(Command::ToggleFullscreen),
+        "focus_up" => Some(Command::FocusDirection(Direction::Up)),
+        "focus_down" => Some(Command::FocusDirection(Direction::Down)),
+        "focus_left" => Some(Command::FocusDirection(Direction::Left)),
+        "focus_right" => Some(Command::FocusDirection(Direction::Right)),
+        "resize_grow" => Some(Command::ResizeGrow),
+        "resize_shrink" => Some(Command::ResizeShrink),
+        "new_tab" => Some(Command::NewTab),
+        "close_tab" => Some(Command::CloseTab),
+        "open_terminal" => Some(Command::TerminalSpawn),
+        "focus_next" => Some(Command::FocusNextPane),
+        "focus_prev" => Some(Command::FocusPrevPane),
+        s if s.starts_with("goto_tab_") => s["goto_tab_".len()..].parse::<usize>().ok().map(Command::GoToTab),
+        _ => None,
+    }
+}
+
+fn tui_command_description(name: &str) -> String {
+    match name {
+        "split_vertical" => "Split V",
+        "split_horizontal" => "Split H",
+        "close_pane" => "Close pane",
+        "toggle_fullscreen" => "Fullscreen",
+        "focus_up" => "Focus up",
+        "focus_down" => "Focus down",
+        "focus_left" => "Focus left",
+        "focus_right" => "Focus right",
+        "resize_grow" => "Grow",
+        "resize_shrink" => "Shrink",
+        "new_tab" => "New tab",
+        "close_tab" => "Close tab",
+        "open_terminal" => "Terminal",
+        "focus_next" => "Focus next",
+        "focus_prev" => "Focus prev",
+        s if s.starts_with("goto_tab_") => "Go to tab",
+        _ => "Unknown",
+    }
+    .into()
+}
+
+#[cfg(test)]
+mod tests;

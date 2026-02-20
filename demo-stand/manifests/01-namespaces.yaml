@@ -1,14 +1,14 @@
 apiVersion: v1
 kind: Namespace
 metadata:
-  name: crystal-prod
+  name: kubetile-prod
 ---
 apiVersion: v1
 kind: Namespace
 metadata:
-  name: crystal-staging
+  name: kubetile-staging
 ---
 apiVersion: v1
 kind: Namespace
 metadata:
-  name: crystal-dev
+  name: kubetile-dev

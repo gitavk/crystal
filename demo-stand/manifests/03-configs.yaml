@@ -2,7 +2,7 @@ apiVersion: v1
 kind: ConfigMap
 metadata:
   name: app-config
-  namespace: crystal-prod
+  namespace: kubetile-prod
 data:
   ENVIRONMENT: production
   LOG_LEVEL: info
@@ -12,7 +12,7 @@ apiVersion: v1
 kind: Secret
 metadata:
   name: app-secret
-  namespace: crystal-prod
+  namespace: kubetile-prod
 type: Opaque
 data:
   # echo -n "super-secret-key" | base64

@@ -2,7 +2,7 @@ apiVersion: batch/v1
 kind: CronJob
 metadata:
   name: nightly-cleanup
-  namespace: crystal-prod
+  namespace: kubetile-prod
 spec:
   schedule: "*/5 * * * *" # Every 5 minutes for demo purposes
   jobTemplate:
@@ -22,7 +22,7 @@ apiVersion: batch/v1
 kind: Job
 metadata:
   name: database-migration
-  namespace: crystal-prod
+  namespace: kubetile-prod
 spec:
   template:
     spec:

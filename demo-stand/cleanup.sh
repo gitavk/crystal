@@ -1,8 +1,8 @@
 #!/bin/bash
 
-CLUSTER_NAME="crystal-demo"
+CLUSTER_NAME="kubetile-demo"
 
-echo "🗑️ Cleaning up Crystal Demo..."
+echo "🗑️ Cleaning up KubeTile Demo..."
 
 if kind get clusters | grep -q "^$CLUSTER_NAME$"; then
     kind delete cluster --name "$CLUSTER_NAME"

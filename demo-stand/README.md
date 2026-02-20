@@ -1,6 +1,6 @@
-# Crystal Demo Stand
+# KubeTile Demo Stand
 
-This directory contains scripts and manifests to set up a local Kubernetes cluster for demonstrating **Crystal**.
+This directory contains scripts and manifests to set up a local Kubernetes cluster for demonstrating **KubeTile**.
 
 ## Prerequisites
 
@@ -16,23 +16,23 @@ This directory contains scripts and manifests to set up a local Kubernetes clust
    ./setup.sh
    ```
 
-2. **Run Crystal:**
-   Navigate back to the project root and run Crystal (ensure you've built it first).
+2. **Run KubeTile:**
+   Navigate back to the project root and run KubeTile (ensure you've built it first).
    ```bash
    cargo run
    ```
 
 3. **Explore the Demo:**
-   The setup script creates several resources to showcase Crystal's features:
-   - **Namespaces:** `crystal-prod`, `crystal-staging`, `crystal-dev`.
+   The setup script creates several resources to showcase KubeTile's features:
+   - **Namespaces:** `kubetile-prod`, `kubetile-staging`, `kubetile-dev`.
    - **Multi-pane navigation:** Try splitting panes and viewing different namespaces.
    - **Logs & Exec:**
-     - Find the `noisy-pod` in `crystal-dev` to view streaming logs.
-     - Exec into one of the `frontend` pods in `crystal-prod`.
+     - Find the `noisy-pod` in `kubetile-dev` to view streaming logs.
+     - Exec into one of the `frontend` pods in `kubetile-prod`.
    - **Debugging:**
-     - Check the `crashing-pod` in `crystal-dev` to see CrashLoopBackOff states.
+     - Check the `crashing-pod` in `kubetile-dev` to see CrashLoopBackOff states.
      - View the `pending-pod` (it has impossible resource requests) to see Pending state.
-   - **Jobs & CronJobs:** View the `nightly-cleanup` CronJob and `database-migration` Job in `crystal-prod`.
+   - **Jobs & CronJobs:** View the `nightly-cleanup` CronJob and `database-migration` Job in `kubetile-prod`.
    - **Port Forwarding:** Try port-forwarding to the `frontend` service on port 80.
 
 ## Cleanup

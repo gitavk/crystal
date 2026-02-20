@@ -1,17 +1,17 @@
-# Crystal — Product Requirements Document
+# KubeTile — Product Requirements Document
 
 | Field       | Value                                      |
 |-------------|--------------------------------------------|
 | Version     | 0.1.0                                      |
 | Status      | Draft                                      |
-| Updated     | 2026-02-07                                 |
-| Name Note   | "KubeForge" was a former working title; **Crystal** is the canonical project name |
+| Updated     | 2026-02-19                                 |
+| Name Note   | **KubeTile** is the canonical project name |
 
 ---
 
 ## 1. Executive Summary
 
-Crystal is a terminal-based Kubernetes IDE built in Rust, inspired by the observability of Lens, the speed of k9s, and the pane/tab UX of zellij. It provides a 100% keyboard-driven workflow for managing Kubernetes clusters — resource views, context-aware terminals, pod exec, log streaming, and a WASM-based plugin system — all without leaving the terminal. Crystal serves a dual purpose: a real tool for platform engineers and SREs, and a "Learn Rust by Building" tutorial series where each development stage produces a working, self-contained increment.
+KubeTile is a terminal-based Kubernetes IDE built in Rust, inspired by the observability of Lens, the speed of k9s, and the pane/tab UX of zellij. It provides a 100% keyboard-driven workflow for managing Kubernetes clusters — resource views, context-aware terminals, pod exec, log streaming, and a WASM-based plugin system — all without leaving the terminal. KubeTile serves a dual purpose: a real tool for platform engineers and SREs, and a "Learn Rust by Building" tutorial series where each development stage produces a working, self-contained increment.
 
 ---
 
@@ -109,7 +109,7 @@ Crystal is a terminal-based Kubernetes IDE built in Rust, inspired by the observ
 
 ```
 ┌─────────────────────────────────────────────────────────┐
-│                    Crystal TUI                           │
+│                    KubeTile TUI                           │
 │  ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌───────────┐  │
 │  │  Tab Bar  │ │  Panes   │ │  Status  │ │  Command  │  │
 │  │          │ │ (zellij)  │ │   Bar    │ │  Palette  │  │
@@ -134,7 +134,7 @@ Crystal is a terminal-based Kubernetes IDE built in Rust, inspired by the observ
 - **Event bus pattern** for decoupling TUI from data layer
 - **Informer cache** via kube-rs watcher to avoid repeated API calls
 - **WASM runtime** (wasmtime) for sandboxed, polyglot plugin support
-- **Cargo workspace** with multiple crates (`crystal-core`, `crystal-tui`, `crystal-plugins`, etc.)
+- **Cargo workspace** with multiple crates (`kubetile-core`, `kubetile-tui`, `kubetile-plugins`, etc.)
 
 ---
 
@@ -199,7 +199,7 @@ Each stage has a self-contained markdown file containing:
 
 | Item | Convention | Example |
 |------|-----------|---------|
-| Crate names | `crystal-*` | `crystal-core` |
+| Crate names | `kubetile-*` | `kubetile-core` |
 | Module files | `snake_case.rs` | `resource_view.rs` |
 | Structs/Enums | `PascalCase` | `PodListView` |
 | Functions | `snake_case` | `fetch_pods` |
