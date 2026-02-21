@@ -52,6 +52,8 @@ go_to_top = "g"             # vim gg / k9s / less convention
 go_to_bottom = "shift+g"    # vim G / k9s / less convention
 page_up = "ctrl+b"          # vim/less: ctrl+b = back one page; keeps hands on home row
 page_down = "ctrl+f"        # vim/less: ctrl+f = forward one page; keeps hands on home row
+page_up_key = "pageup"      # hardware Page Up key alias
+page_down_key = "pagedown"  # hardware Page Down key alias
 scroll_left = "ctrl+left"   # deliberate chord
 scroll_right = "ctrl+right" # mirrors ctrl+left
 
