@@ -197,15 +197,22 @@
 <h2 id="integrated-terminal--logs"><a class="header" href="#integrated-terminal--logs">Integrated Terminal &amp; Logs</a></h2>
 <p>KubeTile's terminal integration provides shells and log streams automatically configured for your cluster.</p>
 <h3 id="log-streaming"><a class="header" href="#log-streaming">Log Streaming</a></h3>
-<p>Select a Pod and press <code>l</code> to stream its logs in a new pane. The log view supports following (<code>f</code>), filtering (<code>/</code>), toggling line wrapping (<code>w</code>), and saving logs to a file (<code>Ctrl+s</code>).</p>
+<p>Select a Pod and press <code>l</code> to stream its logs in a new pane.
+The log view supports:</p>
+<ul>
+<li>following (<code>f</code>)</li>
+<li>filtering (<code>/</code>)</li>
+<li>toggling line wrapping (<code>w</code>)</li>
+<li>saving visible logs(include filtering) to a file (<code>Ctrl+s</code>)</li>
+<li>export (download) full availeble logs (<code>Ctrl+e</code>)</li>
+</ul>
 <h3 id="exec-into-pods"><a class="header" href="#exec-into-pods">Exec into Pods</a></h3>
-<p>Select a Pod and press <code>e</code> to open an interactive shell inside its container (uses the shell configured in <code>[general] shell</code>).</p>
-<h3 id="context-aware-terminal"><a class="header" href="#context-aware-terminal">Context-Aware Terminal</a></h3>
-<p>Press <code>Alt+Enter</code> to open a general-purpose terminal pane. Your shell will be automatically configured with the correct <code>KUBECONFIG</code>, context, and namespace. The prompt will even show your current location in the cluster!</p>
+<p>Select a Pod and press <code>e</code> to open an interactive shell inside its container
+(uses the shell configured in <code>[general] shell</code>).
+To switch to from the terminal you should go to <code>NORMAL</code> mode by <code>esc</code> key,
+to again start work in terminal need to switch to <code>INSERT</code> mode by <code>i</code> key.</p>
 <h2 id="port-forward"><a class="header" href="#port-forward">Port-forward</a></h2>
 <p>Press <code>p</code> on a Pod or Service row to open the port-forward input. Manage active forwards with <code>Ctrl+Shift+p</code>.</p>
-<h2 id="status-bar"><a class="header" href="#status-bar">Status Bar</a></h2>
-<p>The status bar shows mode hints, current cluster context, and namespace. It also indicates when KubeTile is in <strong>Insert Mode</strong>.</p>
 
                     </main>
 
