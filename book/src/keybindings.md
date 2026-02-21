@@ -2,13 +2,28 @@
 
 All keybindings are configurable via `~/.config/kubetile/config.toml`. These are the defaults.
 
+## Navigation
+
+| Key | Action |
+|-----|--------|
+| `j` / `Down` | Scroll / select next |
+| `k` / `Up` | Scroll / select previous |
+| `Enter` | Confirm / select |
+| `Esc` | Back / cancel |
+| `g` | Go to top |
+| `G` (`Shift+g`) | Go to bottom |
+| `Ctrl+f` / `PageDown` | Page down |
+| `Ctrl+b` / `PageUp` | Page up |
+| `Ctrl+Right` | Scroll right |
+| `Ctrl+Left` | Scroll left |
+
 ## Global
 
 Available in every mode.
 
 | Key | Action |
 |-----|--------|
-| `F1` | Toggle help overlay |
+| `F1` | Show help |
 | `Ctrl+q` | Quit |
 | `Ctrl+n` | Open namespace selector |
 | `Ctrl+k` | Open context selector |
@@ -16,37 +31,23 @@ Available in every mode.
 | `Ctrl+Shift+l` | Toggle application logs |
 | `i` | Enter insert mode |
 
-## Navigation
+## Browse (Resource List)
 
 | Key | Action |
 |-----|--------|
-| `j` / `Down` | Scroll / select next |
-| `k` / `Up` | Scroll / select previous |
-| `Enter` | Confirm / open |
-| `Esc` | Back / cancel |
-| `g` | Go to top |
-| `G` (`Shift+g`) | Go to bottom |
-| `Ctrl+f` | Page down |
-| `Ctrl+b` | Page up |
-| `Ctrl+Right` | Scroll right |
-| `Ctrl+Left` | Scroll left |
-
-## Browse (resource list)
-
-| Key | Action |
-|-----|--------|
+| `:` | Open resource switcher |
 | `/` | Filter |
 | `a` | Toggle all-namespaces |
-| `:` | Open resource switcher |
 | `y` | View YAML |
-| `d` | View describe output |
-| `s` | Sort by column |
-| `S` (`Shift+s`) | Reverse sort order |
+| `d` | View describe |
+| `s` | Sort column |
+| `S` (`Shift+s`) | Toggle sort order |
 | `f` | Toggle log follow |
 | `w` | Toggle log wrap |
 | `Ctrl+s` | Save logs to file |
+| `Ctrl+e` | Download (export) full log history |
 
-## Interact (pod actions)
+## Interact (Resource Actions)
 
 | Key | Action |
 |-----|--------|
@@ -54,7 +55,7 @@ Available in every mode.
 | `l` | View logs |
 | `p` | Port-forward |
 
-## Mutate (destructive — require confirmation)
+## Mutate (Destructive — require confirmation)
 
 | Key | Action |
 |-----|--------|
@@ -62,13 +63,13 @@ Available in every mode.
 | `Ctrl+Alt+s` | Scale resource |
 | `Ctrl+Alt+r` | Restart / rollout restart |
 
-## Pane & tab management
+## Pane & Tab Management
 
 | Key | Action |
 |-----|--------|
 | `Tab` | Focus next pane |
 | `Shift+Tab` | Focus previous pane |
-| `Alt+Up/Down/Left/Right` | Focus pane in direction |
+| `Alt+Up` / `Down` / `Left` / `Right` | Focus pane in direction |
 | `Alt+v` | Split pane vertically |
 | `Alt+h` | Split pane horizontally |
 | `Alt+x` | Close focused pane |
@@ -79,32 +80,3 @@ Available in every mode.
 | `Ctrl+w` | Close tab |
 | `Alt+1` – `Alt+9` | Jump to tab by number |
 | `Alt+Enter` | Open terminal pane |
-
-## Mode-specific keys
-
-### Selectors (namespace / context / resource switcher)
-
-| Key | Action |
-|-----|--------|
-| `Up` / `Down` | Navigate list |
-| Type characters | Filter list |
-| `Backspace` | Delete filter character |
-| `Enter` | Confirm selection |
-| `Esc` | Cancel |
-
-### Confirm dialog
-
-| Key | Action |
-|-----|--------|
-| `y` | Confirm |
-| `n` / `Esc` | Cancel |
-
-### Port-forward input
-
-| Key | Action |
-|-----|--------|
-| `Tab` / `Shift+Tab` / arrows | Switch field |
-| `0`–`9` | Enter port number |
-| `Backspace` | Delete digit |
-| `Enter` | Confirm |
-| `Esc` | Cancel |

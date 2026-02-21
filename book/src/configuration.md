@@ -1,6 +1,18 @@
 # Configuration
 
+KubeTile is designed to be highly customizable. You can configure keybindings, theme colors, and resource view columns by creating a configuration file.
+
+## Configuration File Location
+
 KubeTile reads `~/.config/kubetile/config.toml` on startup. All keys are optional — omitted keys fall back to defaults.
+
+To get started, run:
+```bash
+kubetile --init-config
+```
+This will generate a default config file with all available options and comments.
+
+The configuration file is **hot-reloaded**, so changes you save will be applied instantly without restarting the app.
 
 ## General
 
@@ -103,4 +115,4 @@ columns = ["name", "ready", "up-to-date", "available", "age"]
 columns = ["name", "type", "cluster-ip", "external-ip", "ports", "age"]
 ```
 
-Available resource kinds: `pods`, `deployments`, `services`, `statefulsets`, `daemonsets`, `jobs`, `cronjobs`, `configmaps`, `secrets`, `ingresses`, `nodes`, `namespaces`.
+Available resource kinds: `pods`, `deployments`, `services`, `statefulsets`, `daemonsets`, `jobs`, `cronjobs`, `configmaps`, `secrets`, `ingresses`, `nodes`, `namespaces`, `pvs`, `pvcs`.

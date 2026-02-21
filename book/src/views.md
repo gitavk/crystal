@@ -1,33 +1,45 @@
 # Views
 
-## Resource list
+KubeTile features a powerful layout system inspired by Zellij, allowing you to create a workspace that fits your needs with Tabs and Panes.
+
+## Resource List
 
 The default view when opening a pane. Shows a live-updating table of Kubernetes resources filtered to the selected namespace.
 
-Supported resource kinds: Pods, Deployments, Services, StatefulSets, DaemonSets, Jobs, CronJobs, ConfigMaps, Secrets, Ingresses, Nodes, Namespaces.
+- **Supported Resource Kinds:** Pods, Deployments, Services, StatefulSets, DaemonSets, Jobs, CronJobs, ConfigMaps, Secrets, Ingresses, Nodes, Namespaces, PVs, and PVCs.
+- **Commands:** Press `/` to filter, `s` to sort, `a` to toggle all-namespaces, and `:` to open the **Resource Switcher** (command palette).
 
-Press `/` to filter, `s` / `S` to sort, `a` to toggle all-namespaces, `:` to switch resource kind.
+## YAML View
 
-## YAML view
+Press `y` on any resource to view its full YAML definition with syntax highlighting. The configuration `show_managed_fields` in `[general]` controls whether `managedFields` are included.
 
-Press `y` on any resource to open its full YAML. `show_managed_fields` in `[general]` controls whether `managedFields` is included.
+## Describe View
 
-## Describe view
+Press `d` on any resource to view detailed `kubectl describe`-style output.
 
-Press `d` on any resource to view `kubectl describe`-style output.
+## Detail View
 
-## Logs view
+Press `Enter` on any resource to open a detailed view in a new pane. This shows metadata, status, specs, and more.
 
-Press `l` on a Pod row to stream its logs in a new pane. Press `f` to toggle follow, `w` to toggle line wrapping, `Ctrl+s` to save to a file.
+## Integrated Terminal & Logs
 
-## Exec view
+KubeTile's terminal integration provides shells and log streams automatically configured for your cluster.
 
-Press `e` on a Pod row to open an interactive shell inside the container (uses the shell configured in `[general] shell`).
+### Log Streaming
+Select a Pod and press `l` to stream its logs in a new pane.
+The log view supports:
+- following (`f`) 
+- filtering (`/`)
+- toggling line wrapping (`w`)
+- saving visible logs(include filtering) to a file (`Ctrl+s`)
+- export (download) full availeble logs (`Ctrl+e`)
+
+### Exec into Pods
+Select a Pod and press `e` to open an interactive shell inside its container
+(uses the shell configured in `[general] shell`).
+To switch to from the terminal you should go to `NORMAL` mode by `esc` key,
+to again start work in terminal need to switch to `INSERT` mode by `i` key.
 
 ## Port-forward
 
 Press `p` on a Pod or Service row to open the port-forward input. Manage active forwards with `Ctrl+Shift+p`.
-
-## Terminal
-
-Press `Alt+Enter` to open a general-purpose terminal pane. Scrollback is configurable via `[terminal] scrollback_lines`.
