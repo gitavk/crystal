@@ -1,4 +1,5 @@
 use std::any::Any;
+use std::collections::VecDeque;
 
 use ratatui::prelude::*;
 use ratatui::widgets::{Block, Borders, Paragraph};
@@ -6,20 +7,42 @@ use ratatui::widgets::{Block, Borders, Paragraph};
 use crate::app_log;
 use kubetile_tui::pane::{Pane, PaneCommand, ViewType};
 
+const LOG_LINE_LIMIT: usize = 1500;
+
 pub struct AppLogsPane {
     view_type: ViewType,
-    lines: Vec<String>,
+    lines: VecDeque<String>,
     scroll: usize,
     follow: bool,
+    last_cursor: usize,
 }
 
 impl AppLogsPane {
     pub fn new() -> Self {
-        Self { view_type: ViewType::Plugin("AppLogs".into()), lines: Vec::new(), scroll: 0, follow: true }
+        Self {
+            view_type: ViewType::Plugin("AppLogs".into()),
+            lines: VecDeque::new(),
+            scroll: 0,
+            follow: true,
+            last_cursor: 0,
+        }
     }
 
     pub fn poll(&mut self) {
-        self.lines = app_log::recent_lines(1500);
+        if self.lines.is_empty() {
+            let (lines, cursor) = app_log::recent_lines_with_cursor(LOG_LINE_LIMIT);
+            self.lines = VecDeque::from(lines);
+            self.last_cursor = cursor;
+        } else {
+            let (new_lines, cursor) = app_log::fetch_since(self.last_cursor);
+            self.last_cursor = cursor;
+            if !new_lines.is_empty() {
+                self.lines.extend(new_lines);
+                while self.lines.len() > LOG_LINE_LIMIT {
+                    self.lines.pop_front();
+                }
+            }
+        }
         if self.follow {
             self.scroll = self.max_scroll();
         } else {
@@ -44,7 +67,11 @@ impl Pane for AppLogsPane {
         let inner = block.inner(area);
         frame.render_widget(block, area);
 
-        let text = if self.lines.is_empty() { "No app logs yet".to_string() } else { self.lines.join("\n") };
+        let text = if self.lines.is_empty() {
+            "No app logs yet".to_string()
+        } else {
+            self.lines.iter().cloned().collect::<Vec<_>>().join("\n")
+        };
         let paragraph = Paragraph::new(text).scroll((self.scroll as u16, 0));
         frame.render_widget(paragraph, inner);
     }

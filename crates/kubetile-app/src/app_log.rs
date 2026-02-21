@@ -1,15 +1,27 @@
 use std::collections::VecDeque;
 use std::io::{self, Write};
+use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex, OnceLock};
 
 use tracing_subscriber::fmt::MakeWriter;
 
 const MAX_LOG_LINES: usize = 2000;
+static LINE_COUNTER: AtomicUsize = AtomicUsize::new(0);
 
-static LOG_BUFFER: OnceLock<Arc<Mutex<VecDeque<String>>>> = OnceLock::new();
+#[derive(Clone)]
+struct LogEntry {
+    counter: usize,
+    text: String,
+}
 
-fn buffer() -> Arc<Mutex<VecDeque<String>>> {
+static LOG_BUFFER: OnceLock<Arc<Mutex<VecDeque<LogEntry>>>> = OnceLock::new();
+
+fn buffer() -> Arc<Mutex<VecDeque<LogEntry>>> {
     LOG_BUFFER.get_or_init(|| Arc::new(Mutex::new(VecDeque::with_capacity(MAX_LOG_LINES)))).clone()
+}
+
+fn latest_counter(guard: &VecDeque<LogEntry>) -> usize {
+    guard.back().map(|entry| entry.counter).unwrap_or(0)
 }
 
 fn is_suppressed(line: &str) -> bool {
@@ -23,20 +35,32 @@ fn commit_line(line: &str) {
     }
     let buf = buffer();
     let Ok(mut guard) = buf.lock() else { return };
-    guard.push_back(line.to_string());
+    let counter = LINE_COUNTER.fetch_add(1, Ordering::Relaxed) + 1;
+    guard.push_back(LogEntry { counter, text: line.to_string() });
     while guard.len() > MAX_LOG_LINES {
         let _ = guard.pop_front();
     }
 }
 
-pub fn recent_lines(limit: usize) -> Vec<String> {
+pub fn recent_lines_with_cursor(limit: usize) -> (Vec<String>, usize) {
     let buf = buffer();
     let guard = match buf.lock() {
         Ok(g) => g,
-        Err(_) => return Vec::new(),
+        Err(_) => return (Vec::new(), 0),
     };
     let skip = guard.len().saturating_sub(limit);
-    guard.iter().skip(skip).cloned().collect()
+    let lines = guard.iter().skip(skip).map(|entry| entry.text.clone()).collect();
+    (lines, latest_counter(&guard))
+}
+
+pub fn fetch_since(cursor: usize) -> (Vec<String>, usize) {
+    let buf = buffer();
+    let guard = match buf.lock() {
+        Ok(g) => g,
+        Err(_) => return (Vec::new(), cursor),
+    };
+    let lines = guard.iter().filter(|entry| entry.counter > cursor).map(|entry| entry.text.clone()).collect();
+    (lines, latest_counter(&guard).max(cursor))
 }
 
 #[derive(Clone, Default)]
