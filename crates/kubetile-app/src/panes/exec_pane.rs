@@ -6,10 +6,13 @@ use std::sync::mpsc as std_mpsc;
 use portable_pty::{native_pty_system, Child, CommandBuilder, MasterPty, PtySize};
 use ratatui::prelude::*;
 use ratatui::widgets::{Block, Borders, Paragraph};
+use tokio::sync::mpsc as tokio_mpsc;
 
 use kubetile_terminal::render_terminal_screen;
-use kubetile_tui::pane::{Pane, PaneCommand, ViewType};
+use kubetile_tui::pane::{Pane, PaneCommand, PaneId, ViewType};
 use kubetile_tui::theme::Theme;
+
+use crate::event::AppEvent;
 
 pub struct ExecPane {
     view_type: ViewType,
@@ -22,7 +25,6 @@ pub struct ExecPane {
     writer: Option<Box<dyn Write + Send>>,
     vt: RefCell<vt100::Parser>,
     status: String,
-    exited: bool,
 }
 
 impl ExecPane {
@@ -38,7 +40,6 @@ impl ExecPane {
             writer: None,
             vt: RefCell::new(vt100::Parser::new(48, 160, 10_000)),
             status: "Connecting...".into(),
-            exited: false,
         }
     }
 
@@ -101,35 +102,27 @@ impl ExecPane {
         self.output_rx = Some(rx);
         self.writer = Some(writer);
         self.status = "Connected".into();
-        self.exited = false;
 
         Ok(())
     }
 
-    pub fn exited(&self) -> bool {
-        self.exited
+    /// Takes the PTY output receiver and spawns a thread that forwards all output
+    /// into the app event channel as `AppEvent::PtyOutput`. When the PTY reader
+    /// closes, sends `AppEvent::ExecExited`.
+    pub fn start_output_forwarding(&mut self, pane_id: PaneId, app_tx: tokio_mpsc::UnboundedSender<AppEvent>) {
+        let Some(rx) = self.output_rx.take() else { return };
+        std::thread::spawn(move || {
+            while let Ok(data) = rx.recv() {
+                if app_tx.send(AppEvent::PtyOutput { pane_id, data }).is_err() {
+                    return;
+                }
+            }
+            let _ = app_tx.send(AppEvent::ExecExited { pane_id });
+        });
     }
 
-    pub fn poll(&mut self) {
-        if let Some(rx) = &self.output_rx {
-            while let Ok(data) = rx.try_recv() {
-                self.vt.borrow_mut().process(&data);
-            }
-        }
-
-        if let Some(child) = self.child.as_mut() {
-            match child.try_wait() {
-                Ok(Some(_)) => {
-                    self.status = "Exited".into();
-                    self.exited = true;
-                }
-                Ok(None) => {}
-                Err(_) => {
-                    self.status = "Exited".into();
-                    self.exited = true;
-                }
-            }
-        }
+    pub fn process_output(&mut self, data: &[u8]) {
+        self.vt.borrow_mut().process(data);
     }
 
     fn render_title(&self) -> String {

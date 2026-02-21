@@ -64,6 +64,13 @@ pub enum AppEvent {
     NamespacesUpdated {
         namespaces: Vec<String>,
     },
+    PtyOutput {
+        pane_id: PaneId,
+        data: Vec<u8>,
+    },
+    ExecExited {
+        pane_id: PaneId,
+    },
 }
 
 pub struct EventHandler {

@@ -310,6 +310,20 @@ impl App {
             AppEvent::NamespacesUpdated { namespaces } => {
                 self.namespaces = namespaces;
             }
+            AppEvent::PtyOutput { pane_id, data } => {
+                if let Some(pane) = self.panes.get_mut(&pane_id) {
+                    if let Some(exec) = pane.as_any_mut().downcast_mut::<ExecPane>() {
+                        exec.process_output(&data);
+                    }
+                }
+            }
+            AppEvent::ExecExited { pane_id } => {
+                let was_focused = self.tab_manager.active().focused_pane == pane_id;
+                self.close_pane(pane_id);
+                if was_focused && self.dispatcher.mode() == InputMode::Insert {
+                    self.dispatcher.set_mode(InputMode::Normal);
+                }
+            }
         }
     }
 
@@ -1391,6 +1405,7 @@ impl App {
                 let Some(new_id) = self.tab_manager.split_pane(focused, SplitDirection::Horizontal, view) else {
                     return;
                 };
+                pane.start_output_forwarding(new_id, self.app_tx.clone());
                 self.panes.insert(new_id, Box::new(pane));
                 self.set_focus(new_id);
                 self.dispatcher.set_mode(InputMode::Insert);
@@ -1426,31 +1441,13 @@ impl App {
     }
 
     fn poll_runtime_panes(&mut self) {
-        let mut exited_exec_panes: Vec<PaneId> = Vec::new();
-        let focused_before = self.tab_manager.active().focused_pane;
-
-        for (pane_id, pane) in self.panes.iter_mut() {
+        for (_, pane) in self.panes.iter_mut() {
             if let Some(logs_pane) = pane.as_any_mut().downcast_mut::<LogsPane>() {
                 logs_pane.poll();
             }
             if let Some(app_logs_pane) = pane.as_any_mut().downcast_mut::<AppLogsPane>() {
                 app_logs_pane.poll();
             }
-            if let Some(exec_pane) = pane.as_any_mut().downcast_mut::<ExecPane>() {
-                exec_pane.poll();
-                if exec_pane.exited() {
-                    exited_exec_panes.push(*pane_id);
-                }
-            }
-        }
-
-        let focused_exec_exited = exited_exec_panes.contains(&focused_before);
-        for pane_id in exited_exec_panes {
-            self.close_pane(pane_id);
-        }
-
-        if focused_exec_exited && self.dispatcher.mode() == InputMode::Insert {
-            self.dispatcher.set_mode(InputMode::Normal);
         }
     }
 
