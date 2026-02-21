@@ -32,6 +32,7 @@ pub struct LogsPane {
     stream: Option<LogStream>,
     max_scroll_offset: Cell<usize>,
     max_horizontal_offset: Cell<usize>,
+    visible_height: Cell<usize>,
 }
 
 impl LogsPane {
@@ -51,6 +52,7 @@ impl LogsPane {
             stream: None,
             max_scroll_offset: Cell::new(0),
             max_horizontal_offset: Cell::new(0),
+            visible_height: Cell::new(0),
         }
     }
 
@@ -168,6 +170,7 @@ impl Pane for LogsPane {
 
         let filtered = self.filtered_lines();
         let visible_height = inner.height.saturating_sub(1) as usize;
+        self.visible_height.set(visible_height);
         let total = self.lines.len();
         let filtered_total = filtered.len();
         let max_offset = filtered_total.saturating_sub(visible_height);
@@ -219,6 +222,18 @@ impl Pane for LogsPane {
             }
             PaneCommand::ScrollDown | PaneCommand::SelectNext => {
                 self.scroll_offset = self.scroll_offset.saturating_sub(1);
+                if self.scroll_offset == 0 {
+                    self.follow = true;
+                }
+            }
+            PaneCommand::PageUp => {
+                self.follow = false;
+                let page = self.visible_height.get().max(1);
+                self.scroll_offset = self.scroll_offset.saturating_add(page).min(self.max_scroll_offset.get());
+            }
+            PaneCommand::PageDown => {
+                let page = self.visible_height.get().max(1);
+                self.scroll_offset = self.scroll_offset.saturating_sub(page);
                 if self.scroll_offset == 0 {
                     self.follow = true;
                 }

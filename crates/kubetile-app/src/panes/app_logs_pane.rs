@@ -1,4 +1,5 @@
 use std::any::Any;
+use std::cell::Cell;
 use std::collections::VecDeque;
 
 use ratatui::prelude::*;
@@ -15,6 +16,7 @@ pub struct AppLogsPane {
     scroll: usize,
     follow: bool,
     last_cursor: usize,
+    visible_height: Cell<u16>,
 }
 
 impl AppLogsPane {
@@ -25,6 +27,7 @@ impl AppLogsPane {
             scroll: 0,
             follow: true,
             last_cursor: 0,
+            visible_height: Cell::new(0),
         }
     }
 
@@ -65,6 +68,7 @@ impl Pane for AppLogsPane {
             .title(format!(" App Logs ({mode}) "))
             .title_style(Style::default().fg(theme.accent).bold());
         let inner = block.inner(area);
+        self.visible_height.set(inner.height);
         frame.render_widget(block, area);
 
         let text = if self.lines.is_empty() {
@@ -85,6 +89,16 @@ impl Pane for AppLogsPane {
             PaneCommand::SelectPrev | PaneCommand::ScrollUp => {
                 self.follow = false;
                 self.scroll = self.scroll.saturating_sub(1);
+            }
+            PaneCommand::PageUp => {
+                self.follow = false;
+                let page = self.visible_height.get().max(1) as usize;
+                self.scroll = self.scroll.saturating_sub(page);
+            }
+            PaneCommand::PageDown => {
+                self.follow = false;
+                let page = self.visible_height.get().max(1) as usize;
+                self.scroll = self.scroll.saturating_add(page).min(self.max_scroll());
             }
             PaneCommand::ToggleFollow => {
                 self.follow = !self.follow;
