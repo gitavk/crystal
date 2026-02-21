@@ -40,6 +40,12 @@ pub enum AppEvent {
     LogsSnapshotReady {
         pane_id: PaneId,
         lines: Vec<LogLine>,
+        container: Option<String>,
+    },
+    LogsHistoryReady {
+        pane_id: PaneId,
+        lines: Vec<LogLine>,
+        tail_lines: usize,
     },
     LogsStreamError {
         pane_id: PaneId,

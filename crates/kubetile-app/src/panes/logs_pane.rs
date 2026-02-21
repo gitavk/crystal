@@ -9,6 +9,14 @@ use kubetile_tui::pane::{Pane, PaneCommand, ViewType};
 use kubetile_tui::theme::Theme;
 
 const MAX_LOG_LINES: usize = 5000;
+const HISTORY_MAX_LINES: usize = 3000;
+
+pub struct HistoryRequest {
+    pub pod_name: String,
+    pub namespace: String,
+    pub container: Option<String>,
+    pub tail_lines: usize,
+}
 
 #[derive(Clone)]
 struct LogEntry {
@@ -21,6 +29,7 @@ pub struct LogsPane {
     view_type: ViewType,
     pod_name: String,
     namespace: String,
+    container: Option<String>,
     lines: Vec<LogEntry>,
     next_sequence: u64,
     scroll_offset: usize,
@@ -33,6 +42,9 @@ pub struct LogsPane {
     max_scroll_offset: Cell<usize>,
     max_horizontal_offset: Cell<usize>,
     visible_height: Cell<usize>,
+    history_lines_loaded: usize,
+    history_fetch_in_progress: bool,
+    needs_more_history: bool,
 }
 
 impl LogsPane {
@@ -41,6 +53,7 @@ impl LogsPane {
             view_type: ViewType::Logs(pod_name.clone()),
             pod_name,
             namespace,
+            container: None,
             lines: Vec::new(),
             next_sequence: 0,
             scroll_offset: 0,
@@ -53,6 +66,9 @@ impl LogsPane {
             max_scroll_offset: Cell::new(0),
             max_horizontal_offset: Cell::new(0),
             visible_height: Cell::new(0),
+            history_lines_loaded: 1000,
+            history_fetch_in_progress: false,
+            needs_more_history: false,
         }
     }
 
@@ -71,6 +87,55 @@ impl LogsPane {
     pub fn set_error(&mut self, error: String) {
         self.stream = None;
         self.status = format!("Error: {error}");
+    }
+
+    pub fn set_container(&mut self, container: Option<String>) {
+        self.container = container;
+    }
+
+    pub fn take_history_request(&mut self) -> Option<HistoryRequest> {
+        if !self.needs_more_history || self.history_fetch_in_progress || self.history_lines_loaded >= HISTORY_MAX_LINES
+        {
+            return None;
+        }
+        self.needs_more_history = false;
+        self.history_fetch_in_progress = true;
+        Some(HistoryRequest {
+            pod_name: self.pod_name.clone(),
+            namespace: self.namespace.clone(),
+            container: self.container.clone(),
+            tail_lines: HISTORY_MAX_LINES,
+        })
+    }
+
+    pub fn prepend_history(&mut self, lines: Vec<LogLine>, tail_lines: usize) {
+        self.history_fetch_in_progress = false;
+        self.history_lines_loaded = tail_lines;
+
+        if lines.is_empty() || self.lines.is_empty() {
+            return;
+        }
+
+        let oldest_ts = self.lines.first().map(|l| l.sort_ts);
+        let prepend: Vec<LogEntry> = lines
+            .into_iter()
+            .filter_map(|line| {
+                let ts = line.timestamp?;
+                if oldest_ts.is_some_and(|oldest| ts >= oldest) {
+                    return None;
+                }
+                let seq = self.next_sequence;
+                self.next_sequence = self.next_sequence.wrapping_add(1);
+                Some(LogEntry { rendered: format_log_line(&line), sort_ts: ts, sequence: seq })
+            })
+            .collect();
+
+        if prepend.is_empty() {
+            return;
+        }
+
+        self.lines.splice(0..0, prepend);
+        self.lines.sort_by(|a, b| a.sort_ts.cmp(&b.sort_ts).then_with(|| a.sequence.cmp(&b.sequence)));
     }
 
     pub fn pod_name(&self) -> &str {
@@ -230,6 +295,12 @@ impl Pane for LogsPane {
                 self.follow = false;
                 let page = self.visible_height.get().max(1);
                 self.scroll_offset = self.scroll_offset.saturating_add(page).min(self.max_scroll_offset.get());
+                if self.scroll_offset >= self.max_scroll_offset.get()
+                    && self.history_lines_loaded < HISTORY_MAX_LINES
+                    && !self.history_fetch_in_progress
+                {
+                    self.needs_more_history = true;
+                }
             }
             PaneCommand::PageDown => {
                 let page = self.visible_height.get().max(1);

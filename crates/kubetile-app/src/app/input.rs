@@ -49,8 +49,15 @@ impl App {
             AppEvent::LogsStreamReady { pane_id, stream } => {
                 self.attach_logs_stream(pane_id, stream);
             }
-            AppEvent::LogsSnapshotReady { pane_id, lines } => {
-                self.attach_logs_snapshot(pane_id, lines);
+            AppEvent::LogsSnapshotReady { pane_id, lines, container } => {
+                self.attach_logs_snapshot(pane_id, lines, container);
+            }
+            AppEvent::LogsHistoryReady { pane_id, lines, tail_lines } => {
+                if let Some(pane) = self.panes.get_mut(&pane_id) {
+                    if let Some(logs_pane) = pane.as_any_mut().downcast_mut::<crate::panes::LogsPane>() {
+                        logs_pane.prepend_history(lines, tail_lines);
+                    }
+                }
             }
             AppEvent::LogsStreamError { pane_id, error } => {
                 self.attach_logs_error(pane_id, error);

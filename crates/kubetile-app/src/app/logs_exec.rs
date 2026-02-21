@@ -6,6 +6,7 @@ use kubetile_tui::pane::{PaneId, ResourceKind, SplitDirection, ViewType};
 use kubetile_tui::widgets::toast::ToastMessage;
 
 use crate::event::AppEvent;
+use crate::panes::logs_pane::HistoryRequest;
 use crate::panes::{AppLogsPane, ExecPane, LogsPane, ResourceDetailPane, YamlPane};
 
 use super::App;
@@ -135,7 +136,8 @@ impl App {
                 let container = request.container.clone().unwrap_or_default();
                 let lines =
                     snapshot.lines().map(|raw| kubetile_core::parse_raw_log_line(raw, &container)).collect::<Vec<_>>();
-                let _ = app_tx.send(AppEvent::LogsSnapshotReady { pane_id, lines });
+                let _ =
+                    app_tx.send(AppEvent::LogsSnapshotReady { pane_id, lines, container: request.container.clone() });
             } else if let Err(e) = snapshot_result {
                 let _ = app_tx.send(AppEvent::LogsStreamError { pane_id, error: format!("snapshot failed: {e}") });
                 return;
@@ -186,12 +188,45 @@ impl App {
         }
     }
 
-    pub(super) fn attach_logs_snapshot(&mut self, pane_id: PaneId, lines: Vec<kubetile_core::LogLine>) {
+    pub(super) fn attach_logs_snapshot(
+        &mut self,
+        pane_id: PaneId,
+        lines: Vec<kubetile_core::LogLine>,
+        container: Option<String>,
+    ) {
         if let Some(pane) = self.panes.get_mut(&pane_id) {
             if let Some(logs_pane) = pane.as_any_mut().downcast_mut::<LogsPane>() {
+                logs_pane.set_container(container);
                 logs_pane.append_snapshot(lines);
             }
         }
+    }
+
+    pub(super) fn fetch_logs_history(&mut self, pane_id: PaneId, request: HistoryRequest) {
+        let Some(client) = &self.kube_client else {
+            return;
+        };
+        let kube_client = client.inner_client();
+        let app_tx = self.app_tx.clone();
+        let tail_lines = request.tail_lines;
+
+        tokio::spawn(async move {
+            let pods: Api<Pod> = Api::namespaced(kube_client, &request.namespace);
+            let params = kube::api::LogParams {
+                follow: false,
+                timestamps: true,
+                tail_lines: Some(tail_lines as i64),
+                container: request.container.clone(),
+                ..Default::default()
+            };
+            let Ok(snapshot) = pods.logs(&request.pod_name, &params).await else {
+                return;
+            };
+            let container = request.container.unwrap_or_default();
+            let lines =
+                snapshot.lines().map(|raw| kubetile_core::parse_raw_log_line(raw, &container)).collect::<Vec<_>>();
+            let _ = app_tx.send(AppEvent::LogsHistoryReady { pane_id, lines, tail_lines });
+        });
     }
 
     pub(super) fn attach_logs_error(&mut self, pane_id: PaneId, error: String) {
@@ -203,13 +238,20 @@ impl App {
     }
 
     pub(super) fn poll_runtime_panes(&mut self) {
-        for (_, pane) in self.panes.iter_mut() {
+        let mut history_requests: Vec<(PaneId, HistoryRequest)> = Vec::new();
+        for (&pane_id, pane) in self.panes.iter_mut() {
             if let Some(logs_pane) = pane.as_any_mut().downcast_mut::<LogsPane>() {
                 logs_pane.poll();
+                if let Some(req) = logs_pane.take_history_request() {
+                    history_requests.push((pane_id, req));
+                }
             }
             if let Some(app_logs_pane) = pane.as_any_mut().downcast_mut::<AppLogsPane>() {
                 app_logs_pane.poll();
             }
+        }
+        for (pane_id, req) in history_requests {
+            self.fetch_logs_history(pane_id, req);
         }
     }
 }
