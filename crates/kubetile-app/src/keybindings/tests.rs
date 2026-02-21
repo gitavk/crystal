@@ -1,5 +1,6 @@
 use super::*;
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+use kubetile_tui::pane::Direction;
 
 fn default_dispatcher() -> KeybindingDispatcher {
     let config = kubetile_config::Config::default();
