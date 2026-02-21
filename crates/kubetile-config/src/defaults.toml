@@ -62,6 +62,7 @@ resource_switcher = ":"       # vim command mode; faster than any chord
 toggle_all_namespaces = "a"   # a = all; matches k9s
 filter = "/"                  # vim/less/man forward-search
 save_logs = "ctrl+s"          # universal save (gedit, nano, VS Code)
+download_logs = "ctrl+e"      # e = export; downloads full log history to file
 toggle_follow = "f"           # f = follow
 toggle_wrap = "w"             # w = wrap
 sort_column = "s"             # s = sort

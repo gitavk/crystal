@@ -2,6 +2,8 @@ use std::env;
 use std::fs;
 use std::path::PathBuf;
 
+use k8s_openapi::api::core::v1::Pod;
+use kube::Api;
 use kubetile_tui::pane::{Pane, ResourceKind, ViewType};
 use kubetile_tui::widgets::toast::ToastMessage;
 
@@ -134,6 +136,42 @@ impl App {
         self.dispatcher.set_mode(InputMode::ConfirmDialog);
     }
 
+    pub(super) fn initiate_download_full_logs(&mut self) {
+        let focused = self.tab_manager.active().focused_pane;
+        let Some(pane) = self.panes.get(&focused) else { return };
+        let Some(logs) = pane.as_any().downcast_ref::<LogsPane>() else {
+            self.toasts.push(ToastMessage::info("Download logs is only available in a Logs pane"));
+            return;
+        };
+
+        let Some(downloads_dir) = home_downloads_dir() else {
+            self.toasts.push(ToastMessage::error("HOME is not set; cannot resolve $HOME/Downloads"));
+            return;
+        };
+
+        let context = self.context_resolver.context_name().unwrap_or("unknown-context");
+        let namespace = logs.namespace().to_string();
+        let pod_name = logs.pod_name().to_string();
+        let container = logs.container().cloned();
+        let timestamp = filename_timestamp_now();
+
+        let filename = format!(
+            "{}_{}_{}_{}_full.log",
+            sanitize_filename_component(context),
+            sanitize_filename_component(&namespace),
+            sanitize_filename_component(&pod_name),
+            timestamp
+        );
+        let path = downloads_dir.join(filename);
+
+        let message = format!("Download full log history to:\n{}?", path.display());
+        self.pending_confirmation = Some(PendingConfirmation {
+            message,
+            action: PendingAction::DownloadFullLogs { path, pod_name, namespace, container },
+        });
+        self.dispatcher.set_mode(InputMode::ConfirmDialog);
+    }
+
     pub(super) fn execute_confirmed_action(&mut self) {
         let confirmation = match self.pending_confirmation.take() {
             Some(c) => c,
@@ -211,6 +249,63 @@ impl App {
                     Ok(()) => self.toasts.push(ToastMessage::success(format!("Saved logs to {}", path.display()))),
                     Err(e) => self.toasts.push(ToastMessage::error(format!("Failed to save logs: {e}"))),
                 }
+            }
+            PendingAction::DownloadFullLogs { path, pod_name, namespace, container } => {
+                let Some(client) = &self.kube_client else {
+                    self.toasts.push(ToastMessage::error("No cluster connection"));
+                    return;
+                };
+                let kube_client = client.inner_client();
+                let app_tx = self.app_tx.clone();
+                let context = self.context_resolver.context_name().unwrap_or("unknown-context").to_string();
+
+                self.toasts.push(ToastMessage::info(format!("Downloading logs for {pod_name}...")));
+
+                tokio::spawn(async move {
+                    let pods: Api<Pod> = Api::namespaced(kube_client, &namespace);
+                    let params = kube::api::LogParams {
+                        follow: false,
+                        timestamps: true,
+                        tail_lines: None,
+                        container: container.clone(),
+                        ..Default::default()
+                    };
+                    let result = pods.logs(&pod_name, &params).await;
+
+                    let event = match result {
+                        Ok(raw) => {
+                            let exported_at = jiff::Timestamp::now().to_string();
+                            let mut content = String::with_capacity(raw.len() + 256);
+                            content.push_str(&format!("# context: {context}\n"));
+                            content.push_str(&format!("# namespace: {namespace}\n"));
+                            content.push_str(&format!("# pod: {pod_name}\n"));
+                            if let Some(c) = &container {
+                                content.push_str(&format!("# container: {c}\n"));
+                            }
+                            content.push_str(&format!("# exported_at: {exported_at}\n"));
+                            content.push('\n');
+                            content.push_str(&raw);
+
+                            if let Some(parent) = path.parent() {
+                                if let Err(e) = std::fs::create_dir_all(parent) {
+                                    let _ = app_tx.send(AppEvent::Toast(ToastMessage::error(format!(
+                                        "Failed to create directory: {e}"
+                                    ))));
+                                    return;
+                                }
+                            }
+                            match std::fs::write(&path, content) {
+                                Ok(()) => AppEvent::Toast(ToastMessage::success(format!(
+                                    "Downloaded logs to {}",
+                                    path.display()
+                                ))),
+                                Err(e) => AppEvent::Toast(ToastMessage::error(format!("Failed to write file: {e}"))),
+                            }
+                        }
+                        Err(e) => AppEvent::Toast(ToastMessage::error(format!("Failed to fetch logs: {e}"))),
+                    };
+                    let _ = app_tx.send(event);
+                });
             }
             PendingAction::MutateCommand(cmd) => {
                 self.handle_command(cmd);

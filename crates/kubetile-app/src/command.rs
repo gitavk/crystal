@@ -49,6 +49,7 @@ pub enum Command {
     ViewYaml,
     ViewDescribe,
     SaveLogsToFile,
+    DownloadFullLogs,
     DeleteResource,
     ScaleResource,
     RestartRollout,

@@ -146,6 +146,10 @@ impl LogsPane {
         &self.namespace
     }
 
+    pub fn container(&self) -> Option<&String> {
+        self.container.as_ref()
+    }
+
     pub fn filter_text(&self) -> Option<&str> {
         if self.filter_text.is_empty() {
             None

@@ -36,6 +36,7 @@ use pane_ops::{find_item_index_by_identity, selected_resource_identity};
 pub enum PendingAction {
     Delete { kind: ResourceKind, name: String, namespace: String },
     SaveLogs { path: PathBuf, content: String },
+    DownloadFullLogs { path: PathBuf, pod_name: String, namespace: String, container: Option<String> },
     MutateCommand(Command),
 }
 

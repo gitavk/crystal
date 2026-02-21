@@ -433,6 +433,9 @@ impl App {
             Command::SaveLogsToFile => {
                 self.initiate_save_logs();
             }
+            Command::DownloadFullLogs => {
+                self.initiate_download_full_logs();
+            }
 
             Command::RestartRollout => {
                 if let Some((kind, name, ns)) = self.selected_resource_info() {
