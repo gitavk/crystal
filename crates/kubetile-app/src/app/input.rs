@@ -11,7 +11,7 @@ use kubetile_tui::widgets::toast::{ToastLevel, ToastMessage};
 
 use crate::command::{Command, InputMode};
 use crate::event::AppEvent;
-use crate::panes::ResourceListPane;
+use crate::panes::{LogsPane, ResourceListPane};
 use crate::resource_switcher::ResourceSwitcher;
 
 use super::App;
@@ -212,6 +212,17 @@ impl App {
                 }
                 if let Some(pane) = self.panes.get_mut(&focused) {
                     pane.handle_command(&pane_cmd);
+                }
+                if matches!(pane_cmd, PaneCommand::PageUp) {
+                    if let Some(pane) = self.panes.get_mut(&focused) {
+                        if let Some(lp) = pane.as_any_mut().downcast_mut::<LogsPane>() {
+                            if lp.take_history_limit_notice() {
+                                self.toasts.push(ToastMessage::info(
+                                    "History buffer full (3000 lines). Use Ctrl+E to download the full log.",
+                                ));
+                            }
+                        }
+                    }
                 }
             }
 

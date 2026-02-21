@@ -45,6 +45,7 @@ pub struct LogsPane {
     history_lines_loaded: usize,
     history_fetch_in_progress: bool,
     needs_more_history: bool,
+    history_limit_notice: bool,
 }
 
 impl LogsPane {
@@ -69,6 +70,7 @@ impl LogsPane {
             history_lines_loaded: 1000,
             history_fetch_in_progress: false,
             needs_more_history: false,
+            history_limit_notice: false,
         }
     }
 
@@ -91,6 +93,12 @@ impl LogsPane {
 
     pub fn set_container(&mut self, container: Option<String>) {
         self.container = container;
+    }
+
+    pub fn take_history_limit_notice(&mut self) -> bool {
+        let v = self.history_limit_notice;
+        self.history_limit_notice = false;
+        v
     }
 
     pub fn take_history_request(&mut self) -> Option<HistoryRequest> {
@@ -299,11 +307,12 @@ impl Pane for LogsPane {
                 self.follow = false;
                 let page = self.visible_height.get().max(1);
                 self.scroll_offset = self.scroll_offset.saturating_add(page).min(self.max_scroll_offset.get());
-                if self.scroll_offset >= self.max_scroll_offset.get()
-                    && self.history_lines_loaded < HISTORY_MAX_LINES
-                    && !self.history_fetch_in_progress
-                {
-                    self.needs_more_history = true;
+                if self.scroll_offset >= self.max_scroll_offset.get() {
+                    if self.history_lines_loaded < HISTORY_MAX_LINES && !self.history_fetch_in_progress {
+                        self.needs_more_history = true;
+                    } else if self.history_lines_loaded >= HISTORY_MAX_LINES {
+                        self.history_limit_notice = true;
+                    }
                 }
             }
             PaneCommand::PageDown => {
