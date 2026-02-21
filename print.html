@@ -179,31 +179,76 @@
                 <div id="content" class="content">
                     <main>
                         <h1 id="kubetile"><a class="header" href="#kubetile">KubeTile</a></h1>
-<p>KubeTile is a keyboard-driven, plugin-based Kubernetes TUI written in Rust.</p>
-<blockquote>
-<p>Documentation is a work in progress. More pages coming soon.</p>
-</blockquote>
+<p>KubeTile is a terminal-based Kubernetes workspace focused on fast,
+keyboard-driven navigation and a flexible pane-and-tab layout.
+It aims to make everyday cluster inspection feel like working in a tiled,
+multi-view console without leaving the terminal.</p>
+<h2 id="what-it-does-today"><a class="header" href="#what-it-does-today">What it does today</a></h2>
+<ul>
+<li><strong>Live Resource Lists:</strong> Connects to your current Kubernetes context and shows live resource lists across multiple Kubernetes kinds (including Pods, Deployments, Services, StatefulSets, DaemonSets, Jobs, CronJobs, ConfigMaps, Secrets, Ingresses, Nodes, Namespaces, PVs, and PVCs).</li>
+<li><strong>Flexible Layout:</strong> Lets you split the screen into multiple panes, move focus between them, and work with tabs including fullscreen and close operations.</li>
+<li><strong>Efficient Workflows:</strong> Provides resource-list workflows like filter input, column sorting, and all-namespaces toggling.</li>
+<li><strong>Deep Inspection:</strong> Opens detail-oriented views from selections, including YAML and describe output in dedicated panes.</li>
+<li><strong>Integrated Terminal &amp; Logs:</strong> Streams pod logs and opens interactive exec sessions in dedicated panes.</li>
+<li><strong>Port Forwarding:</strong> Supports port forwarding to pods so local tools can reach in-cluster services.</li>
+<li><strong>Resource Actions:</strong> Supports resource actions such as delete with confirmation and deployment rollout restart.</li>
+<li><strong>Context Awareness:</strong> Shows a status bar with mode hints plus current cluster and namespace.</li>
+<li><strong>Resilient:</strong> Works even without a cluster connection by showing a clear error state in the resource view.</li>
+</ul>
+<h2 id="what-it-does-not-do-yet"><a class="header" href="#what-it-does-not-do-yet">What it does not do yet</a></h2>
+<ul>
+<li><strong>General Purpose Shell:</strong> Opens embedded terminal panes for general shell work.</li>
+<li><strong>Interactive Scale:</strong> No interactive scale workflow yet (scale action scaffolding exists but is not wired through the UI).</li>
+<li><strong>Plugin System:</strong> No plugin system yet (WASM-based plugin system is planned).</li>
+</ul>
+<p>KubeTile is under active development as an incremental learning project, so the feature set is intentionally focused on the foundation of the UI and core Kubernetes browsing flow.</p>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="installation"><a class="header" href="#installation">Installation</a></h1>
+<p>KubeTile can be installed by downloading a pre-built binary or by building from source.</p>
+<h2 id="binary-releases"><a class="header" href="#binary-releases">Binary Releases</a></h2>
+<p>Pre-built binaries for Linux and macOS are available on the <a href="https://github.com/gitavk/KubeTile/releases">GitHub Releases</a> page. We provide:</p>
+<ul>
+<li><code>.tar.gz</code> archives for x86_64 and aarch64</li>
+<li><code>.deb</code> packages for Debian/Ubuntu</li>
+<li><code>.rpm</code> packages for Fedora/RHEL</li>
+</ul>
 <h2 id="from-source-requires-rust--175"><a class="header" href="#from-source-requires-rust--175">From source (requires Rust ≥ 1.75)</a></h2>
 <pre><code class="language-bash">git clone https://github.com/gitavk/KubeTile
 cd KubeTile
 cargo build --release
-# Binary is at target/release/kubetile
+# Binary will be available at target/release/kubetile
+</code></pre>
+<p>To install the binary to your <code>PATH</code>, you can run:</p>
+<pre><code class="language-bash">cargo install --path crates/kubetile-app
 </code></pre>
 <h2 id="requirements"><a class="header" href="#requirements">Requirements</a></h2>
 <ul>
-<li>A valid <code>~/.kube/config</code> pointing at a reachable cluster</li>
-<li>A terminal with 256-color support</li>
+<li><strong><code>kubectl</code></strong>: KubeTile uses <code>kubectl</code> for exec sessions and some describe operations. It must be installed and available in your <code>PATH</code>.</li>
+<li><strong>Kubeconfig</strong>: A valid <code>~/.kube/config</code> pointing at a reachable cluster.</li>
+<li><strong>Terminal</strong>: A terminal with 256-color support and a modern font (e.g., Nerd Fonts for better icon support if applicable).</li>
 </ul>
 <h2 id="running"><a class="header" href="#running">Running</a></h2>
 <pre><code class="language-bash">./target/release/kubetile
 </code></pre>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="keybindings"><a class="header" href="#keybindings">Keybindings</a></h1>
 <p>All keybindings are configurable via <code>~/.config/kubetile/config.toml</code>. These are the defaults.</p>
+<h2 id="navigation"><a class="header" href="#navigation">Navigation</a></h2>
+<div class="table-wrapper"><table><thead><tr><th>Key</th><th>Action</th></tr></thead><tbody>
+<tr><td><code>j</code> / <code>Down</code></td><td>Scroll / select next</td></tr>
+<tr><td><code>k</code> / <code>Up</code></td><td>Scroll / select previous</td></tr>
+<tr><td><code>Enter</code></td><td>Confirm / select</td></tr>
+<tr><td><code>Esc</code></td><td>Back / cancel</td></tr>
+<tr><td><code>g</code></td><td>Go to top</td></tr>
+<tr><td><code>G</code> (<code>Shift+g</code>)</td><td>Go to bottom</td></tr>
+<tr><td><code>Ctrl+f</code> / <code>PageDown</code></td><td>Page down</td></tr>
+<tr><td><code>Ctrl+b</code> / <code>PageUp</code></td><td>Page up</td></tr>
+<tr><td><code>Ctrl+Right</code></td><td>Scroll right</td></tr>
+<tr><td><code>Ctrl+Left</code></td><td>Scroll left</td></tr>
+</tbody></table>
+</div>
 <h2 id="global"><a class="header" href="#global">Global</a></h2>
 <p>Available in every mode.</p>
 <div class="table-wrapper"><table><thead><tr><th>Key</th><th>Action</th></tr></thead><tbody>
-<tr><td><code>F1</code></td><td>Toggle help overlay</td></tr>
+<tr><td><code>F1</code></td><td>Show help</td></tr>
 <tr><td><code>Ctrl+q</code></td><td>Quit</td></tr>
 <tr><td><code>Ctrl+n</code></td><td>Open namespace selector</td></tr>
 <tr><td><code>Ctrl+k</code></td><td>Open context selector</td></tr>
@@ -212,53 +257,40 @@ cargo build --release
 <tr><td><code>i</code></td><td>Enter insert mode</td></tr>
 </tbody></table>
 </div>
-<h2 id="navigation"><a class="header" href="#navigation">Navigation</a></h2>
+<h2 id="browse-resource-list"><a class="header" href="#browse-resource-list">Browse (Resource List)</a></h2>
 <div class="table-wrapper"><table><thead><tr><th>Key</th><th>Action</th></tr></thead><tbody>
-<tr><td><code>j</code> / <code>Down</code></td><td>Scroll / select next</td></tr>
-<tr><td><code>k</code> / <code>Up</code></td><td>Scroll / select previous</td></tr>
-<tr><td><code>Enter</code></td><td>Confirm / open</td></tr>
-<tr><td><code>Esc</code></td><td>Back / cancel</td></tr>
-<tr><td><code>g</code></td><td>Go to top</td></tr>
-<tr><td><code>G</code> (<code>Shift+g</code>)</td><td>Go to bottom</td></tr>
-<tr><td><code>Ctrl+f</code></td><td>Page down</td></tr>
-<tr><td><code>Ctrl+b</code></td><td>Page up</td></tr>
-<tr><td><code>Ctrl+Right</code></td><td>Scroll right</td></tr>
-<tr><td><code>Ctrl+Left</code></td><td>Scroll left</td></tr>
-</tbody></table>
-</div>
-<h2 id="browse-resource-list"><a class="header" href="#browse-resource-list">Browse (resource list)</a></h2>
-<div class="table-wrapper"><table><thead><tr><th>Key</th><th>Action</th></tr></thead><tbody>
+<tr><td><code>:</code></td><td>Open resource switcher</td></tr>
 <tr><td><code>/</code></td><td>Filter</td></tr>
 <tr><td><code>a</code></td><td>Toggle all-namespaces</td></tr>
-<tr><td><code>:</code></td><td>Open resource switcher</td></tr>
 <tr><td><code>y</code></td><td>View YAML</td></tr>
-<tr><td><code>d</code></td><td>View describe output</td></tr>
-<tr><td><code>s</code></td><td>Sort by column</td></tr>
-<tr><td><code>S</code> (<code>Shift+s</code>)</td><td>Reverse sort order</td></tr>
+<tr><td><code>d</code></td><td>View describe</td></tr>
+<tr><td><code>s</code></td><td>Sort column</td></tr>
+<tr><td><code>S</code> (<code>Shift+s</code>)</td><td>Toggle sort order</td></tr>
 <tr><td><code>f</code></td><td>Toggle log follow</td></tr>
 <tr><td><code>w</code></td><td>Toggle log wrap</td></tr>
 <tr><td><code>Ctrl+s</code></td><td>Save logs to file</td></tr>
+<tr><td><code>Ctrl+e</code></td><td>Download (export) full log history</td></tr>
 </tbody></table>
 </div>
-<h2 id="interact-pod-actions"><a class="header" href="#interact-pod-actions">Interact (pod actions)</a></h2>
+<h2 id="interact-resource-actions"><a class="header" href="#interact-resource-actions">Interact (Resource Actions)</a></h2>
 <div class="table-wrapper"><table><thead><tr><th>Key</th><th>Action</th></tr></thead><tbody>
 <tr><td><code>e</code></td><td>Exec into pod</td></tr>
 <tr><td><code>l</code></td><td>View logs</td></tr>
 <tr><td><code>p</code></td><td>Port-forward</td></tr>
 </tbody></table>
 </div>
-<h2 id="mutate-destructive--require-confirmation"><a class="header" href="#mutate-destructive--require-confirmation">Mutate (destructive — require confirmation)</a></h2>
+<h2 id="mutate-destructive--require-confirmation"><a class="header" href="#mutate-destructive--require-confirmation">Mutate (Destructive — require confirmation)</a></h2>
 <div class="table-wrapper"><table><thead><tr><th>Key</th><th>Action</th></tr></thead><tbody>
 <tr><td><code>Ctrl+Alt+d</code></td><td>Delete resource</td></tr>
 <tr><td><code>Ctrl+Alt+s</code></td><td>Scale resource</td></tr>
 <tr><td><code>Ctrl+Alt+r</code></td><td>Restart / rollout restart</td></tr>
 </tbody></table>
 </div>
-<h2 id="pane--tab-management"><a class="header" href="#pane--tab-management">Pane &amp; tab management</a></h2>
+<h2 id="pane--tab-management"><a class="header" href="#pane--tab-management">Pane &amp; Tab Management</a></h2>
 <div class="table-wrapper"><table><thead><tr><th>Key</th><th>Action</th></tr></thead><tbody>
 <tr><td><code>Tab</code></td><td>Focus next pane</td></tr>
 <tr><td><code>Shift+Tab</code></td><td>Focus previous pane</td></tr>
-<tr><td><code>Alt+Up/Down/Left/Right</code></td><td>Focus pane in direction</td></tr>
+<tr><td><code>Alt+Up</code> / <code>Down</code> / <code>Left</code> / <code>Right</code></td><td>Focus pane in direction</td></tr>
 <tr><td><code>Alt+v</code></td><td>Split pane vertically</td></tr>
 <tr><td><code>Alt+h</code></td><td>Split pane horizontally</td></tr>
 <tr><td><code>Alt+x</code></td><td>Close focused pane</td></tr>
@@ -270,33 +302,15 @@ cargo build --release
 <tr><td><code>Alt+1</code> – <code>Alt+9</code></td><td>Jump to tab by number</td></tr>
 <tr><td><code>Alt+Enter</code></td><td>Open terminal pane</td></tr>
 </tbody></table>
-</div>
-<h2 id="mode-specific-keys"><a class="header" href="#mode-specific-keys">Mode-specific keys</a></h2>
-<h3 id="selectors-namespace--context--resource-switcher"><a class="header" href="#selectors-namespace--context--resource-switcher">Selectors (namespace / context / resource switcher)</a></h3>
-<div class="table-wrapper"><table><thead><tr><th>Key</th><th>Action</th></tr></thead><tbody>
-<tr><td><code>Up</code> / <code>Down</code></td><td>Navigate list</td></tr>
-<tr><td>Type characters</td><td>Filter list</td></tr>
-<tr><td><code>Backspace</code></td><td>Delete filter character</td></tr>
-<tr><td><code>Enter</code></td><td>Confirm selection</td></tr>
-<tr><td><code>Esc</code></td><td>Cancel</td></tr>
-</tbody></table>
-</div>
-<h3 id="confirm-dialog"><a class="header" href="#confirm-dialog">Confirm dialog</a></h3>
-<div class="table-wrapper"><table><thead><tr><th>Key</th><th>Action</th></tr></thead><tbody>
-<tr><td><code>y</code></td><td>Confirm</td></tr>
-<tr><td><code>n</code> / <code>Esc</code></td><td>Cancel</td></tr>
-</tbody></table>
-</div>
-<h3 id="port-forward-input"><a class="header" href="#port-forward-input">Port-forward input</a></h3>
-<div class="table-wrapper"><table><thead><tr><th>Key</th><th>Action</th></tr></thead><tbody>
-<tr><td><code>Tab</code> / <code>Shift+Tab</code> / arrows</td><td>Switch field</td></tr>
-<tr><td><code>0</code>–<code>9</code></td><td>Enter port number</td></tr>
-<tr><td><code>Backspace</code></td><td>Delete digit</td></tr>
-<tr><td><code>Enter</code></td><td>Confirm</td></tr>
-<tr><td><code>Esc</code></td><td>Cancel</td></tr>
-</tbody></table>
 </div><div style="break-before: page; page-break-before: always;"></div><h1 id="configuration"><a class="header" href="#configuration">Configuration</a></h1>
+<p>KubeTile is designed to be highly customizable. You can configure keybindings, theme colors, and resource view columns by creating a configuration file.</p>
+<h2 id="configuration-file-location"><a class="header" href="#configuration-file-location">Configuration File Location</a></h2>
 <p>KubeTile reads <code>~/.config/kubetile/config.toml</code> on startup. All keys are optional — omitted keys fall back to defaults.</p>
+<p>To get started, run:</p>
+<pre><code class="language-bash">kubetile --init-config
+</code></pre>
+<p>This will generate a default config file with all available options and comments.</p>
+<p>The configuration file is <strong>hot-reloaded</strong>, so changes you save will be applied instantly without restarting the app.</p>
 <h2 id="general"><a class="header" href="#general">General</a></h2>
 <pre><code class="language-toml">[general]
 tick_rate_ms = 250          # UI refresh rate in milliseconds
@@ -377,24 +391,33 @@ columns = ["name", "ready", "up-to-date", "available", "age"]
 [views.services]
 columns = ["name", "type", "cluster-ip", "external-ip", "ports", "age"]
 </code></pre>
-<p>Available resource kinds: <code>pods</code>, <code>deployments</code>, <code>services</code>, <code>statefulsets</code>, <code>daemonsets</code>, <code>jobs</code>, <code>cronjobs</code>, <code>configmaps</code>, <code>secrets</code>, <code>ingresses</code>, <code>nodes</code>, <code>namespaces</code>.</p>
+<p>Available resource kinds: <code>pods</code>, <code>deployments</code>, <code>services</code>, <code>statefulsets</code>, <code>daemonsets</code>, <code>jobs</code>, <code>cronjobs</code>, <code>configmaps</code>, <code>secrets</code>, <code>ingresses</code>, <code>nodes</code>, <code>namespaces</code>, <code>pvs</code>, <code>pvcs</code>.</p>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="views"><a class="header" href="#views">Views</a></h1>
-<h2 id="resource-list"><a class="header" href="#resource-list">Resource list</a></h2>
+<p>KubeTile features a powerful layout system inspired by Zellij, allowing you to create a workspace that fits your needs with Tabs and Panes.</p>
+<h2 id="resource-list"><a class="header" href="#resource-list">Resource List</a></h2>
 <p>The default view when opening a pane. Shows a live-updating table of Kubernetes resources filtered to the selected namespace.</p>
-<p>Supported resource kinds: Pods, Deployments, Services, StatefulSets, DaemonSets, Jobs, CronJobs, ConfigMaps, Secrets, Ingresses, Nodes, Namespaces.</p>
-<p>Press <code>/</code> to filter, <code>s</code> / <code>S</code> to sort, <code>a</code> to toggle all-namespaces, <code>:</code> to switch resource kind.</p>
-<h2 id="yaml-view"><a class="header" href="#yaml-view">YAML view</a></h2>
-<p>Press <code>y</code> on any resource to open its full YAML. <code>show_managed_fields</code> in <code>[general]</code> controls whether <code>managedFields</code> is included.</p>
-<h2 id="describe-view"><a class="header" href="#describe-view">Describe view</a></h2>
-<p>Press <code>d</code> on any resource to view <code>kubectl describe</code>-style output.</p>
-<h2 id="logs-view"><a class="header" href="#logs-view">Logs view</a></h2>
-<p>Press <code>l</code> on a Pod row to stream its logs in a new pane. Press <code>f</code> to toggle follow, <code>w</code> to toggle line wrapping, <code>Ctrl+s</code> to save to a file.</p>
-<h2 id="exec-view"><a class="header" href="#exec-view">Exec view</a></h2>
-<p>Press <code>e</code> on a Pod row to open an interactive shell inside the container (uses the shell configured in <code>[general] shell</code>).</p>
+<ul>
+<li><strong>Supported Resource Kinds:</strong> Pods, Deployments, Services, StatefulSets, DaemonSets, Jobs, CronJobs, ConfigMaps, Secrets, Ingresses, Nodes, Namespaces, PVs, and PVCs.</li>
+<li><strong>Commands:</strong> Press <code>/</code> to filter, <code>s</code> to sort, <code>a</code> to toggle all-namespaces, and <code>:</code> to open the <strong>Resource Switcher</strong> (command palette).</li>
+</ul>
+<h2 id="yaml-view"><a class="header" href="#yaml-view">YAML View</a></h2>
+<p>Press <code>y</code> on any resource to view its full YAML definition with syntax highlighting. The configuration <code>show_managed_fields</code> in <code>[general]</code> controls whether <code>managedFields</code> are included.</p>
+<h2 id="describe-view"><a class="header" href="#describe-view">Describe View</a></h2>
+<p>Press <code>d</code> on any resource to view detailed <code>kubectl describe</code>-style output.</p>
+<h2 id="detail-view"><a class="header" href="#detail-view">Detail View</a></h2>
+<p>Press <code>Enter</code> on any resource to open a detailed view in a new pane. This shows metadata, status, specs, and more.</p>
+<h2 id="integrated-terminal--logs"><a class="header" href="#integrated-terminal--logs">Integrated Terminal &amp; Logs</a></h2>
+<p>KubeTile's terminal integration provides shells and log streams automatically configured for your cluster.</p>
+<h3 id="log-streaming"><a class="header" href="#log-streaming">Log Streaming</a></h3>
+<p>Select a Pod and press <code>l</code> to stream its logs in a new pane. The log view supports following (<code>f</code>), filtering (<code>/</code>), toggling line wrapping (<code>w</code>), and saving logs to a file (<code>Ctrl+s</code>).</p>
+<h3 id="exec-into-pods"><a class="header" href="#exec-into-pods">Exec into Pods</a></h3>
+<p>Select a Pod and press <code>e</code> to open an interactive shell inside its container (uses the shell configured in <code>[general] shell</code>).</p>
+<h3 id="context-aware-terminal"><a class="header" href="#context-aware-terminal">Context-Aware Terminal</a></h3>
+<p>Press <code>Alt+Enter</code> to open a general-purpose terminal pane. Your shell will be automatically configured with the correct <code>KUBECONFIG</code>, context, and namespace. The prompt will even show your current location in the cluster!</p>
 <h2 id="port-forward"><a class="header" href="#port-forward">Port-forward</a></h2>
 <p>Press <code>p</code> on a Pod or Service row to open the port-forward input. Manage active forwards with <code>Ctrl+Shift+p</code>.</p>
-<h2 id="terminal-1"><a class="header" href="#terminal-1">Terminal</a></h2>
-<p>Press <code>Alt+Enter</code> to open a general-purpose terminal pane. Scrollback is configurable via <code>[terminal] scrollback_lines</code>.</p>
+<h2 id="status-bar"><a class="header" href="#status-bar">Status Bar</a></h2>
+<p>The status bar shows mode hints, current cluster context, and namespace. It also indicates when KubeTile is in <strong>Insert Mode</strong>.</p>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="page-not-found"><a class="header" href="#page-not-found">Page not found</a></h1>
 <p>The page you are looking for does not exist.</p>
 <p><a href="introduction.html">Return to the introduction</a></p>

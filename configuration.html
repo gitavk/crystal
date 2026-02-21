@@ -181,7 +181,14 @@
                 <div id="content" class="content">
                     <main>
                         <h1 id="configuration"><a class="header" href="#configuration">Configuration</a></h1>
+<p>KubeTile is designed to be highly customizable. You can configure keybindings, theme colors, and resource view columns by creating a configuration file.</p>
+<h2 id="configuration-file-location"><a class="header" href="#configuration-file-location">Configuration File Location</a></h2>
 <p>KubeTile reads <code>~/.config/kubetile/config.toml</code> on startup. All keys are optional — omitted keys fall back to defaults.</p>
+<p>To get started, run:</p>
+<pre><code class="language-bash">kubetile --init-config
+</code></pre>
+<p>This will generate a default config file with all available options and comments.</p>
+<p>The configuration file is <strong>hot-reloaded</strong>, so changes you save will be applied instantly without restarting the app.</p>
 <h2 id="general"><a class="header" href="#general">General</a></h2>
 <pre><code class="language-toml">[general]
 tick_rate_ms = 250          # UI refresh rate in milliseconds
@@ -262,7 +269,7 @@ columns = ["name", "ready", "up-to-date", "available", "age"]
 [views.services]
 columns = ["name", "type", "cluster-ip", "external-ip", "ports", "age"]
 </code></pre>
-<p>Available resource kinds: <code>pods</code>, <code>deployments</code>, <code>services</code>, <code>statefulsets</code>, <code>daemonsets</code>, <code>jobs</code>, <code>cronjobs</code>, <code>configmaps</code>, <code>secrets</code>, <code>ingresses</code>, <code>nodes</code>, <code>namespaces</code>.</p>
+<p>Available resource kinds: <code>pods</code>, <code>deployments</code>, <code>services</code>, <code>statefulsets</code>, <code>daemonsets</code>, <code>jobs</code>, <code>cronjobs</code>, <code>configmaps</code>, <code>secrets</code>, <code>ingresses</code>, <code>nodes</code>, <code>namespaces</code>, <code>pvs</code>, <code>pvcs</code>.</p>
 
                     </main>
 

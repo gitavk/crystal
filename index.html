@@ -181,10 +181,29 @@
                 <div id="content" class="content">
                     <main>
                         <h1 id="kubetile"><a class="header" href="#kubetile">KubeTile</a></h1>
-<p>KubeTile is a keyboard-driven, plugin-based Kubernetes TUI written in Rust.</p>
-<blockquote>
-<p>Documentation is a work in progress. More pages coming soon.</p>
-</blockquote>
+<p>KubeTile is a terminal-based Kubernetes workspace focused on fast,
+keyboard-driven navigation and a flexible pane-and-tab layout.
+It aims to make everyday cluster inspection feel like working in a tiled,
+multi-view console without leaving the terminal.</p>
+<h2 id="what-it-does-today"><a class="header" href="#what-it-does-today">What it does today</a></h2>
+<ul>
+<li><strong>Live Resource Lists:</strong> Connects to your current Kubernetes context and shows live resource lists across multiple Kubernetes kinds (including Pods, Deployments, Services, StatefulSets, DaemonSets, Jobs, CronJobs, ConfigMaps, Secrets, Ingresses, Nodes, Namespaces, PVs, and PVCs).</li>
+<li><strong>Flexible Layout:</strong> Lets you split the screen into multiple panes, move focus between them, and work with tabs including fullscreen and close operations.</li>
+<li><strong>Efficient Workflows:</strong> Provides resource-list workflows like filter input, column sorting, and all-namespaces toggling.</li>
+<li><strong>Deep Inspection:</strong> Opens detail-oriented views from selections, including YAML and describe output in dedicated panes.</li>
+<li><strong>Integrated Terminal &amp; Logs:</strong> Streams pod logs and opens interactive exec sessions in dedicated panes.</li>
+<li><strong>Port Forwarding:</strong> Supports port forwarding to pods so local tools can reach in-cluster services.</li>
+<li><strong>Resource Actions:</strong> Supports resource actions such as delete with confirmation and deployment rollout restart.</li>
+<li><strong>Context Awareness:</strong> Shows a status bar with mode hints plus current cluster and namespace.</li>
+<li><strong>Resilient:</strong> Works even without a cluster connection by showing a clear error state in the resource view.</li>
+</ul>
+<h2 id="what-it-does-not-do-yet"><a class="header" href="#what-it-does-not-do-yet">What it does not do yet</a></h2>
+<ul>
+<li><strong>General Purpose Shell:</strong> Opens embedded terminal panes for general shell work.</li>
+<li><strong>Interactive Scale:</strong> No interactive scale workflow yet (scale action scaffolding exists but is not wired through the UI).</li>
+<li><strong>Plugin System:</strong> No plugin system yet (WASM-based plugin system is planned).</li>
+</ul>
+<p>KubeTile is under active development as an incremental learning project, so the feature set is intentionally focused on the foundation of the UI and core Kubernetes browsing flow.</p>
 
                     </main>
 

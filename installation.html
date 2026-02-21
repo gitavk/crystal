@@ -181,16 +181,28 @@
                 <div id="content" class="content">
                     <main>
                         <h1 id="installation"><a class="header" href="#installation">Installation</a></h1>
+<p>KubeTile can be installed by downloading a pre-built binary or by building from source.</p>
+<h2 id="binary-releases"><a class="header" href="#binary-releases">Binary Releases</a></h2>
+<p>Pre-built binaries for Linux and macOS are available on the <a href="https://github.com/gitavk/KubeTile/releases">GitHub Releases</a> page. We provide:</p>
+<ul>
+<li><code>.tar.gz</code> archives for x86_64 and aarch64</li>
+<li><code>.deb</code> packages for Debian/Ubuntu</li>
+<li><code>.rpm</code> packages for Fedora/RHEL</li>
+</ul>
 <h2 id="from-source-requires-rust--175"><a class="header" href="#from-source-requires-rust--175">From source (requires Rust ≥ 1.75)</a></h2>
 <pre><code class="language-bash">git clone https://github.com/gitavk/KubeTile
 cd KubeTile
 cargo build --release
-# Binary is at target/release/kubetile
+# Binary will be available at target/release/kubetile
+</code></pre>
+<p>To install the binary to your <code>PATH</code>, you can run:</p>
+<pre><code class="language-bash">cargo install --path crates/kubetile-app
 </code></pre>
 <h2 id="requirements"><a class="header" href="#requirements">Requirements</a></h2>
 <ul>
-<li>A valid <code>~/.kube/config</code> pointing at a reachable cluster</li>
-<li>A terminal with 256-color support</li>
+<li><strong><code>kubectl</code></strong>: KubeTile uses <code>kubectl</code> for exec sessions and some describe operations. It must be installed and available in your <code>PATH</code>.</li>
+<li><strong>Kubeconfig</strong>: A valid <code>~/.kube/config</code> pointing at a reachable cluster.</li>
+<li><strong>Terminal</strong>: A terminal with 256-color support and a modern font (e.g., Nerd Fonts for better icon support if applicable).</li>
 </ul>
 <h2 id="running"><a class="header" href="#running">Running</a></h2>
 <pre><code class="language-bash">./target/release/kubetile

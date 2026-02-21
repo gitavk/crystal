@@ -181,22 +181,31 @@
                 <div id="content" class="content">
                     <main>
                         <h1 id="views"><a class="header" href="#views">Views</a></h1>
-<h2 id="resource-list"><a class="header" href="#resource-list">Resource list</a></h2>
+<p>KubeTile features a powerful layout system inspired by Zellij, allowing you to create a workspace that fits your needs with Tabs and Panes.</p>
+<h2 id="resource-list"><a class="header" href="#resource-list">Resource List</a></h2>
 <p>The default view when opening a pane. Shows a live-updating table of Kubernetes resources filtered to the selected namespace.</p>
-<p>Supported resource kinds: Pods, Deployments, Services, StatefulSets, DaemonSets, Jobs, CronJobs, ConfigMaps, Secrets, Ingresses, Nodes, Namespaces.</p>
-<p>Press <code>/</code> to filter, <code>s</code> / <code>S</code> to sort, <code>a</code> to toggle all-namespaces, <code>:</code> to switch resource kind.</p>
-<h2 id="yaml-view"><a class="header" href="#yaml-view">YAML view</a></h2>
-<p>Press <code>y</code> on any resource to open its full YAML. <code>show_managed_fields</code> in <code>[general]</code> controls whether <code>managedFields</code> is included.</p>
-<h2 id="describe-view"><a class="header" href="#describe-view">Describe view</a></h2>
-<p>Press <code>d</code> on any resource to view <code>kubectl describe</code>-style output.</p>
-<h2 id="logs-view"><a class="header" href="#logs-view">Logs view</a></h2>
-<p>Press <code>l</code> on a Pod row to stream its logs in a new pane. Press <code>f</code> to toggle follow, <code>w</code> to toggle line wrapping, <code>Ctrl+s</code> to save to a file.</p>
-<h2 id="exec-view"><a class="header" href="#exec-view">Exec view</a></h2>
-<p>Press <code>e</code> on a Pod row to open an interactive shell inside the container (uses the shell configured in <code>[general] shell</code>).</p>
+<ul>
+<li><strong>Supported Resource Kinds:</strong> Pods, Deployments, Services, StatefulSets, DaemonSets, Jobs, CronJobs, ConfigMaps, Secrets, Ingresses, Nodes, Namespaces, PVs, and PVCs.</li>
+<li><strong>Commands:</strong> Press <code>/</code> to filter, <code>s</code> to sort, <code>a</code> to toggle all-namespaces, and <code>:</code> to open the <strong>Resource Switcher</strong> (command palette).</li>
+</ul>
+<h2 id="yaml-view"><a class="header" href="#yaml-view">YAML View</a></h2>
+<p>Press <code>y</code> on any resource to view its full YAML definition with syntax highlighting. The configuration <code>show_managed_fields</code> in <code>[general]</code> controls whether <code>managedFields</code> are included.</p>
+<h2 id="describe-view"><a class="header" href="#describe-view">Describe View</a></h2>
+<p>Press <code>d</code> on any resource to view detailed <code>kubectl describe</code>-style output.</p>
+<h2 id="detail-view"><a class="header" href="#detail-view">Detail View</a></h2>
+<p>Press <code>Enter</code> on any resource to open a detailed view in a new pane. This shows metadata, status, specs, and more.</p>
+<h2 id="integrated-terminal--logs"><a class="header" href="#integrated-terminal--logs">Integrated Terminal &amp; Logs</a></h2>
+<p>KubeTile's terminal integration provides shells and log streams automatically configured for your cluster.</p>
+<h3 id="log-streaming"><a class="header" href="#log-streaming">Log Streaming</a></h3>
+<p>Select a Pod and press <code>l</code> to stream its logs in a new pane. The log view supports following (<code>f</code>), filtering (<code>/</code>), toggling line wrapping (<code>w</code>), and saving logs to a file (<code>Ctrl+s</code>).</p>
+<h3 id="exec-into-pods"><a class="header" href="#exec-into-pods">Exec into Pods</a></h3>
+<p>Select a Pod and press <code>e</code> to open an interactive shell inside its container (uses the shell configured in <code>[general] shell</code>).</p>
+<h3 id="context-aware-terminal"><a class="header" href="#context-aware-terminal">Context-Aware Terminal</a></h3>
+<p>Press <code>Alt+Enter</code> to open a general-purpose terminal pane. Your shell will be automatically configured with the correct <code>KUBECONFIG</code>, context, and namespace. The prompt will even show your current location in the cluster!</p>
 <h2 id="port-forward"><a class="header" href="#port-forward">Port-forward</a></h2>
 <p>Press <code>p</code> on a Pod or Service row to open the port-forward input. Manage active forwards with <code>Ctrl+Shift+p</code>.</p>
-<h2 id="terminal"><a class="header" href="#terminal">Terminal</a></h2>
-<p>Press <code>Alt+Enter</code> to open a general-purpose terminal pane. Scrollback is configurable via <code>[terminal] scrollback_lines</code>.</p>
+<h2 id="status-bar"><a class="header" href="#status-bar">Status Bar</a></h2>
+<p>The status bar shows mode hints, current cluster context, and namespace. It also indicates when KubeTile is in <strong>Insert Mode</strong>.</p>
 
                     </main>
 
