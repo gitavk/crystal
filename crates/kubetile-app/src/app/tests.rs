@@ -1,10 +1,14 @@
 use super::*;
-use crossterm::event::KeyCode;
+use crossterm::event::{KeyCode, KeyEvent};
 use kubetile_core::resource::DetailSection;
-use kubetile_tui::pane::{PaneCommand, PaneTree};
+use kubetile_tui::pane::{PaneCommand, PaneTree, SplitDirection};
 use tokio_util::sync::CancellationToken;
 
-use crate::keybindings::KeybindingDispatcher;
+use crate::{
+    command::InputMode,
+    keybindings::KeybindingDispatcher,
+    panes::{HelpPane, ResourceDetailPane, YamlPane},
+};
 
 fn test_dispatcher() -> KeybindingDispatcher {
     let config = kubetile_config::Config::load();
@@ -396,7 +400,7 @@ fn back_on_yaml_pane_closes_it() {
     let theme = kubetile_tui::theme::Theme::default();
     let yaml_pane = YamlPane::new(ResourceKind::Pods, "pod-a".into(), "kind: Pod".into(), &theme);
     let view = ViewType::Yaml(ResourceKind::Pods, "pod-a".into());
-    let yaml_id = tm.split_pane(focused, SplitDirection::Horizontal, view).unwrap();
+    let yaml_id = tm.split_pane(focused, kubetile_tui::pane::SplitDirection::Horizontal, view).unwrap();
     panes.insert(yaml_id, Box::new(yaml_pane));
     tm.active_mut().focused_pane = yaml_id;
 
