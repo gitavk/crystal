@@ -90,7 +90,7 @@
 
         <nav id="sidebar" class="sidebar" aria-label="Table of contents">
             <div class="sidebar-scrollbox">
-                <ol class="chapter"><li class="chapter-item expanded "><a href="introduction.html"><strong aria-hidden="true">1.</strong> Introduction</a></li><li class="chapter-item expanded "><a href="installation.html"><strong aria-hidden="true">2.</strong> Installation</a></li><li class="chapter-item expanded "><a href="keybindings.html"><strong aria-hidden="true">3.</strong> Keybindings</a></li><li class="chapter-item expanded "><a href="configuration.html"><strong aria-hidden="true">4.</strong> Configuration</a></li><li class="chapter-item expanded "><a href="views.html"><strong aria-hidden="true">5.</strong> Views</a></li><li class="chapter-item expanded affix "><a href="404.html">404</a></li></ol>
+                <ol class="chapter"><li class="chapter-item expanded "><a href="introduction.html"><strong aria-hidden="true">1.</strong> Introduction</a></li><li class="chapter-item expanded "><a href="installation.html"><strong aria-hidden="true">2.</strong> Installation</a></li><li class="chapter-item expanded "><a href="demo-stand.html"><strong aria-hidden="true">3.</strong> Demo Stand</a></li><li class="chapter-item expanded "><a href="keybindings.html"><strong aria-hidden="true">4.</strong> Keybindings</a></li><li class="chapter-item expanded "><a href="configuration.html"><strong aria-hidden="true">5.</strong> Configuration</a></li><li class="chapter-item expanded "><a href="views.html"><strong aria-hidden="true">6.</strong> Views</a></li><li class="chapter-item expanded affix "><a href="404.html">404</a></li></ol>
             </div>
             <div id="sidebar-resize-handle" class="sidebar-resize-handle">
                 <div class="sidebar-resize-indicator"></div>
@@ -229,6 +229,62 @@ cargo build --release
 <h2 id="running"><a class="header" href="#running">Running</a></h2>
 <pre><code class="language-bash">./target/release/kubetile
 </code></pre>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="demo-stand"><a class="header" href="#demo-stand">Demo Stand</a></h1>
+<p>The KubeTile repository includes a <strong>Demo Stand</strong>—a set of scripts and manifests to quickly spin up a local <a href="https://kind.sigs.k8s.io/">kind</a> (Kubernetes in Docker) cluster. This is the fastest way to explore KubeTile's features in a controlled environment.</p>
+<h2 id="prerequisites"><a class="header" href="#prerequisites">Prerequisites</a></h2>
+<p>To use the demo stand, you need the following installed:</p>
+<ul>
+<li><strong>Docker</strong></li>
+<li><strong>kind</strong></li>
+<li><strong>kubectl</strong></li>
+</ul>
+<h2 id="getting-started"><a class="header" href="#getting-started">Getting Started</a></h2>
+<ol>
+<li>
+<p><strong>Set up the cluster</strong>:
+Run the setup script from the project root. This creates a <code>kind</code> cluster named <code>kubetile-demo</code> and deploys sample resources.</p>
+<pre><code class="language-bash">./demo-stand/setup.sh
+</code></pre>
+</li>
+<li>
+<p><strong>Run KubeTile</strong>:
+Once the cluster is ready, start KubeTile:</p>
+<pre><code class="language-bash">cargo run
+</code></pre>
+</li>
+<li>
+<p><strong>Explore the Demo</strong>:
+The setup script creates several resources designed to showcase specific features:</p>
+<ul>
+<li><strong>Namespaces</strong>: Explore <code>kubetile-prod</code>, <code>kubetile-staging</code>, and <code>kubetile-dev</code>.</li>
+<li><strong>Logs &amp; Exec</strong>:
+<ul>
+<li>Find the <code>noisy-pod</code> in <code>kubetile-dev</code> to test log streaming.</li>
+<li>Exec into one of the <code>frontend</code> pods in <code>kubetile-prod</code>.</li>
+</ul>
+</li>
+<li><strong>Debugging</strong>:
+<ul>
+<li>Check the <code>crashing-pod</code> in <code>kubetile-dev</code> to see <code>CrashLoopBackOff</code> states.</li>
+<li>View the <code>pending-pod</code> to see how KubeTile displays resources that cannot be scheduled.</li>
+</ul>
+</li>
+<li><strong>Port Forwarding</strong>: Try port-forwarding to the <code>frontend</code> service in <code>kubetile-prod</code>.</li>
+</ul>
+</li>
+</ol>
+<h2 id="cleanup"><a class="header" href="#cleanup">Cleanup</a></h2>
+<p>When you're finished, you can delete the local cluster and all its resources:</p>
+<pre><code class="language-bash">./demo-stand/cleanup.sh
+</code></pre>
+<h2 id="included-resources"><a class="header" href="#included-resources">Included Resources</a></h2>
+<p>The demo environment includes a variety of standard Kubernetes objects:</p>
+<ul>
+<li><strong>Deployments &amp; Services</strong>: A typical frontend/backend/redis stack.</li>
+<li><strong>ConfigMaps &amp; Secrets</strong>: For testing resource inspection and YAML views.</li>
+<li><strong>Jobs &amp; CronJobs</strong>: To observe batch resource lifecycles.</li>
+<li><strong>Error Cases</strong>: Intentionally misconfigured pods to test troubleshooting workflows.</li>
+</ul>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="keybindings"><a class="header" href="#keybindings">Keybindings</a></h1>
 <p>All keybindings are configurable via <code>~/.config/kubetile/config.toml</code>. These are the defaults.</p>
 <h2 id="navigation"><a class="header" href="#navigation">Navigation</a></h2>

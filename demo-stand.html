@@ -3,7 +3,7 @@
     <head>
         <!-- Book generated using mdBook -->
         <meta charset="UTF-8">
-        <title>Views - KubeTile</title>
+        <title>Demo Stand - KubeTile</title>
 
 
         <!-- Custom HTML head -->
@@ -89,7 +89,7 @@
 
         <nav id="sidebar" class="sidebar" aria-label="Table of contents">
             <div class="sidebar-scrollbox">
-                <ol class="chapter"><li class="chapter-item expanded "><a href="introduction.html"><strong aria-hidden="true">1.</strong> Introduction</a></li><li class="chapter-item expanded "><a href="installation.html"><strong aria-hidden="true">2.</strong> Installation</a></li><li class="chapter-item expanded "><a href="demo-stand.html"><strong aria-hidden="true">3.</strong> Demo Stand</a></li><li class="chapter-item expanded "><a href="keybindings.html"><strong aria-hidden="true">4.</strong> Keybindings</a></li><li class="chapter-item expanded "><a href="configuration.html"><strong aria-hidden="true">5.</strong> Configuration</a></li><li class="chapter-item expanded "><a href="views.html" class="active"><strong aria-hidden="true">6.</strong> Views</a></li><li class="chapter-item expanded affix "><a href="404.html">404</a></li></ol>
+                <ol class="chapter"><li class="chapter-item expanded "><a href="introduction.html"><strong aria-hidden="true">1.</strong> Introduction</a></li><li class="chapter-item expanded "><a href="installation.html"><strong aria-hidden="true">2.</strong> Installation</a></li><li class="chapter-item expanded "><a href="demo-stand.html" class="active"><strong aria-hidden="true">3.</strong> Demo Stand</a></li><li class="chapter-item expanded "><a href="keybindings.html"><strong aria-hidden="true">4.</strong> Keybindings</a></li><li class="chapter-item expanded "><a href="configuration.html"><strong aria-hidden="true">5.</strong> Configuration</a></li><li class="chapter-item expanded "><a href="views.html"><strong aria-hidden="true">6.</strong> Views</a></li><li class="chapter-item expanded affix "><a href="404.html">404</a></li></ol>
             </div>
             <div id="sidebar-resize-handle" class="sidebar-resize-handle">
                 <div class="sidebar-resize-indicator"></div>
@@ -151,7 +151,7 @@
                         <a href="https://github.com/gitavk/KubeTile" title="Git repository" aria-label="Git repository">
                             <i id="git-repository-button" class="fa fa-github"></i>
                         </a>
-                        <a href="https://github.com/gitavk/KubeTile/edit/main/book/src/src/views.md" title="Suggest an edit" aria-label="Suggest an edit">
+                        <a href="https://github.com/gitavk/KubeTile/edit/main/book/src/src/demo-stand.md" title="Suggest an edit" aria-label="Suggest an edit">
                             <i id="git-edit-button" class="fa fa-edit"></i>
                         </a>
 
@@ -180,49 +180,72 @@
 
                 <div id="content" class="content">
                     <main>
-                        <h1 id="views"><a class="header" href="#views">Views</a></h1>
-<p>KubeTile features a powerful layout system inspired by Zellij, allowing you to create a workspace that fits your needs with Tabs and Panes.</p>
-<h2 id="resource-list"><a class="header" href="#resource-list">Resource List</a></h2>
-<p>The default view when opening a pane. Shows a live-updating table of Kubernetes resources filtered to the selected namespace.</p>
+                        <h1 id="demo-stand"><a class="header" href="#demo-stand">Demo Stand</a></h1>
+<p>The KubeTile repository includes a <strong>Demo Stand</strong>—a set of scripts and manifests to quickly spin up a local <a href="https://kind.sigs.k8s.io/">kind</a> (Kubernetes in Docker) cluster. This is the fastest way to explore KubeTile's features in a controlled environment.</p>
+<h2 id="prerequisites"><a class="header" href="#prerequisites">Prerequisites</a></h2>
+<p>To use the demo stand, you need the following installed:</p>
 <ul>
-<li><strong>Supported Resource Kinds:</strong> Pods, Deployments, Services, StatefulSets, DaemonSets, Jobs, CronJobs, ConfigMaps, Secrets, Ingresses, Nodes, Namespaces, PVs, and PVCs.</li>
-<li><strong>Commands:</strong> Press <code>/</code> to filter, <code>s</code> to sort, <code>a</code> to toggle all-namespaces, and <code>:</code> to open the <strong>Resource Switcher</strong> (command palette).</li>
+<li><strong>Docker</strong></li>
+<li><strong>kind</strong></li>
+<li><strong>kubectl</strong></li>
 </ul>
-<h2 id="yaml-view"><a class="header" href="#yaml-view">YAML View</a></h2>
-<p>Press <code>y</code> on any resource to view its full YAML definition with syntax highlighting. The configuration <code>show_managed_fields</code> in <code>[general]</code> controls whether <code>managedFields</code> are included.</p>
-<h2 id="describe-view"><a class="header" href="#describe-view">Describe View</a></h2>
-<p>Press <code>d</code> on any resource to view detailed <code>kubectl describe</code>-style output.</p>
-<h2 id="detail-view"><a class="header" href="#detail-view">Detail View</a></h2>
-<p>Press <code>Enter</code> on any resource to open a detailed view in a new pane. This shows metadata, status, specs, and more.</p>
-<h2 id="integrated-terminal--logs"><a class="header" href="#integrated-terminal--logs">Integrated Terminal &amp; Logs</a></h2>
-<p>KubeTile's terminal integration provides shells and log streams automatically configured for your cluster.</p>
-<h3 id="log-streaming"><a class="header" href="#log-streaming">Log Streaming</a></h3>
-<p>Select a Pod and press <code>l</code> to stream its logs in a new pane.
-The log view supports:</p>
+<h2 id="getting-started"><a class="header" href="#getting-started">Getting Started</a></h2>
+<ol>
+<li>
+<p><strong>Set up the cluster</strong>:
+Run the setup script from the project root. This creates a <code>kind</code> cluster named <code>kubetile-demo</code> and deploys sample resources.</p>
+<pre><code class="language-bash">./demo-stand/setup.sh
+</code></pre>
+</li>
+<li>
+<p><strong>Run KubeTile</strong>:
+Once the cluster is ready, start KubeTile:</p>
+<pre><code class="language-bash">cargo run
+</code></pre>
+</li>
+<li>
+<p><strong>Explore the Demo</strong>:
+The setup script creates several resources designed to showcase specific features:</p>
 <ul>
-<li>following (<code>f</code>)</li>
-<li>filtering (<code>/</code>)</li>
-<li>toggling line wrapping (<code>w</code>)</li>
-<li>saving visible logs(include filtering) to a file (<code>Ctrl+s</code>)</li>
-<li>export (download) full availeble logs (<code>Ctrl+e</code>)</li>
+<li><strong>Namespaces</strong>: Explore <code>kubetile-prod</code>, <code>kubetile-staging</code>, and <code>kubetile-dev</code>.</li>
+<li><strong>Logs &amp; Exec</strong>:
+<ul>
+<li>Find the <code>noisy-pod</code> in <code>kubetile-dev</code> to test log streaming.</li>
+<li>Exec into one of the <code>frontend</code> pods in <code>kubetile-prod</code>.</li>
 </ul>
-<h3 id="exec-into-pods"><a class="header" href="#exec-into-pods">Exec into Pods</a></h3>
-<p>Select a Pod and press <code>e</code> to open an interactive shell inside its container
-(uses the shell configured in <code>[general] shell</code>).
-To switch to from the terminal you should go to <code>NORMAL</code> mode by <code>esc</code> key,
-to again start work in terminal need to switch to <code>INSERT</code> mode by <code>i</code> key.</p>
-<h2 id="port-forward"><a class="header" href="#port-forward">Port-forward</a></h2>
-<p>Press <code>p</code> on a Pod or Service row to open the port-forward input. Manage active forwards with <code>Ctrl+Shift+p</code>.</p>
+</li>
+<li><strong>Debugging</strong>:
+<ul>
+<li>Check the <code>crashing-pod</code> in <code>kubetile-dev</code> to see <code>CrashLoopBackOff</code> states.</li>
+<li>View the <code>pending-pod</code> to see how KubeTile displays resources that cannot be scheduled.</li>
+</ul>
+</li>
+<li><strong>Port Forwarding</strong>: Try port-forwarding to the <code>frontend</code> service in <code>kubetile-prod</code>.</li>
+</ul>
+</li>
+</ol>
+<h2 id="cleanup"><a class="header" href="#cleanup">Cleanup</a></h2>
+<p>When you're finished, you can delete the local cluster and all its resources:</p>
+<pre><code class="language-bash">./demo-stand/cleanup.sh
+</code></pre>
+<h2 id="included-resources"><a class="header" href="#included-resources">Included Resources</a></h2>
+<p>The demo environment includes a variety of standard Kubernetes objects:</p>
+<ul>
+<li><strong>Deployments &amp; Services</strong>: A typical frontend/backend/redis stack.</li>
+<li><strong>ConfigMaps &amp; Secrets</strong>: For testing resource inspection and YAML views.</li>
+<li><strong>Jobs &amp; CronJobs</strong>: To observe batch resource lifecycles.</li>
+<li><strong>Error Cases</strong>: Intentionally misconfigured pods to test troubleshooting workflows.</li>
+</ul>
 
                     </main>
 
                     <nav class="nav-wrapper" aria-label="Page navigation">
                         <!-- Mobile navigation buttons -->
-                            <a rel="prev" href="configuration.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                            <a rel="prev" href="installation.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                                 <i class="fa fa-angle-left"></i>
                             </a>
 
-                            <a rel="next prefetch" href="404.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                            <a rel="next prefetch" href="keybindings.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                                 <i class="fa fa-angle-right"></i>
                             </a>
 
@@ -232,11 +255,11 @@ to again start work in terminal need to switch to <code>INSERT</code> mode by <c
             </div>
 
             <nav class="nav-wide-wrapper" aria-label="Page navigation">
-                    <a rel="prev" href="configuration.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                    <a rel="prev" href="installation.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                         <i class="fa fa-angle-left"></i>
                     </a>
 
-                    <a rel="next prefetch" href="404.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                    <a rel="next prefetch" href="keybindings.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                         <i class="fa fa-angle-right"></i>
                     </a>
             </nav>
