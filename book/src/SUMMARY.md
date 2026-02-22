@@ -2,6 +2,7 @@
 
 - [Introduction](introduction.md)
 - [Installation](installation.md)
+- [Demo Stand](demo-stand.md)
 - [Keybindings](keybindings.md)
 - [Configuration](configuration.md)
 - [Views](views.md)
