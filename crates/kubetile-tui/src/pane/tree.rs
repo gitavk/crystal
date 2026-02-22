@@ -42,7 +42,7 @@ impl PaneTree {
     /// Returns the new pane's ID, or None if target was not found.
     pub fn split(&mut self, target: PaneId, direction: SplitDirection, new_view: ViewType) -> Option<PaneId> {
         let new_id = self.next_id;
-        if self.root.split_at(target, direction, new_id, new_view) {
+        if self.root.split_at(target, direction, new_id, new_view, 0.5) {
             self.next_id += 1;
             Some(new_id)
         } else {
@@ -58,7 +58,19 @@ impl PaneTree {
         new_view: ViewType,
         new_id: PaneId,
     ) -> bool {
-        self.root.split_at(target, direction, new_id, new_view)
+        self.root.split_at(target, direction, new_id, new_view, 0.5)
+    }
+
+    /// Split with an externally-allocated pane ID and a custom split ratio.
+    pub fn split_with_id_and_ratio(
+        &mut self,
+        target: PaneId,
+        direction: SplitDirection,
+        new_view: ViewType,
+        new_id: PaneId,
+        ratio: f32,
+    ) -> bool {
+        self.root.split_at(target, direction, new_id, new_view, ratio)
     }
 
     /// Close a pane, promoting its sibling to take the parent's place.
@@ -100,13 +112,20 @@ impl PaneNode {
         }
     }
 
-    fn split_at(&mut self, target: PaneId, direction: SplitDirection, new_id: PaneId, new_view: ViewType) -> bool {
+    fn split_at(
+        &mut self,
+        target: PaneId,
+        direction: SplitDirection,
+        new_id: PaneId,
+        new_view: ViewType,
+        ratio: f32,
+    ) -> bool {
         match self {
             PaneNode::Leaf { id, .. } if *id == target => {
                 let old = std::mem::replace(self, PaneNode::Leaf { id: 0, view: ViewType::Empty });
                 *self = PaneNode::Split {
                     direction,
-                    ratio: 0.5,
+                    ratio,
                     first: Box::new(old),
                     second: Box::new(PaneNode::Leaf { id: new_id, view: new_view }),
                 };
@@ -114,9 +133,9 @@ impl PaneNode {
             }
             PaneNode::Split { first, second, .. } => {
                 if first.contains_leaf(target) {
-                    first.split_at(target, direction, new_id, new_view)
+                    first.split_at(target, direction, new_id, new_view, ratio)
                 } else if second.contains_leaf(target) {
-                    second.split_at(target, direction, new_id, new_view)
+                    second.split_at(target, direction, new_id, new_view, ratio)
                 } else {
                     false
                 }

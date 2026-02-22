@@ -7,7 +7,7 @@ use kubetile_tui::widgets::toast::ToastMessage;
 
 use crate::event::AppEvent;
 use crate::panes::logs_pane::HistoryRequest;
-use crate::panes::{AppLogsPane, ExecPane, LogsPane, ResourceDetailPane, YamlPane};
+use crate::panes::{AppLogsPane, ExecPane, LogsPane, ResourceDetailPane, ResourceListPane, YamlPane};
 
 use super::App;
 
@@ -62,7 +62,9 @@ impl App {
             let focused = self.tab_manager.active().focused_pane;
             let pane = LogsPane::new(name.clone(), namespace.clone());
             let view = ViewType::Logs(name.clone());
-            let Some(new_id) = self.tab_manager.split_pane(focused, SplitDirection::Horizontal, view) else {
+            let ratio = self.calc_logs_split_ratio(focused);
+            let Some(new_id) = self.tab_manager.split_pane_with_ratio(focused, SplitDirection::Horizontal, view, ratio)
+            else {
                 return;
             };
             self.panes.insert(new_id, Box::new(pane));
@@ -86,6 +88,29 @@ impl App {
         self.tab_manager.active().pane_tree.leaf_ids().into_iter().find(|pane_id| {
             self.panes.get(pane_id).is_some_and(|pane| pane.as_any().downcast_ref::<LogsPane>().is_some())
         })
+    }
+
+    fn calc_logs_split_ratio(&self, focused_pane: PaneId) -> f32 {
+        let Ok((_, rows)) = crossterm::terminal::size() else {
+            return 0.5;
+        };
+        let body_height = rows.saturating_sub(2) as usize;
+        if body_height == 0 {
+            return 0.5;
+        }
+        let item_count = self
+            .panes
+            .get(&focused_pane)
+            .and_then(|p| p.as_any().downcast_ref::<ResourceListPane>())
+            .map(|p| p.filtered_indices.len())
+            .unwrap_or(body_height);
+        // borders (2) + header row (1) = 3 overhead lines
+        let needed_height = item_count + 3;
+        if needed_height < body_height / 2 {
+            (needed_height as f32 / body_height as f32).clamp(0.1, 0.5)
+        } else {
+            0.5
+        }
     }
 
     pub(super) fn start_logs_stream_for_pane(&mut self, pane_id: PaneId, name: String, namespace: String) {

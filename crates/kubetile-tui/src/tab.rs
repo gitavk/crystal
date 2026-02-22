@@ -119,6 +119,23 @@ impl TabManager {
             None
         }
     }
+
+    pub fn split_pane_with_ratio(
+        &mut self,
+        target: PaneId,
+        direction: SplitDirection,
+        new_view: ViewType,
+        ratio: f32,
+    ) -> Option<PaneId> {
+        let new_id = self.alloc_pane_id();
+        let tab = &mut self.tabs[self.active_tab];
+        if tab.pane_tree.split_with_id_and_ratio(target, direction, new_view, new_id, ratio) {
+            Some(new_id)
+        } else {
+            self.next_pane_id -= 1;
+            None
+        }
+    }
 }
 
 #[cfg(test)]
