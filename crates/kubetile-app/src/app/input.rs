@@ -100,7 +100,7 @@ impl App {
         }
 
         if let Some((cmd, requires_confirm)) = self.dispatcher.dispatch(key) {
-            if requires_confirm {
+            if requires_confirm || matches!(cmd, Command::Quit) {
                 self.pending_confirmation = Some(super::PendingConfirmation::from_command(cmd));
                 self.dispatcher.set_mode(InputMode::ConfirmDialog);
             } else {
