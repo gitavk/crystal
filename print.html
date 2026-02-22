@@ -337,9 +337,11 @@ The setup script creates several resources designed to showcase specific feature
 </div>
 <h2 id="mutate-destructive--require-confirmation"><a class="header" href="#mutate-destructive--require-confirmation">Mutate (Destructive — require confirmation)</a></h2>
 <div class="table-wrapper"><table><thead><tr><th>Key</th><th>Action</th></tr></thead><tbody>
-<tr><td><code>Ctrl+Alt+d</code></td><td>Delete resource</td></tr>
+<tr><td><code>Ctrl+Alt+x</code></td><td>Delete resource</td></tr>
 <tr><td><code>Ctrl+Alt+s</code></td><td>Scale resource</td></tr>
 <tr><td><code>Ctrl+Alt+r</code></td><td>Restart / rollout restart</td></tr>
+<tr><td><code>Ctrl+Alt+d</code></td><td>Toggle debug mode (Pod → owner Deployment)</td></tr>
+<tr><td><code>F5</code></td><td>Toggle root debug mode (same + <code>runAsUser: 0</code>)</td></tr>
 </tbody></table>
 </div>
 <h2 id="pane--tab-management"><a class="header" href="#pane--tab-management">Pane &amp; Tab Management</a></h2>
@@ -481,6 +483,24 @@ To switch to from the terminal you should go to <code>NORMAL</code> mode by <cod
 to again start work in terminal need to switch to <code>INSERT</code> mode by <code>i</code> key.</p>
 <h2 id="port-forward"><a class="header" href="#port-forward">Port-forward</a></h2>
 <p>Press <code>p</code> on a Pod or Service row to open the port-forward input. Manage active forwards with <code>Ctrl+Shift+p</code>.</p>
+<h2 id="debug-mode"><a class="header" href="#debug-mode">Debug Mode</a></h2>
+<p>Debug mode lets you replace a running container's command with <code>sleep infinity</code> so you can exec into it for investigation without the application process interfering.</p>
+<p>Select a <strong>Pod</strong> and press <code>Ctrl+Alt+d</code> to toggle debug mode. KubeTile will:</p>
+<ol>
+<li>Resolve the Pod's owner Deployment via its ReplicaSet.</li>
+<li>Save the original <code>command</code> and <code>args</code> as annotations on the Deployment.</li>
+<li>Patch the Deployment to run <code>sleep infinity</code> — all pods in the Deployment restart.</li>
+<li>Press the same key again to restore the original command and exit debug mode.</li>
+</ol>
+<h3 id="root-debug-mode"><a class="header" href="#root-debug-mode">Root Debug Mode</a></h3>
+<p>Press <code>F5</code> on a Pod to toggle <strong>root debug mode</strong>. This does everything debug mode does, and additionally sets:</p>
+<pre><code class="language-yaml">securityContext:
+  runAsUser: 0
+</code></pre>
+<p>This is useful when you need root access inside the container (e.g., to inspect system files or install debugging tools). The original <code>securityContext</code> is preserved and restored on exit.</p>
+<blockquote>
+<p><strong>Safety:</strong> if the Deployment is already in one debug mode when you activate the other, the original application command is never overwritten — it is reused from the existing saved annotation.</p>
+</blockquote>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="page-not-found"><a class="header" href="#page-not-found">Page not found</a></h1>
 <p>The page you are looking for does not exist.</p>
 <p><a href="introduction.html">Return to the introduction</a></p>
