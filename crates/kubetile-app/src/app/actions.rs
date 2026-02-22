@@ -172,6 +172,18 @@ impl App {
         self.dispatcher.set_mode(InputMode::ConfirmDialog);
     }
 
+    pub(super) fn initiate_debug_toggle(&mut self) {
+        let Some((kind, name, namespace)) = self.selected_resource_info() else { return };
+        if kind != ResourceKind::Pods {
+            self.toasts.push(ToastMessage::info("Debug mode is only available for Pods"));
+            return;
+        }
+        let message = format!("Toggle debug mode for pod/{name}\nin namespace {namespace}?");
+        self.pending_confirmation =
+            Some(PendingConfirmation { message, action: PendingAction::ToggleDebugMode { name, namespace } });
+        self.dispatcher.set_mode(InputMode::ConfirmDialog);
+    }
+
     pub(super) fn execute_confirmed_action(&mut self) {
         let confirmation = match self.pending_confirmation.take() {
             Some(c) => c,
@@ -305,6 +317,52 @@ impl App {
                         Err(e) => AppEvent::Toast(ToastMessage::error(format!("Failed to fetch logs: {e}"))),
                     };
                     let _ = app_tx.send(event);
+                });
+            }
+            PendingAction::ToggleDebugMode { name: pod_name, namespace } => {
+                let Some(client) = &self.kube_client else {
+                    self.toasts.push(ToastMessage::error("No cluster connection"));
+                    return;
+                };
+                let kube_client = client.inner_client();
+                let app_tx = self.app_tx.clone();
+
+                tokio::spawn(async move {
+                    let executor = kubetile_core::ActionExecutor::new(kube_client.clone());
+
+                    let deploy_name = match executor.resolve_owner_deployment(&pod_name, &namespace).await {
+                        Ok(d) => d,
+                        Err(e) => {
+                            let _ = app_tx.send(AppEvent::Toast(ToastMessage::error(format!("{e}"))));
+                            return;
+                        }
+                    };
+
+                    let in_debug = match executor.is_in_debug_mode(&deploy_name, &namespace).await {
+                        Ok(v) => v,
+                        Err(e) => {
+                            let _ = app_tx
+                                .send(AppEvent::Toast(ToastMessage::error(format!("Debug mode check failed: {e}"))));
+                            return;
+                        }
+                    };
+
+                    let result = if in_debug {
+                        executor.exit_debug_mode(&deploy_name, &namespace).await
+                    } else {
+                        executor.enter_debug_mode(&deploy_name, &namespace).await
+                    };
+
+                    let toast = match result {
+                        Ok(()) if in_debug => {
+                            ToastMessage::success(format!("Exited debug mode for deploy/{deploy_name}"))
+                        }
+                        Ok(()) => ToastMessage::success(format!(
+                            "Entered debug mode for deploy/{deploy_name} — pods will restart with sleep infinity"
+                        )),
+                        Err(e) => ToastMessage::error(format!("Debug mode toggle failed: {e}")),
+                    };
+                    let _ = app_tx.send(AppEvent::Toast(toast));
                 });
             }
             PendingAction::MutateCommand(cmd) => {

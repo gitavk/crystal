@@ -37,6 +37,7 @@ pub enum PendingAction {
     Delete { kind: ResourceKind, name: String, namespace: String },
     SaveLogs { path: PathBuf, content: String },
     DownloadFullLogs { path: PathBuf, pod_name: String, namespace: String, container: Option<String> },
+    ToggleDebugMode { name: String, namespace: String },
     MutateCommand(Command),
 }
 
@@ -51,6 +52,7 @@ impl PendingConfirmation {
             Command::DeleteResource => "Delete resource",
             Command::ScaleResource => "Scale resource",
             Command::RestartRollout => "Restart rollout",
+            Command::ToggleDebugMode => "Toggle debug mode",
             other => {
                 let msg = format!("{other:?}");
                 return Self { message: format!("Confirm: {msg}?"), action: PendingAction::MutateCommand(cmd) };

@@ -244,9 +244,10 @@ fn pod_summary_row_values() {
         restarts: 0,
         age: Duration::from_secs(300),
         node: Some("node-1".into()),
+        debug_mode: false,
     };
     let row = s.row();
-    assert_eq!(row, vec!["nginx", "default", "1/1", "Running", "0", "5m", "node-1", "pod-uid-1"]);
+    assert_eq!(row, vec!["nginx", "default", "Running", "1/1", "0", "5m", "node-1", "pod-uid-1"]);
 }
 
 #[test]
@@ -281,6 +282,7 @@ fn pod_summary_columns_returns_eight_entries() {
         restarts: 0,
         age: Duration::from_secs(3600),
         node: Some("node-1".into()),
+        debug_mode: false,
     };
     let cols = summary.columns();
     assert_eq!(cols.len(), 8);
@@ -301,6 +303,7 @@ fn resource_summary_trait_is_object_safe() {
         restarts: 2,
         age: Duration::from_secs(120),
         node: None,
+        debug_mode: false,
     };
     let boxed: Box<dyn ResourceSummary> = Box::new(summary);
     assert_eq!(boxed.name(), "test");
@@ -318,13 +321,14 @@ fn pod_summary_row_includes_namespace_column() {
         restarts: 3,
         age: Duration::from_secs(7200),
         node: Some("node-1".into()),
+        debug_mode: false,
     };
     let row = summary.row();
     assert_eq!(row.len(), 8);
     assert_eq!(row[0], "nginx");
     assert_eq!(row[1], "default");
-    assert_eq!(row[2], "1/1");
-    assert_eq!(row[3], "Running");
+    assert_eq!(row[2], "Running");
+    assert_eq!(row[3], "1/1");
     assert_eq!(row[4], "3");
     assert_eq!(row[5], "2h");
     assert_eq!(row[6], "node-1");
@@ -342,6 +346,7 @@ fn pod_summary_detail_sections_has_metadata_and_status() {
         restarts: 0,
         age: Duration::from_secs(60),
         node: None,
+        debug_mode: false,
     };
     let sections = summary.detail_sections();
     assert_eq!(sections.len(), 2);
@@ -362,6 +367,7 @@ fn pod_summary_detail_sections_includes_node_when_present() {
         restarts: 0,
         age: Duration::from_secs(300),
         node: Some("worker-2".into()),
+        debug_mode: false,
     };
     let sections = summary.detail_sections();
     assert_eq!(sections[0].fields.len(), 5);
@@ -395,6 +401,7 @@ fn deployment_summary_row_values() {
         up_to_date: 3,
         available: 3,
         age: Duration::from_secs(86400),
+        debug_mode: false,
     };
     let row = s.row();
     assert_eq!(row, vec!["my-app", "3/3", "3", "3", "1d"]);

@@ -1,7 +1,7 @@
 use std::fmt::Debug;
 
 use anyhow::Result;
-use k8s_openapi::api::apps::v1::{Deployment, StatefulSet};
+use k8s_openapi::api::apps::v1::{Deployment, ReplicaSet, StatefulSet};
 use k8s_openapi::api::core::v1::Event;
 use k8s_openapi::NamespaceResourceScope;
 use kube::api::{Api, DeleteParams, ListParams, Patch, PatchParams};
@@ -149,6 +149,140 @@ impl ActionExecutor {
             _ => anyhow::bail!("Scale not supported for {:?}", kind),
         }
         Ok(())
+    }
+
+    pub async fn resolve_owner_deployment(&self, pod_name: &str, ns: &str) -> Result<String> {
+        use k8s_openapi::api::core::v1::Pod;
+
+        let pods: Api<Pod> = Api::namespaced(self.client.clone(), ns);
+        let pod = pods.get(pod_name).await?;
+
+        let rs_name = pod
+            .metadata
+            .owner_references
+            .as_ref()
+            .and_then(|refs| refs.iter().find(|r| r.kind == "ReplicaSet"))
+            .map(|r| r.name.clone())
+            .ok_or_else(|| {
+                anyhow::anyhow!("Pod '{pod_name}' has no ReplicaSet owner — is it managed by a Deployment?")
+            })?;
+
+        let rs_api: Api<ReplicaSet> = Api::namespaced(self.client.clone(), ns);
+        let rs = rs_api.get(&rs_name).await?;
+
+        let deploy_name = rs
+            .metadata
+            .owner_references
+            .as_ref()
+            .and_then(|refs| refs.iter().find(|r| r.kind == "Deployment"))
+            .map(|r| r.name.clone())
+            .ok_or_else(|| anyhow::anyhow!("ReplicaSet '{rs_name}' has no Deployment owner"))?;
+
+        Ok(deploy_name)
+    }
+
+    pub async fn enter_debug_mode(&self, name: &str, ns: &str) -> Result<()> {
+        let api: Api<Deployment> = Api::namespaced(self.client.clone(), ns);
+        let deploy = api.get(name).await?;
+
+        let containers = deploy
+            .spec
+            .as_ref()
+            .and_then(|s| s.template.spec.as_ref())
+            .map(|s| &s.containers)
+            .ok_or_else(|| anyhow::anyhow!("No containers found in deployment"))?;
+
+        let container = containers.first().ok_or_else(|| anyhow::anyhow!("Deployment has no containers"))?;
+
+        let orig_command = serde_json::to_string(&container.command)?;
+        let orig_args = serde_json::to_string(&container.args)?;
+
+        let patch = serde_json::json!({
+            "metadata": {
+                "annotations": {
+                    "debug.kubetile.io/original-command": orig_command,
+                    "debug.kubetile.io/original-args": orig_args,
+                }
+            },
+            "spec": {
+                "template": {
+                    "metadata": {
+                        "annotations": {
+                            "debug.kubetile.io/debug-mode": "true",
+                        }
+                    },
+                    "spec": {
+                        "containers": [{
+                            "name": container.name,
+                            "command": ["sleep", "infinity"],
+                            "args": []
+                        }]
+                    }
+                }
+            }
+        });
+
+        api.patch(name, &PatchParams::default(), &Patch::Strategic(&patch)).await?;
+        Ok(())
+    }
+
+    pub async fn exit_debug_mode(&self, name: &str, ns: &str) -> Result<()> {
+        let api: Api<Deployment> = Api::namespaced(self.client.clone(), ns);
+        let deploy = api.get(name).await?;
+
+        let annotations = deploy.metadata.annotations.as_ref();
+        let orig_command_str =
+            annotations.and_then(|a| a.get("debug.kubetile.io/original-command")).map(|s| s.as_str()).unwrap_or("null");
+        let orig_args_str =
+            annotations.and_then(|a| a.get("debug.kubetile.io/original-args")).map(|s| s.as_str()).unwrap_or("null");
+
+        let containers = deploy
+            .spec
+            .as_ref()
+            .and_then(|s| s.template.spec.as_ref())
+            .map(|s| &s.containers)
+            .ok_or_else(|| anyhow::anyhow!("No containers found in deployment"))?;
+
+        let container = containers.first().ok_or_else(|| anyhow::anyhow!("Deployment has no containers"))?;
+
+        let orig_command: serde_json::Value = serde_json::from_str(orig_command_str).unwrap_or(serde_json::Value::Null);
+        let orig_args: serde_json::Value = serde_json::from_str(orig_args_str).unwrap_or(serde_json::Value::Null);
+
+        let patch = serde_json::json!({
+            "metadata": {
+                "annotations": {
+                    "debug.kubetile.io/original-command": null,
+                    "debug.kubetile.io/original-args": null,
+                }
+            },
+            "spec": {
+                "template": {
+                    "metadata": {
+                        "annotations": {
+                            "debug.kubetile.io/debug-mode": null,
+                        }
+                    },
+                    "spec": {
+                        "containers": [{
+                            "name": container.name,
+                            "command": orig_command,
+                            "args": orig_args,
+                        }]
+                    }
+                }
+            }
+        });
+
+        api.patch(name, &PatchParams::default(), &Patch::Strategic(&patch)).await?;
+        Ok(())
+    }
+
+    pub async fn is_in_debug_mode(&self, name: &str, ns: &str) -> Result<bool> {
+        let api: Api<Deployment> = Api::namespaced(self.client.clone(), ns);
+        let deploy = api.get(name).await?;
+        let in_debug =
+            deploy.metadata.annotations.as_ref().is_some_and(|a| a.contains_key("debug.kubetile.io/original-command"));
+        Ok(in_debug)
     }
 
     pub async fn restart_rollout(&self, name: &str, ns: &str) -> Result<()> {

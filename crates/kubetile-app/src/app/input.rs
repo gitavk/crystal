@@ -476,6 +476,10 @@ impl App {
                 self.toasts.push(ToastMessage::info("Scale not yet implemented"));
             }
 
+            Command::ToggleDebugMode => {
+                self.initiate_debug_toggle();
+            }
+
             Command::ViewLogs => {
                 self.open_logs_pane();
             }

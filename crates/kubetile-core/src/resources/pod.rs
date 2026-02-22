@@ -36,6 +36,7 @@ pub struct PodSummary {
     pub restarts: i32,
     pub age: Duration,
     pub node: Option<String>,
+    pub debug_mode: bool,
 }
 
 impl ResourceSummary for PodSummary {
@@ -69,11 +70,12 @@ impl ResourceSummary for PodSummary {
     }
 
     fn row(&self) -> Vec<String> {
+        let status = if self.debug_mode { "DBG".to_string() } else { self.status.to_string() };
         vec![
             self.name.clone(),
             self.namespace.clone(),
+            status,
             self.ready.clone(),
-            self.status.to_string(),
             self.restarts.to_string(),
             format_duration(self.age),
             self.node.clone().unwrap_or_default(),
@@ -138,7 +140,9 @@ impl From<&Pod> for PodSummary {
 
         let node = pod.spec.as_ref().and_then(|s| s.node_name.clone());
 
-        Self { name, namespace, uid, status, ready, restarts, age, node }
+        let debug_mode = metadata.annotations.as_ref().is_some_and(|a| a.contains_key("debug.kubetile.io/debug-mode"));
+
+        Self { name, namespace, uid, status, ready, restarts, age, node, debug_mode }
     }
 }
 

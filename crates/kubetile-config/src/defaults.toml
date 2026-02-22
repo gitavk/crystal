@@ -106,7 +106,8 @@ app_logs = "ctrl+shift+l"     # shift avoids ctrl+l = clear-screen muscle memory
 enter_insert = "i"            # vim insert mode
 
 [keybindings.mutate]
-delete = "ctrl+alt+d"          # triple modifier prevents accidental deletion of production resources
+delete = "ctrl+alt+x"          # triple modifier prevents accidental deletion of production resources
+debug_mode = "ctrl+alt+d"      # (D)ebug mode
 scale = "ctrl+alt+s"           # triple modifier
 restart_rollout = "ctrl+alt+r" # triple modifier
 

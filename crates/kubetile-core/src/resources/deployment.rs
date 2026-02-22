@@ -12,6 +12,7 @@ pub struct DeploymentSummary {
     pub up_to_date: i32,
     pub available: i32,
     pub age: Duration,
+    pub debug_mode: bool,
 }
 
 impl ResourceSummary for DeploymentSummary {
@@ -43,9 +44,10 @@ impl ResourceSummary for DeploymentSummary {
     }
 
     fn row(&self) -> Vec<String> {
+        let ready = if self.debug_mode { "DBG".to_string() } else { self.ready.clone() };
         vec![
             self.name.clone(),
-            self.ready.clone(),
+            ready,
             self.up_to_date.to_string(),
             self.available.to_string(),
             format_duration(self.age),
@@ -89,7 +91,10 @@ impl From<&Deployment> for DeploymentSummary {
         let ready = format!("{ready_replicas}/{replicas}");
         let age = calculate_age(meta.creation_timestamp.as_ref());
 
-        Self { name, namespace, ready, up_to_date, available, age }
+        let debug_mode =
+            meta.annotations.as_ref().is_some_and(|a| a.contains_key("debug.kubetile.io/original-command"));
+
+        Self { name, namespace, ready, up_to_date, available, age, debug_mode }
     }
 }
 
