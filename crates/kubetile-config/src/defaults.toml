@@ -108,6 +108,7 @@ enter_insert = "i"            # vim insert mode
 [keybindings.mutate]
 delete = "ctrl+alt+x"          # triple modifier prevents accidental deletion of production resources
 debug_mode = "ctrl+alt+d"      # (D)ebug mode
+root_debug_mode = "f5"         # Root (D)ebug mode — same as debug mode but with runAsUser: 0
 scale = "ctrl+alt+s"           # triple modifier
 restart_rollout = "ctrl+alt+r" # triple modifier
 

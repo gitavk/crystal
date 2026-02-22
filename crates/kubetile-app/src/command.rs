@@ -54,6 +54,7 @@ pub enum Command {
     ScaleResource,
     RestartRollout,
     ToggleDebugMode,
+    ToggleRootDebugMode,
     ViewLogs,
     ExecInto,
     PortForward,

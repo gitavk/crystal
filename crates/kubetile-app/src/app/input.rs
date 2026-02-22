@@ -480,6 +480,10 @@ impl App {
                 self.initiate_debug_toggle();
             }
 
+            Command::ToggleRootDebugMode => {
+                self.initiate_root_debug_toggle();
+            }
+
             Command::ViewLogs => {
                 self.open_logs_pane();
             }

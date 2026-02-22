@@ -105,6 +105,7 @@ fn dispatch_tui_keys() {
 fn dispatch_mutate_keys_require_confirmation() {
     let d = default_dispatcher();
     assert_eq!(d.dispatch(ctrl_alt(KeyCode::Char('d'))), Some((Command::ToggleDebugMode, true)));
+    assert_eq!(d.dispatch(press(KeyCode::F(5))), Some((Command::ToggleRootDebugMode, true)));
     assert_eq!(d.dispatch(ctrl_alt(KeyCode::Char('x'))), Some((Command::DeleteResource, true)));
     assert_eq!(d.dispatch(ctrl_alt(KeyCode::Char('s'))), Some((Command::ScaleResource, true)));
     assert_eq!(d.dispatch(ctrl_alt(KeyCode::Char('r'))), Some((Command::RestartRollout, true)));

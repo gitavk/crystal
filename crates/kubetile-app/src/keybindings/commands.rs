@@ -36,6 +36,7 @@ pub(super) fn mutate_command_from_name(name: &str) -> Option<Command> {
         "scale" => Some(Command::ScaleResource),
         "restart_rollout" => Some(Command::RestartRollout),
         "debug_mode" => Some(Command::ToggleDebugMode),
+        "root_debug_mode" => Some(Command::ToggleRootDebugMode),
         _ => None,
     }
 }
@@ -46,6 +47,7 @@ pub(super) fn mutate_command_description(name: &str) -> String {
         "scale" => "Scale",
         "restart_rollout" => "Restart",
         "debug_mode" => "Debug mode",
+        "root_debug_mode" => "Root debug mode",
         _ => "Unknown",
     }
     .into()

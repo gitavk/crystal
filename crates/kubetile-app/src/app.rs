@@ -38,6 +38,7 @@ pub enum PendingAction {
     SaveLogs { path: PathBuf, content: String },
     DownloadFullLogs { path: PathBuf, pod_name: String, namespace: String, container: Option<String> },
     ToggleDebugMode { name: String, namespace: String },
+    ToggleRootDebugMode { name: String, namespace: String },
     MutateCommand(Command),
 }
 
@@ -53,6 +54,7 @@ impl PendingConfirmation {
             Command::ScaleResource => "Scale resource",
             Command::RestartRollout => "Restart rollout",
             Command::ToggleDebugMode => "Toggle debug mode",
+            Command::ToggleRootDebugMode => "Toggle root debug mode",
             other => {
                 let msg = format!("{other:?}");
                 return Self { message: format!("Confirm: {msg}?"), action: PendingAction::MutateCommand(cmd) };

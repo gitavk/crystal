@@ -184,6 +184,18 @@ impl App {
         self.dispatcher.set_mode(InputMode::ConfirmDialog);
     }
 
+    pub(super) fn initiate_root_debug_toggle(&mut self) {
+        let Some((kind, name, namespace)) = self.selected_resource_info() else { return };
+        if kind != ResourceKind::Pods {
+            self.toasts.push(ToastMessage::info("Root debug mode is only available for Pods"));
+            return;
+        }
+        let message = format!("Toggle root debug mode for pod/{name}\nin namespace {namespace}?\n\nThis will set securityContext.runAsUser: 0");
+        self.pending_confirmation =
+            Some(PendingConfirmation { message, action: PendingAction::ToggleRootDebugMode { name, namespace } });
+        self.dispatcher.set_mode(InputMode::ConfirmDialog);
+    }
+
     pub(super) fn execute_confirmed_action(&mut self) {
         let confirmation = match self.pending_confirmation.take() {
             Some(c) => c,
@@ -361,6 +373,53 @@ impl App {
                             "Entered debug mode for deploy/{deploy_name} — pods will restart with sleep infinity"
                         )),
                         Err(e) => ToastMessage::error(format!("Debug mode toggle failed: {e}")),
+                    };
+                    let _ = app_tx.send(AppEvent::Toast(toast));
+                });
+            }
+            PendingAction::ToggleRootDebugMode { name: pod_name, namespace } => {
+                let Some(client) = &self.kube_client else {
+                    self.toasts.push(ToastMessage::error("No cluster connection"));
+                    return;
+                };
+                let kube_client = client.inner_client();
+                let app_tx = self.app_tx.clone();
+
+                tokio::spawn(async move {
+                    let executor = kubetile_core::ActionExecutor::new(kube_client.clone());
+
+                    let deploy_name = match executor.resolve_owner_deployment(&pod_name, &namespace).await {
+                        Ok(d) => d,
+                        Err(e) => {
+                            let _ = app_tx.send(AppEvent::Toast(ToastMessage::error(format!("{e}"))));
+                            return;
+                        }
+                    };
+
+                    let in_root_debug = match executor.is_in_root_debug_mode(&deploy_name, &namespace).await {
+                        Ok(v) => v,
+                        Err(e) => {
+                            let _ = app_tx.send(AppEvent::Toast(ToastMessage::error(format!(
+                                "Root debug mode check failed: {e}"
+                            ))));
+                            return;
+                        }
+                    };
+
+                    let result = if in_root_debug {
+                        executor.exit_root_debug_mode(&deploy_name, &namespace).await
+                    } else {
+                        executor.enter_root_debug_mode(&deploy_name, &namespace).await
+                    };
+
+                    let toast = match result {
+                        Ok(()) if in_root_debug => {
+                            ToastMessage::success(format!("Exited root debug mode for deploy/{deploy_name}"))
+                        }
+                        Ok(()) => ToastMessage::success(format!(
+                            "Entered root debug mode for deploy/{deploy_name} — pods will restart with sleep infinity as root"
+                        )),
+                        Err(e) => ToastMessage::error(format!("Root debug mode toggle failed: {e}")),
                     };
                     let _ = app_tx.send(AppEvent::Toast(toast));
                 });
