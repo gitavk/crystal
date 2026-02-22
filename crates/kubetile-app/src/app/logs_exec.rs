@@ -191,7 +191,10 @@ impl App {
         match pane.spawn_kubectl(context.as_deref()) {
             Ok(()) => {
                 let view = ViewType::Exec(name);
-                let Some(new_id) = self.tab_manager.split_pane(focused, SplitDirection::Horizontal, view) else {
+                let ratio = self.calc_logs_split_ratio(focused);
+                let Some(new_id) =
+                    self.tab_manager.split_pane_with_ratio(focused, SplitDirection::Horizontal, view, ratio)
+                else {
                     return;
                 };
                 pane.start_output_forwarding(new_id, self.app_tx.clone());
