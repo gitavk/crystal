@@ -59,9 +59,11 @@ Available in every mode.
 
 | Key | Action |
 |-----|--------|
-| `Ctrl+Alt+d` | Delete resource |
+| `Ctrl+Alt+x` | Delete resource |
 | `Ctrl+Alt+s` | Scale resource |
 | `Ctrl+Alt+r` | Restart / rollout restart |
+| `Ctrl+Alt+d` | Toggle debug mode (Pod → owner Deployment) |
+| `F5` | Toggle root debug mode (same + `runAsUser: 0`) |
 
 ## Pane & Tab Management
 

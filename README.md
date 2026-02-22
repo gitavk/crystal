@@ -15,7 +15,9 @@ KubeTile is a terminal-based Kubernetes workspace focused on fast, keyboard-driv
 6. Opens embedded terminal panes for general shell work.
 7. Supports port forwarding to pods so local tools can reach in-cluster services.
 8. Includes overlays for namespace switching, confirmation dialogs, transient toast notifications, context-sensitive help, and a resource switcher command palette.
-9. Supports resource actions such as delete with confirmation and deployment rollout restart.
+9. Supports resource actions such as delete with confirmation, deployment rollout restart, and debug mode toggling.
+   - **Debug mode** (`Ctrl+Alt+d` on a Pod): patches the owner Deployment to replace the container command with `sleep infinity`, letting you exec in for investigation. Exits by re-pressing the same key.
+   - **Root debug mode** (`F5` on a Pod): same as debug mode but additionally sets `securityContext.runAsUser: 0` so you can exec in as root. Both modes safely preserve the original command and args as annotations and restore them on exit.
 10. Shows a status bar with mode hints plus current cluster and namespace.
 11. Works even without a cluster connection by showing a clear error state in the resource view.
 
