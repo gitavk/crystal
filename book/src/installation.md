@@ -5,7 +5,7 @@ KubeTile can be installed by downloading a pre-built binary or by building from 
 ## Binary Releases
 
 Pre-built binaries for Linux and macOS are available on the [GitHub Releases](https://github.com/gitavk/KubeTile/releases) page. We provide:
-- `.tar.gz` archives for x86_64 and aarch64
+- `.tar.gz` archives for Apple aarch64 as well for linux x86_64 and aarch64
 - `.deb` packages for Debian/Ubuntu
 - `.rpm` packages for Fedora/RHEL
 

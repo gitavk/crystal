@@ -1,13 +1,14 @@
 [book]
 title = "KubeTile"
-authors = ["KubeTile contributors"]
+authors = ["Aleksei Kuzmin"]
 language = "en"
 multilingual = false
 src = "src"
 
 [output.html]
+default-theme = "rust"
 git-repository-url = "https://github.com/gitavk/KubeTile"
-edit-url-template = "https://github.com/gitavk/KubeTile/edit/main/book/src/{path}"
+edit-url-template = "https://github.com/gitavk/KubeTile/edit/main/book/{path}"
 additional-css = ["theme/custom.css"]
 input-404 = "404.md"
 
