@@ -1,28 +1,81 @@
 # KubeTile
 
-KubeTile is a terminal-based Kubernetes workspace focused on fast, keyboard-driven navigation and a flexible pane-and-tab layout. It aims to make everyday cluster inspection feel like working in a tiled, multi-view console without leaving the terminal.
+> A keyboard-driven Kubernetes TUI for developers who live in the terminal.
 
-**Prerequisites**
-- `kubectl` must be installed and available in your `PATH` to use pod exec sessions.
-- KubeTile now checks this on startup and shows a notification if `kubectl` is missing.
+![KubeTile demo](docs/demo.gif)
 
-**What it does today**
-1. Connects to your current Kubernetes context and shows live resource lists across multiple Kubernetes kinds (including Pods, Deployments, Services, StatefulSets, DaemonSets, Jobs, CronJobs, ConfigMaps, Secrets, Ingresses, Nodes, Namespaces, PVs, and PVCs).
-2. Lets you split the screen into multiple panes, move focus between them, and work with tabs including fullscreen and close operations.
-3. Provides resource-list workflows like filter input, column sorting, and all-namespaces toggling.
-4. Opens detail-oriented views from selections, including YAML and describe output in dedicated panes.
-5. Streams pod logs and opens interactive exec sessions in dedicated panes.
-6. Opens embedded terminal panes for general shell work.
-7. Supports port forwarding to pods so local tools can reach in-cluster services.
-8. Includes overlays for namespace switching, confirmation dialogs, transient toast notifications, context-sensitive help, and a resource switcher command palette.
-9. Supports resource actions such as delete with confirmation, deployment rollout restart, and debug mode toggling.
-   - **Debug mode** (`Ctrl+Alt+d` on a Pod): patches the owner Deployment to replace the container command with `sleep infinity`, letting you exec in for investigation. Exits by re-pressing the same key.
-   - **Root debug mode** (`F5` on a Pod): same as debug mode but additionally sets `securityContext.runAsUser: 0` so you can exec in as root. Both modes safely preserve the original command and args as annotations and restore them on exit.
-10. Shows a status bar with mode hints plus current cluster and namespace.
-11. Works even without a cluster connection by showing a clear error state in the resource view.
+KubeTile started as a personal tool to handle my daily Kubernetes workflow without leaving the terminal — browsing resources, streaming logs, exec-ing into pods, and debugging running containers, written in **Rust**.
 
-**What it does not do yet**
-1. No interactive scale workflow yet (scale action scaffolding exists but is not wired through the UI).
-2. No plugin system.
+---
 
-KubeTile is under active development as an incremental learning project, so the feature set is intentionally focused on the foundation of the UI and core Kubernetes browsing flow.
+## Features
+
+**Navigation & Layout**
+- Split panes (vertical / horizontal), tabs, fullscreen — all keyboard-driven
+- Live resource lists for all standard K8s kinds: Pods, Deployments, Services, StatefulSets, DaemonSets, Jobs, CronJobs, ConfigMaps, Secrets, Ingresses, Nodes, Namespaces, PVs, PVCs
+- Filter, sort columns, toggle all-namespaces, YAML view, describe view
+
+**Cluster Interaction**
+- Stream pod logs with follow, filter, wrap, save, and full export
+- Interactive exec sessions inside containers
+- Port-forwarding with a prompt UI and active-forwards panel
+- Namespace and context switching overlays
+
+**Debug Workflows**
+- **Debug mode** (`Ctrl+Alt+d` on a Pod) — patches the owner Deployment to `sleep infinity` so you can exec in without the application interfering; restores the original command on exit
+- **Root debug mode** (`F5` on a Pod) — same as above with `securityContext.runAsUser: 0` for root access; original securityContext restored on exit
+
+**Developer Experience**
+- Status bar with current cluster, namespace, and input mode
+- Toast notifications, confirmation dialogs, context-sensitive help overlay
+- Resource switcher command palette (`:`)
+- Works gracefully without a cluster connection
+
+---
+
+## Quick Start
+
+**Requirements:** Rust ≥ 1.75, `kubectl` in `PATH`, a valid `~/.kube/config`.
+
+```bash
+# Install from source
+git clone https://github.com/gitavk/KubeTile
+cd KubeTile
+cargo install --path crates/kubetile-app
+```
+
+Or download a pre-built binary from the [Releases](https://github.com/gitavk/KubeTile/releases) page (Linux x86_64/aarch64, `.deb`, `.rpm`).
+
+```bash
+kubetile
+```
+
+KubeTile connects to your current kubeconfig context on launch. Press `F1` for the keybinding reference at any time.
+
+---
+
+## Documentation
+
+Full documentation is available in the [KubeTile Book](https://gitavk.github.io/KubeTile):
+
+- [Installation](https://gitavk.github.io/KubeTile/installation.html)
+- [Keybindings](https://gitavk.github.io/KubeTile/keybindings.html)
+- [Views & Workflows](https://gitavk.github.io/KubeTile/views.html)
+- [Configuration](https://gitavk.github.io/KubeTile/configuration.html)
+- [Demo Stand](https://gitavk.github.io/KubeTile/demo-stand.html)
+
+---
+
+## Built With
+
+| Crate | Role |
+|-------|------|
+| [ratatui](https://github.com/ratatui-org/ratatui) + [crossterm](https://github.com/crossterm-rs/crossterm) | Terminal UI rendering |
+| [kube-rs](https://github.com/kube-rs/kube) | Kubernetes API client |
+| [tokio](https://tokio.rs) | Async runtime |
+
+---
+
+## License
+
+MIT — see [`LICENSE`](LICENSE).

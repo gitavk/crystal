@@ -13,8 +13,12 @@ multi-view console without leaving the terminal.
 - **Deep Inspection:** Opens detail-oriented views from selections, including YAML and describe output in dedicated panes.
 - **Integrated Terminal & Logs:** Streams pod logs and opens interactive exec sessions in dedicated panes.
 - **Port Forwarding:** Supports port forwarding to pods so local tools can reach in-cluster services.
-- **Resource Actions:** Supports resource actions such as delete with confirmation and deployment rollout restart.
-- **Context Awareness:** Shows a status bar with mode hints plus current cluster and namespace.
+- **Overlays:** Namespace and context switching overlays let you change the active namespace or kubeconfig context without leaving the keyboard.
+- **Resource Actions:** Supports resource actions such as delete with confirmation, deployment rollout restart, and debug mode toggling.
+  - **Debug mode** (`Ctrl+Alt+d` on a Pod): patches the owner Deployment to replace the container command with `sleep infinity`, letting you exec in for investigation. Re-press to restore the original command.
+  - **Root debug mode** (`F5` on a Pod): same as debug mode but additionally sets `securityContext.runAsUser: 0` for root access. Both modes preserve the original command and securityContext as annotations and restore them on exit.
+- **Context Awareness:** Shows a status bar with mode hints plus current cluster and namespace. Toast notifications, confirmation dialogs, and a context-sensitive help overlay (`F1`) are available throughout.
+- **Resource Switcher:** Press `:` to open the command palette and jump to any resource kind instantly.
 - **Resilient:** Works even without a cluster connection by showing a clear error state in the resource view.
 
 ## What it does not do yet
