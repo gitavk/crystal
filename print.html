@@ -191,8 +191,15 @@ multi-view console without leaving the terminal.</p>
 <li><strong>Deep Inspection:</strong> Opens detail-oriented views from selections, including YAML and describe output in dedicated panes.</li>
 <li><strong>Integrated Terminal &amp; Logs:</strong> Streams pod logs and opens interactive exec sessions in dedicated panes.</li>
 <li><strong>Port Forwarding:</strong> Supports port forwarding to pods so local tools can reach in-cluster services.</li>
-<li><strong>Resource Actions:</strong> Supports resource actions such as delete with confirmation and deployment rollout restart.</li>
-<li><strong>Context Awareness:</strong> Shows a status bar with mode hints plus current cluster and namespace.</li>
+<li><strong>Overlays:</strong> Namespace and context switching overlays let you change the active namespace or kubeconfig context without leaving the keyboard.</li>
+<li><strong>Resource Actions:</strong> Supports resource actions such as delete with confirmation, deployment rollout restart, and debug mode toggling.
+<ul>
+<li><strong>Debug mode</strong> (<code>Ctrl+Alt+d</code> on a Pod): patches the owner Deployment to replace the container command with <code>sleep infinity</code>, letting you exec in for investigation. Re-press to restore the original command.</li>
+<li><strong>Root debug mode</strong> (<code>F5</code> on a Pod): same as debug mode but additionally sets <code>securityContext.runAsUser: 0</code> for root access. Both modes preserve the original command and securityContext as annotations and restore them on exit.</li>
+</ul>
+</li>
+<li><strong>Context Awareness:</strong> Shows a status bar with mode hints plus current cluster and namespace. Toast notifications, confirmation dialogs, and a context-sensitive help overlay (<code>F1</code>) are available throughout.</li>
+<li><strong>Resource Switcher:</strong> Press <code>:</code> to open the command palette and jump to any resource kind instantly.</li>
 <li><strong>Resilient:</strong> Works even without a cluster connection by showing a clear error state in the resource view.</li>
 </ul>
 <h2 id="what-it-does-not-do-yet"><a class="header" href="#what-it-does-not-do-yet">What it does not do yet</a></h2>
