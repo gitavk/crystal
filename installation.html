@@ -1,5 +1,5 @@
 <!DOCTYPE HTML>
-<html lang="en" class="light" dir="ltr">
+<html lang="en" class="rust" dir="ltr">
     <head>
         <!-- Book generated using mdBook -->
         <meta charset="UTF-8">
@@ -37,7 +37,7 @@
         <!-- Provide site root to javascript -->
         <script>
             var path_to_root = "";
-            var default_theme = window.matchMedia("(prefers-color-scheme: dark)").matches ? "navy" : "light";
+            var default_theme = window.matchMedia("(prefers-color-scheme: dark)").matches ? "navy" : "rust";
         </script>
 
         <!-- Work around some values being stored in localStorage wrapped in quotes -->
@@ -62,7 +62,7 @@
             try { theme = localStorage.getItem('mdbook-theme'); } catch(e) { }
             if (theme === null || theme === undefined) { theme = default_theme; }
             var html = document.querySelector('html');
-            html.classList.remove('light')
+            html.classList.remove('rust')
             html.classList.add(theme);
             var body = document.querySelector('body');
             body.classList.remove('no-js')
@@ -151,7 +151,7 @@
                         <a href="https://github.com/gitavk/KubeTile" title="Git repository" aria-label="Git repository">
                             <i id="git-repository-button" class="fa fa-github"></i>
                         </a>
-                        <a href="https://github.com/gitavk/KubeTile/edit/main/book/src/src/installation.md" title="Suggest an edit" aria-label="Suggest an edit">
+                        <a href="https://github.com/gitavk/KubeTile/edit/main/book/src/installation.md" title="Suggest an edit" aria-label="Suggest an edit">
                             <i id="git-edit-button" class="fa fa-edit"></i>
                         </a>
 
@@ -185,7 +185,7 @@
 <h2 id="binary-releases"><a class="header" href="#binary-releases">Binary Releases</a></h2>
 <p>Pre-built binaries for Linux and macOS are available on the <a href="https://github.com/gitavk/KubeTile/releases">GitHub Releases</a> page. We provide:</p>
 <ul>
-<li><code>.tar.gz</code> archives for x86_64 and aarch64</li>
+<li><code>.tar.gz</code> archives for x86_64 and aarch64 and apple</li>
 <li><code>.deb</code> packages for Debian/Ubuntu</li>
 <li><code>.rpm</code> packages for Fedora/RHEL</li>
 </ul>
