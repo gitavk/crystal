@@ -35,6 +35,7 @@ pub enum InputMode {
     FilterInput,
     PortForwardInput,
     QueryDialog,
+    QueryEditor,
 }
 
 #[allow(dead_code)]
@@ -184,6 +185,11 @@ impl KeybindingDispatcher {
                 KeyCode::Backspace => return Some((Command::PortForwardBackspace, false)),
                 _ => return None,
             },
+            InputMode::QueryEditor => {
+                if key.code == KeyCode::Esc {
+                    return Some((Command::ExitMode, false));
+                }
+            }
             InputMode::QueryDialog => match key.code {
                 KeyCode::Esc => return Some((Command::QueryDialogCancel, false)),
                 KeyCode::Enter => return Some((Command::QueryDialogConfirm, false)),
@@ -235,6 +241,7 @@ impl KeybindingDispatcher {
             },
             InputMode::Search | InputMode::Command => None,
             InputMode::Pane | InputMode::Tab => None,
+            InputMode::QueryEditor => None,
             InputMode::ResourceSwitcher
             | InputMode::ConfirmDialog
             | InputMode::FilterInput

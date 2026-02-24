@@ -71,6 +71,12 @@ impl App {
             AppEvent::QueryPromptReady { config } => {
                 self.open_query_dialog(config);
             }
+            AppEvent::QueryReady { pane_id, result } => {
+                self.handle_query_ready(pane_id, result);
+            }
+            AppEvent::QueryError { pane_id, error } => {
+                self.handle_query_error(pane_id, error);
+            }
             AppEvent::ContextSwitchReady { client, namespaces } => {
                 self.apply_context_switch(client, namespaces);
             }

@@ -18,7 +18,7 @@ pub use error::KubeError;
 pub use exec::ExecSession;
 pub use logs::{parse_raw_log_line, LogLine, LogRequest, LogStream, StreamStatus};
 pub use port_forward::{ForwardId, PortForward};
-pub use query::QueryConfig;
+pub use query::{QueryConfig, QueryResult};
 pub use resource::{DetailSection, ResourceSummary};
 pub use resources::*;
 pub use terminal_manager::{SessionId, SessionKind, TerminalManager};

@@ -25,6 +25,7 @@ impl App {
             InputMode::FilterInput => "Filter",
             InputMode::PortForwardInput => "PortForward",
             InputMode::QueryDialog => "QueryDialog",
+            InputMode::QueryEditor => "QueryEditor",
         }
     }
 
@@ -161,6 +162,7 @@ impl App {
             ViewType::Empty => "EMP".into(),
             ViewType::Plugin(name) if name == "AppLogs" => "ALG".into(),
             ViewType::Plugin(_) => "PLG".into(),
+            ViewType::Query(_) => "SQL".into(),
         }
     }
 }
