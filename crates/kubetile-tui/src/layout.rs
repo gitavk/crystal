@@ -8,6 +8,7 @@ use crate::widgets::confirm_dialog::ConfirmDialogWidget;
 use crate::widgets::context_selector::ContextSelectorWidget;
 use crate::widgets::namespace_selector::NamespaceSelectorWidget;
 use crate::widgets::port_forward_dialog::PortForwardDialogWidget;
+use crate::widgets::query_dialog::QueryDialogWidget;
 use crate::widgets::resource_switcher::ResourceSwitcherWidget;
 use crate::widgets::status_bar::StatusBarWidget;
 use crate::widgets::tab_bar::TabBarWidget;
@@ -41,12 +42,30 @@ pub enum PortForwardFieldView {
     Remote,
 }
 
+#[derive(Clone, Copy)]
+pub enum QueryDialogFieldView {
+    Database,
+    User,
+    Password,
+    Port,
+}
+
 pub struct PortForwardDialogView<'a> {
     pub pod: &'a str,
     pub namespace: &'a str,
     pub local_port: &'a str,
     pub remote_port: &'a str,
     pub active_field: PortForwardFieldView,
+}
+
+pub struct QueryDialogView<'a> {
+    pub pod: &'a str,
+    pub namespace: &'a str,
+    pub database: &'a str,
+    pub user: &'a str,
+    pub password: &'a str,
+    pub port: &'a str,
+    pub active_field: QueryDialogFieldView,
 }
 
 pub struct RenderContext<'a> {
@@ -57,6 +76,7 @@ pub struct RenderContext<'a> {
     pub resource_switcher: Option<ResourceSwitcherView<'a>>,
     pub confirm_dialog: Option<ConfirmDialogView<'a>>,
     pub port_forward_dialog: Option<PortForwardDialogView<'a>>,
+    pub query_dialog: Option<QueryDialogView<'a>>,
     pub toasts: &'a [ToastMessage],
     pub pane_tree: &'a PaneTree,
     pub focused_pane: Option<PaneId>,
@@ -139,6 +159,20 @@ fn render_body(frame: &mut Frame, area: Rect, ctx: &RenderContext) {
             local_port: pf.local_port,
             remote_port: pf.remote_port,
             active_field: pf.active_field,
+            theme: ctx.theme,
+        };
+        widget.render(frame, area);
+    }
+
+    if let Some(ref qd) = ctx.query_dialog {
+        let widget = QueryDialogWidget {
+            pod: qd.pod,
+            namespace: qd.namespace,
+            database: qd.database,
+            user: qd.user,
+            password: qd.password,
+            port: qd.port,
+            active_field: qd.active_field,
             theme: ctx.theme,
         };
         widget.render(frame, area);

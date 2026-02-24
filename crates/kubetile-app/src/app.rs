@@ -25,6 +25,7 @@ mod input;
 mod logs_exec;
 mod pane_ops;
 mod port_forward;
+mod query;
 mod render;
 mod tabs;
 mod watchers;
@@ -87,6 +88,35 @@ struct PendingPortForward {
     active_field: PortForwardField,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum QueryDialogField {
+    Database,
+    User,
+    Password,
+    Port,
+}
+
+impl QueryDialogField {
+    fn next(self) -> Self {
+        match self {
+            Self::Database => Self::User,
+            Self::User => Self::Password,
+            Self::Password => Self::Port,
+            Self::Port => Self::Database,
+        }
+    }
+}
+
+struct PendingQueryDialog {
+    pod: String,
+    namespace: String,
+    db_input: String,
+    user_input: String,
+    password_input: String,
+    port_input: String,
+    active_field: QueryDialogField,
+}
+
 #[derive(Clone)]
 struct TabScope {
     kube_client: Option<KubeClient>,
@@ -120,6 +150,7 @@ pub struct App {
     resource_switcher: Option<ResourceSwitcher>,
     pending_confirmation: Option<PendingConfirmation>,
     pending_port_forward: Option<PendingPortForward>,
+    pending_query_dialog: Option<PendingQueryDialog>,
     toasts: Vec<ToastMessage>,
     tab_manager: TabManager,
     panes: HashMap<PaneId, Box<dyn Pane>>,
@@ -186,6 +217,7 @@ impl App {
             resource_switcher: None,
             pending_confirmation: None,
             pending_port_forward: None,
+            pending_query_dialog: None,
             toasts,
             tab_manager,
             panes,

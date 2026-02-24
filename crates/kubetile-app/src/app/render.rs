@@ -1,13 +1,13 @@
 use kubetile_tui::layout::{
     ConfirmDialogView, ContextSelectorView, NamespaceSelectorView, PortForwardDialogView, PortForwardFieldView,
-    RenderContext, ResourceSwitcherView,
+    QueryDialogFieldView, QueryDialogView, RenderContext, ResourceSwitcherView,
 };
 use kubetile_tui::pane::{ResourceKind, ViewType};
 
 use crate::command::InputMode;
 use crate::panes::ResourceListPane;
 
-use super::{App, PortForwardField};
+use super::{App, PortForwardField, QueryDialogField};
 
 impl App {
     pub(super) fn mode_name(&self) -> &'static str {
@@ -24,6 +24,7 @@ impl App {
             InputMode::ConfirmDialog => "Confirm",
             InputMode::FilterInput => "Filter",
             InputMode::PortForwardInput => "PortForward",
+            InputMode::QueryDialog => "QueryDialog",
         }
     }
 
@@ -54,6 +55,20 @@ impl App {
         });
 
         let confirm_dialog = self.pending_confirmation.as_ref().map(|pc| ConfirmDialogView { message: &pc.message });
+        let query_dialog = self.pending_query_dialog.as_ref().map(|qd| QueryDialogView {
+            pod: &qd.pod,
+            namespace: &qd.namespace,
+            database: &qd.db_input,
+            user: &qd.user_input,
+            password: &qd.password_input,
+            port: &qd.port_input,
+            active_field: match qd.active_field {
+                QueryDialogField::Database => QueryDialogFieldView::Database,
+                QueryDialogField::User => QueryDialogFieldView::User,
+                QueryDialogField::Password => QueryDialogFieldView::Password,
+                QueryDialogField::Port => QueryDialogFieldView::Port,
+            },
+        });
         let port_forward_dialog = self.pending_port_forward.as_ref().map(|pf| PortForwardDialogView {
             pod: &pf.pod,
             namespace: &pf.namespace,
@@ -86,6 +101,7 @@ impl App {
             resource_switcher,
             confirm_dialog,
             port_forward_dialog,
+            query_dialog,
             toasts: &self.toasts,
             pane_tree,
             focused_pane: Some(focused_pane),

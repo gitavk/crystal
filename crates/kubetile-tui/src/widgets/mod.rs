@@ -3,6 +3,7 @@ pub mod confirm_dialog;
 pub mod context_selector;
 pub mod namespace_selector;
 pub mod port_forward_dialog;
+pub mod query_dialog;
 pub mod resource_list;
 pub mod resource_switcher;
 pub mod status_bar;

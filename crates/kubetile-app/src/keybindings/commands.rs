@@ -56,6 +56,7 @@ pub(super) fn mutate_command_description(name: &str) -> String {
 pub(super) fn interact_command_from_name(name: &str) -> Option<Command> {
     match name {
         "exec" => Some(Command::ExecInto),
+        "open_query" => Some(Command::OpenQueryPane),
         "port_forward" => Some(Command::PortForward),
         "view_logs" => Some(Command::ViewLogs),
         _ => None,
@@ -65,6 +66,7 @@ pub(super) fn interact_command_from_name(name: &str) -> Option<Command> {
 pub(super) fn interact_command_description(name: &str) -> String {
     match name {
         "exec" => "Exec",
+        "open_query" => "Query DB",
         "port_forward" => "Port Forward",
         "view_logs" => "Logs",
         _ => "Unknown",

@@ -34,6 +34,7 @@ pub enum InputMode {
     ConfirmDialog,
     FilterInput,
     PortForwardInput,
+    QueryDialog,
 }
 
 #[allow(dead_code)]
@@ -183,6 +184,16 @@ impl KeybindingDispatcher {
                 KeyCode::Backspace => return Some((Command::PortForwardBackspace, false)),
                 _ => return None,
             },
+            InputMode::QueryDialog => match key.code {
+                KeyCode::Esc => return Some((Command::QueryDialogCancel, false)),
+                KeyCode::Enter => return Some((Command::QueryDialogConfirm, false)),
+                KeyCode::Tab | KeyCode::BackTab | KeyCode::Up | KeyCode::Down => {
+                    return Some((Command::QueryDialogNextField, false));
+                }
+                KeyCode::Char(c) => return Some((Command::QueryDialogInput(c), false)),
+                KeyCode::Backspace => return Some((Command::QueryDialogBackspace, false)),
+                _ => return None,
+            },
             _ => {}
         }
 
@@ -227,7 +238,8 @@ impl KeybindingDispatcher {
             InputMode::ResourceSwitcher
             | InputMode::ConfirmDialog
             | InputMode::FilterInput
-            | InputMode::PortForwardInput => {
+            | InputMode::PortForwardInput
+            | InputMode::QueryDialog => {
                 unreachable!("handled above")
             }
         }

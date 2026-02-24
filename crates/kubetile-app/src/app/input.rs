@@ -68,6 +68,9 @@ impl App {
             AppEvent::PortForwardPromptReady { pod, namespace, suggested_remote } => {
                 self.open_port_forward_prompt(pod, namespace, suggested_remote);
             }
+            AppEvent::QueryPromptReady { config } => {
+                self.open_query_dialog(config);
+            }
             AppEvent::ContextSwitchReady { client, namespaces } => {
                 self.apply_context_switch(client, namespaces);
             }
@@ -289,6 +292,24 @@ impl App {
             Command::PortForwardCancel => {
                 self.pending_port_forward = None;
                 self.dispatcher.set_mode(InputMode::Normal);
+            }
+            Command::OpenQueryPane => {
+                self.open_query_pane_for_selected();
+            }
+            Command::QueryDialogInput(c) => {
+                self.query_dialog_input(c);
+            }
+            Command::QueryDialogBackspace => {
+                self.query_dialog_backspace();
+            }
+            Command::QueryDialogNextField => {
+                self.query_dialog_next_field();
+            }
+            Command::QueryDialogConfirm => {
+                self.confirm_query_dialog();
+            }
+            Command::QueryDialogCancel => {
+                self.cancel_query_dialog();
             }
             Command::SortByColumn => {
                 let focused = self.tab_manager.active().focused_pane;

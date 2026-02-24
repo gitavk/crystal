@@ -114,6 +114,7 @@ restart_rollout = "ctrl+alt+r" # triple modifier
 
 [keybindings.interact]
 exec = "e"                    # e = exec; matches k9s
+open_query = "shift+q"        # Q = query database
 port_forward = "p"            # p = port-forward; matches k9s
 view_logs = "l"               # l = logs; matches k9s
 

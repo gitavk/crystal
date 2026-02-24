@@ -45,6 +45,14 @@ pub enum Command {
     ContextBackspace,
     Pane(PaneCommand),
 
+    // Query dialog
+    OpenQueryPane,
+    QueryDialogInput(char),
+    QueryDialogBackspace,
+    QueryDialogNextField,
+    QueryDialogConfirm,
+    QueryDialogCancel,
+
     // Resource actions
     ViewYaml,
     ViewDescribe,
