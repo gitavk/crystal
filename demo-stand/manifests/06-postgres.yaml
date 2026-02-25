@@ -33,11 +33,20 @@ spec:
           value: "5432"
         - name: PGDATA
           value: /var/lib/postgresql/data/pgdata
+        volumeMounts:
+        - name: postgres-init
+          mountPath: /docker-entrypoint-initdb.d/init.sql
+          subPath: init.sql
+          readOnly: true
         readinessProbe:
           exec:
             command: ["pg_isready", "-U", "postgres"]
           initialDelaySeconds: 5
           periodSeconds: 5
+      volumes:
+      - name: postgres-init
+        configMap:
+          name: postgres-init-sql
 ---
 apiVersion: v1
 kind: Service
