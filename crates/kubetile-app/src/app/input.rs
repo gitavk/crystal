@@ -317,6 +317,21 @@ impl App {
             Command::QueryDialogCancel => {
                 self.cancel_query_dialog();
             }
+            Command::QueryEditorInput(c) => {
+                self.query_editor_input(c);
+            }
+            Command::QueryEditorBackspace => {
+                self.query_editor_backspace();
+            }
+            Command::QueryEditorScrollUp => {
+                self.query_editor_scroll_up();
+            }
+            Command::QueryEditorScrollDown => {
+                self.query_editor_scroll_down();
+            }
+            Command::QueryEditorExecute => {
+                self.execute_current_query();
+            }
             Command::SortByColumn => {
                 let focused = self.tab_manager.active().focused_pane;
                 if let Some(pane) = self.panes.get_mut(&focused) {

@@ -185,11 +185,15 @@ impl KeybindingDispatcher {
                 KeyCode::Backspace => return Some((Command::PortForwardBackspace, false)),
                 _ => return None,
             },
-            InputMode::QueryEditor => {
-                if key.code == KeyCode::Esc {
-                    return Some((Command::ExitMode, false));
-                }
-            }
+            InputMode::QueryEditor => match (key.code, key.modifiers) {
+                (KeyCode::Esc, _) => return Some((Command::ExitMode, false)),
+                (KeyCode::Enter, _) => return Some((Command::QueryEditorExecute, false)),
+                (KeyCode::Char(c), _) => return Some((Command::QueryEditorInput(c), false)),
+                (KeyCode::Backspace, _) => return Some((Command::QueryEditorBackspace, false)),
+                (KeyCode::Up | KeyCode::PageUp, _) => return Some((Command::QueryEditorScrollUp, false)),
+                (KeyCode::Down | KeyCode::PageDown, _) => return Some((Command::QueryEditorScrollDown, false)),
+                _ => return None,
+            },
             InputMode::QueryDialog => match key.code {
                 KeyCode::Esc => return Some((Command::QueryDialogCancel, false)),
                 KeyCode::Enter => return Some((Command::QueryDialogConfirm, false)),
@@ -241,12 +245,12 @@ impl KeybindingDispatcher {
             },
             InputMode::Search | InputMode::Command => None,
             InputMode::Pane | InputMode::Tab => None,
-            InputMode::QueryEditor => None,
             InputMode::ResourceSwitcher
             | InputMode::ConfirmDialog
             | InputMode::FilterInput
             | InputMode::PortForwardInput
-            | InputMode::QueryDialog => {
+            | InputMode::QueryDialog
+            | InputMode::QueryEditor => {
                 unreachable!("handled above")
             }
         }

@@ -53,6 +53,13 @@ pub enum Command {
     QueryDialogConfirm,
     QueryDialogCancel,
 
+    // Query editor
+    QueryEditorInput(char),
+    QueryEditorBackspace,
+    QueryEditorScrollUp,
+    QueryEditorScrollDown,
+    QueryEditorExecute,
+
     // Resource actions
     ViewYaml,
     ViewDescribe,

@@ -75,10 +75,10 @@ impl App {
         self.set_focus(new_id);
         self.dispatcher.set_mode(InputMode::QueryEditor);
 
-        self.execute_query_for_pane(new_id, config);
+        self.execute_query_for_pane(new_id, config, "SELECT version()".to_string());
     }
 
-    fn execute_query_for_pane(&self, pane_id: PaneId, config: QueryConfig) {
+    fn execute_query_for_pane(&self, pane_id: PaneId, config: QueryConfig, sql: String) {
         let Some(client) = &self.kube_client else {
             return;
         };
@@ -86,7 +86,7 @@ impl App {
         let app_tx = self.app_tx.clone();
 
         tokio::spawn(async move {
-            let event = match kubetile_core::query::execute_query(&kube_client, &config, "SELECT version()").await {
+            let event = match kubetile_core::query::execute_query(&kube_client, &config, &sql).await {
                 Ok(result) => AppEvent::QueryReady { pane_id, result },
                 Err(e) => AppEvent::QueryError { pane_id, error: e.to_string() },
             };
@@ -95,18 +95,74 @@ impl App {
     }
 
     pub(super) fn handle_query_ready(&mut self, pane_id: PaneId, result: QueryResult) {
-        let version = result
-            .rows
-            .first()
-            .and_then(|row| row.first())
-            .map(|s| extract_pg_version(s))
-            .unwrap_or_else(|| "PostgreSQL".to_string());
-
         if let Some(pane) = self.panes.get_mut(&pane_id) {
             if let Some(qp) = pane.as_any_mut().downcast_mut::<QueryPane>() {
-                qp.set_connected(version);
+                if qp.is_connecting() {
+                    if let Some(version_str) = result.rows.first().and_then(|row| row.first()) {
+                        qp.set_connected(extract_pg_version(version_str));
+                    } else {
+                        qp.set_error("Connection test returned no data".to_string());
+                    }
+                } else {
+                    qp.set_result(result);
+                }
             }
         }
+    }
+
+    pub(super) fn query_editor_input(&mut self, c: char) {
+        let focused = self.tab_manager.active().focused_pane;
+        if let Some(pane) = self.panes.get_mut(&focused) {
+            if let Some(qp) = pane.as_any_mut().downcast_mut::<QueryPane>() {
+                qp.editor_push(c);
+            }
+        }
+    }
+
+    pub(super) fn query_editor_backspace(&mut self) {
+        let focused = self.tab_manager.active().focused_pane;
+        if let Some(pane) = self.panes.get_mut(&focused) {
+            if let Some(qp) = pane.as_any_mut().downcast_mut::<QueryPane>() {
+                qp.editor_pop();
+            }
+        }
+    }
+
+    pub(super) fn query_editor_scroll_up(&mut self) {
+        let focused = self.tab_manager.active().focused_pane;
+        if let Some(pane) = self.panes.get_mut(&focused) {
+            if let Some(qp) = pane.as_any_mut().downcast_mut::<QueryPane>() {
+                qp.scroll_up();
+            }
+        }
+    }
+
+    pub(super) fn query_editor_scroll_down(&mut self) {
+        let focused = self.tab_manager.active().focused_pane;
+        if let Some(pane) = self.panes.get_mut(&focused) {
+            if let Some(qp) = pane.as_any_mut().downcast_mut::<QueryPane>() {
+                qp.scroll_down();
+            }
+        }
+    }
+
+    pub(super) fn execute_current_query(&mut self) {
+        let focused = self.tab_manager.active().focused_pane;
+        let (sql, config) = {
+            let Some(pane) = self.panes.get_mut(&focused) else {
+                return;
+            };
+            let Some(qp) = pane.as_any_mut().downcast_mut::<QueryPane>() else {
+                return;
+            };
+            let sql = qp.editor_content().trim().to_string();
+            if sql.is_empty() {
+                return;
+            }
+            qp.set_executing();
+            (sql, qp.config.clone())
+        };
+        self.execute_query_for_pane(focused, config, sql);
     }
 
     pub(super) fn handle_query_error(&mut self, pane_id: PaneId, error: String) {
