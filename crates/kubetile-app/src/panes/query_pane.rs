@@ -22,10 +22,14 @@ pub struct QueryPane {
     status: QueryPaneStatus,
     pub config: QueryConfig,
     connected_version: Option<String>,
-    editor_line: String,
+    editor_lines: Vec<String>,
+    cursor_row: usize,
+    cursor_col: usize,
+    editor_scroll: usize,
     result_lines: Vec<String>,
     result_scroll: usize,
     result_max_scroll: Cell<usize>,
+    editor_area_height: Cell<usize>,
 }
 
 impl QueryPane {
@@ -37,10 +41,14 @@ impl QueryPane {
             status: QueryPaneStatus::Connecting,
             config: config.clone(),
             connected_version: None,
-            editor_line: String::new(),
+            editor_lines: vec![String::new()],
+            cursor_row: 0,
+            cursor_col: 0,
+            editor_scroll: 0,
             result_lines: Vec::new(),
             result_scroll: 0,
             result_max_scroll: Cell::new(0),
+            editor_area_height: Cell::new(5),
         }
     }
 
@@ -69,15 +77,83 @@ impl QueryPane {
     }
 
     pub fn editor_push(&mut self, c: char) {
-        self.editor_line.push(c);
+        let byte = char_to_byte(&self.editor_lines[self.cursor_row], self.cursor_col);
+        self.editor_lines[self.cursor_row].insert(byte, c);
+        self.cursor_col += 1;
     }
 
     pub fn editor_pop(&mut self) {
-        self.editor_line.pop();
+        if self.cursor_col > 0 {
+            let byte = char_to_byte(&self.editor_lines[self.cursor_row], self.cursor_col - 1);
+            self.editor_lines[self.cursor_row].remove(byte);
+            self.cursor_col -= 1;
+        } else if self.cursor_row > 0 {
+            let current = self.editor_lines.remove(self.cursor_row);
+            self.cursor_row -= 1;
+            self.cursor_col = self.editor_lines[self.cursor_row].chars().count();
+            self.editor_lines[self.cursor_row].push_str(&current);
+            self.adjust_editor_scroll();
+        }
     }
 
-    pub fn editor_content(&self) -> &str {
-        &self.editor_line
+    pub fn editor_newline(&mut self) {
+        let byte = char_to_byte(&self.editor_lines[self.cursor_row], self.cursor_col);
+        let tail = self.editor_lines[self.cursor_row].split_off(byte);
+        self.cursor_row += 1;
+        self.editor_lines.insert(self.cursor_row, tail);
+        self.cursor_col = 0;
+        self.adjust_editor_scroll();
+    }
+
+    pub fn cursor_up(&mut self) {
+        if self.cursor_row > 0 {
+            self.cursor_row -= 1;
+            let max_col = self.editor_lines[self.cursor_row].chars().count();
+            self.cursor_col = self.cursor_col.min(max_col);
+            self.adjust_editor_scroll();
+        }
+    }
+
+    pub fn cursor_down(&mut self) {
+        if self.cursor_row + 1 < self.editor_lines.len() {
+            self.cursor_row += 1;
+            let max_col = self.editor_lines[self.cursor_row].chars().count();
+            self.cursor_col = self.cursor_col.min(max_col);
+            self.adjust_editor_scroll();
+        }
+    }
+
+    pub fn cursor_left(&mut self) {
+        if self.cursor_col > 0 {
+            self.cursor_col -= 1;
+        } else if self.cursor_row > 0 {
+            self.cursor_row -= 1;
+            self.cursor_col = self.editor_lines[self.cursor_row].chars().count();
+            self.adjust_editor_scroll();
+        }
+    }
+
+    pub fn cursor_right(&mut self) {
+        let line_len = self.editor_lines[self.cursor_row].chars().count();
+        if self.cursor_col < line_len {
+            self.cursor_col += 1;
+        } else if self.cursor_row + 1 < self.editor_lines.len() {
+            self.cursor_row += 1;
+            self.cursor_col = 0;
+            self.adjust_editor_scroll();
+        }
+    }
+
+    pub fn editor_home(&mut self) {
+        self.cursor_col = 0;
+    }
+
+    pub fn editor_end(&mut self) {
+        self.cursor_col = self.editor_lines[self.cursor_row].chars().count();
+    }
+
+    pub fn editor_content(&self) -> String {
+        self.editor_lines.join("\n")
     }
 
     pub fn scroll_up(&mut self) {
@@ -88,6 +164,36 @@ impl QueryPane {
     pub fn scroll_down(&mut self) {
         self.result_scroll = self.result_scroll.saturating_sub(1);
     }
+
+    fn adjust_editor_scroll(&mut self) {
+        let h = self.editor_area_height.get().max(1);
+        if self.cursor_row < self.editor_scroll {
+            self.editor_scroll = self.cursor_row;
+        } else if self.cursor_row >= self.editor_scroll + h {
+            self.editor_scroll = self.cursor_row + 1 - h;
+        }
+    }
+}
+
+fn char_to_byte(s: &str, char_idx: usize) -> usize {
+    s.char_indices().nth(char_idx).map(|(i, _)| i).unwrap_or(s.len())
+}
+
+fn render_cursor_line(line: &str, cursor_col: usize, normal_style: Style, cursor_style: Style) -> Line<'static> {
+    let char_count = line.chars().count();
+    let byte = char_to_byte(line, cursor_col);
+    let before = line[..byte].to_string();
+    let (cursor_ch, after) = if cursor_col < char_count {
+        let ch = line[byte..].chars().next().unwrap();
+        (ch.to_string(), line[byte + ch.len_utf8()..].to_string())
+    } else {
+        (" ".to_string(), String::new())
+    };
+    Line::from(vec![
+        Span::styled(before, normal_style),
+        Span::styled(cursor_ch, cursor_style),
+        Span::styled(after, normal_style),
+    ])
 }
 
 fn format_result(result: &QueryResult) -> Vec<String> {
@@ -114,26 +220,44 @@ impl Pane for QueryPane {
         let inner = block.inner(area);
         frame.render_widget(block, area);
 
-        if inner.height < 3 {
+        if inner.height < 4 {
             return;
         }
 
         // Layout:
-        //   row 0:        editor line
-        //   row 1:        separator
-        //   rows 2..h-2:  results (scrollable)
-        //   row h-1:      status bar
+        //   rows 0..editor_height-1:  editor lines (scrollable)
+        //   row  editor_height:       separator
+        //   rows editor_height+1..h-2: results (scrollable)
+        //   row  h-1:                 status bar
 
-        let editor_area = Rect { x: inner.x, y: inner.y, width: inner.width, height: 1 };
-        let sep_area = Rect { x: inner.x, y: inner.y + 1, width: inner.width, height: 1 };
-        let results_height = inner.height.saturating_sub(3);
-        let results_area = Rect { x: inner.x, y: inner.y + 2, width: inner.width, height: results_height };
+        let editor_height = ((inner.height as usize) / 3).clamp(3, 10) as u16;
+        self.editor_area_height.set(editor_height as usize);
+
+        let editor_area = Rect { x: inner.x, y: inner.y, width: inner.width, height: editor_height };
+        let sep_y = inner.y + editor_height;
+        let sep_area = Rect { x: inner.x, y: sep_y, width: inner.width, height: 1 };
+        let results_top = sep_y + 1;
+        let results_height = inner.height.saturating_sub(editor_height + 2);
+        let results_area = Rect { x: inner.x, y: results_top, width: inner.width, height: results_height };
         let status_area =
             Rect { x: inner.x, y: inner.y + inner.height.saturating_sub(1), width: inner.width, height: 1 };
 
-        let editor_text = format!("> {}_", self.editor_line);
-        let editor_style = if focused { Style::default().fg(theme.accent) } else { Style::default().fg(theme.fg) };
-        frame.render_widget(Paragraph::new(editor_text).style(editor_style), editor_area);
+        let normal_style = if focused { Style::default().fg(theme.accent) } else { Style::default().fg(theme.fg) };
+        let cursor_style = normal_style.add_modifier(Modifier::REVERSED);
+
+        let editor_scroll = self.editor_scroll;
+        let end_line = (editor_scroll + editor_height as usize).min(self.editor_lines.len());
+        let editor_content: Vec<Line> = (editor_scroll..end_line)
+            .map(|row| {
+                let line = &self.editor_lines[row];
+                if focused && row == self.cursor_row {
+                    render_cursor_line(line, self.cursor_col, normal_style, cursor_style)
+                } else {
+                    Line::from(Span::styled(line.clone(), normal_style))
+                }
+            })
+            .collect();
+        frame.render_widget(Paragraph::new(editor_content), editor_area);
 
         let sep_text = "─".repeat(inner.width as usize);
         frame.render_widget(Paragraph::new(sep_text).style(theme.text_dim), sep_area);

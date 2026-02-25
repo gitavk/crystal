@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use crossterm::event::{KeyCode, KeyEvent};
+use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 
 use kubetile_config::KeybindingsConfig;
 use kubetile_tui::pane::PaneCommand;
@@ -187,11 +187,18 @@ impl KeybindingDispatcher {
             },
             InputMode::QueryEditor => match (key.code, key.modifiers) {
                 (KeyCode::Esc, _) => return Some((Command::ExitMode, false)),
-                (KeyCode::Enter, _) => return Some((Command::QueryEditorExecute, false)),
+                (KeyCode::Enter, KeyModifiers::CONTROL) => return Some((Command::QueryEditorExecute, false)),
+                (KeyCode::Enter, _) => return Some((Command::QueryEditorNewLine, false)),
                 (KeyCode::Char(c), _) => return Some((Command::QueryEditorInput(c), false)),
                 (KeyCode::Backspace, _) => return Some((Command::QueryEditorBackspace, false)),
-                (KeyCode::Up | KeyCode::PageUp, _) => return Some((Command::QueryEditorScrollUp, false)),
-                (KeyCode::Down | KeyCode::PageDown, _) => return Some((Command::QueryEditorScrollDown, false)),
+                (KeyCode::Up, _) => return Some((Command::QueryEditorCursorUp, false)),
+                (KeyCode::Down, _) => return Some((Command::QueryEditorCursorDown, false)),
+                (KeyCode::Left, _) => return Some((Command::QueryEditorCursorLeft, false)),
+                (KeyCode::Right, _) => return Some((Command::QueryEditorCursorRight, false)),
+                (KeyCode::Home, _) => return Some((Command::QueryEditorHome, false)),
+                (KeyCode::End, _) => return Some((Command::QueryEditorEnd, false)),
+                (KeyCode::PageUp, _) => return Some((Command::QueryEditorScrollUp, false)),
+                (KeyCode::PageDown, _) => return Some((Command::QueryEditorScrollDown, false)),
                 _ => return None,
             },
             InputMode::QueryDialog => match key.code {

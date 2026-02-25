@@ -133,8 +133,15 @@ impl App {
             Command::SplitHorizontal => self.split_focused(SplitDirection::Horizontal),
             Command::ClosePane => self.close_focused(),
             Command::EnterMode(mode) => {
-                if mode == InputMode::Insert && !self.focused_supports_insert_mode() {
-                    return;
+                if mode == InputMode::Insert {
+                    let focused = self.tab_manager.active().focused_pane;
+                    if self.panes.get(&focused).is_some_and(|p| matches!(p.view_type(), ViewType::Query(_))) {
+                        self.dispatcher.set_mode(InputMode::QueryEditor);
+                        return;
+                    }
+                    if !self.focused_supports_insert_mode() {
+                        return;
+                    }
                 }
                 self.dispatcher.set_mode(mode);
                 if mode == InputMode::NamespaceSelector {
@@ -322,6 +329,27 @@ impl App {
             }
             Command::QueryEditorBackspace => {
                 self.query_editor_backspace();
+            }
+            Command::QueryEditorNewLine => {
+                self.query_editor_newline();
+            }
+            Command::QueryEditorCursorUp => {
+                self.query_editor_cursor_up();
+            }
+            Command::QueryEditorCursorDown => {
+                self.query_editor_cursor_down();
+            }
+            Command::QueryEditorCursorLeft => {
+                self.query_editor_cursor_left();
+            }
+            Command::QueryEditorCursorRight => {
+                self.query_editor_cursor_right();
+            }
+            Command::QueryEditorHome => {
+                self.query_editor_home();
+            }
+            Command::QueryEditorEnd => {
+                self.query_editor_end();
             }
             Command::QueryEditorScrollUp => {
                 self.query_editor_scroll_up();

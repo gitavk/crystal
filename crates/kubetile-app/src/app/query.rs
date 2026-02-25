@@ -128,6 +128,69 @@ impl App {
         }
     }
 
+    pub(super) fn query_editor_newline(&mut self) {
+        let focused = self.tab_manager.active().focused_pane;
+        if let Some(pane) = self.panes.get_mut(&focused) {
+            if let Some(qp) = pane.as_any_mut().downcast_mut::<QueryPane>() {
+                qp.editor_newline();
+            }
+        }
+    }
+
+    pub(super) fn query_editor_cursor_up(&mut self) {
+        let focused = self.tab_manager.active().focused_pane;
+        if let Some(pane) = self.panes.get_mut(&focused) {
+            if let Some(qp) = pane.as_any_mut().downcast_mut::<QueryPane>() {
+                qp.cursor_up();
+            }
+        }
+    }
+
+    pub(super) fn query_editor_cursor_down(&mut self) {
+        let focused = self.tab_manager.active().focused_pane;
+        if let Some(pane) = self.panes.get_mut(&focused) {
+            if let Some(qp) = pane.as_any_mut().downcast_mut::<QueryPane>() {
+                qp.cursor_down();
+            }
+        }
+    }
+
+    pub(super) fn query_editor_cursor_left(&mut self) {
+        let focused = self.tab_manager.active().focused_pane;
+        if let Some(pane) = self.panes.get_mut(&focused) {
+            if let Some(qp) = pane.as_any_mut().downcast_mut::<QueryPane>() {
+                qp.cursor_left();
+            }
+        }
+    }
+
+    pub(super) fn query_editor_cursor_right(&mut self) {
+        let focused = self.tab_manager.active().focused_pane;
+        if let Some(pane) = self.panes.get_mut(&focused) {
+            if let Some(qp) = pane.as_any_mut().downcast_mut::<QueryPane>() {
+                qp.cursor_right();
+            }
+        }
+    }
+
+    pub(super) fn query_editor_home(&mut self) {
+        let focused = self.tab_manager.active().focused_pane;
+        if let Some(pane) = self.panes.get_mut(&focused) {
+            if let Some(qp) = pane.as_any_mut().downcast_mut::<QueryPane>() {
+                qp.editor_home();
+            }
+        }
+    }
+
+    pub(super) fn query_editor_end(&mut self) {
+        let focused = self.tab_manager.active().focused_pane;
+        if let Some(pane) = self.panes.get_mut(&focused) {
+            if let Some(qp) = pane.as_any_mut().downcast_mut::<QueryPane>() {
+                qp.editor_end();
+            }
+        }
+    }
+
     pub(super) fn query_editor_scroll_up(&mut self) {
         let focused = self.tab_manager.active().focused_pane;
         if let Some(pane) = self.panes.get_mut(&focused) {
@@ -155,7 +218,8 @@ impl App {
             let Some(qp) = pane.as_any_mut().downcast_mut::<QueryPane>() else {
                 return;
             };
-            let sql = qp.editor_content().trim().to_string();
+            let sql = qp.editor_content();
+            let sql = sql.trim().to_string();
             if sql.is_empty() {
                 return;
             }

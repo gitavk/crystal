@@ -56,6 +56,13 @@ pub enum Command {
     // Query editor
     QueryEditorInput(char),
     QueryEditorBackspace,
+    QueryEditorNewLine,
+    QueryEditorCursorUp,
+    QueryEditorCursorDown,
+    QueryEditorCursorLeft,
+    QueryEditorCursorRight,
+    QueryEditorHome,
+    QueryEditorEnd,
     QueryEditorScrollUp,
     QueryEditorScrollDown,
     QueryEditorExecute,

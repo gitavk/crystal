@@ -1,5 +1,6 @@
 use kubetile_tui::pane::{find_pane_in_direction, Direction, PaneId, ResourceKind, SplitDirection, ViewType};
 
+use crate::command::InputMode;
 use crate::panes::ResourceListPane;
 
 use super::App;
@@ -61,6 +62,13 @@ impl App {
             pane.on_focus_change(prev_view.as_ref());
         }
         self.update_active_tab_title();
+
+        let new_is_query = self.panes.get(&new_id).is_some_and(|p| matches!(p.view_type(), ViewType::Query(_)));
+        match (new_is_query, self.dispatcher.mode()) {
+            (true, InputMode::Normal) => self.dispatcher.set_mode(InputMode::QueryEditor),
+            (false, InputMode::QueryEditor) => self.dispatcher.set_mode(InputMode::Normal),
+            _ => {}
+        }
     }
 
     pub(super) fn split_focused(&mut self, direction: SplitDirection) {
