@@ -360,6 +360,21 @@ impl App {
             Command::QueryEditorExecute => {
                 self.execute_current_query();
             }
+            Command::EnterQueryBrowse => {
+                self.enter_query_browse();
+            }
+            Command::QueryBrowseNext => {
+                self.query_browse_next();
+            }
+            Command::QueryBrowsePrev => {
+                self.query_browse_prev();
+            }
+            Command::QueryCopyRow => {
+                self.query_copy_row();
+            }
+            Command::QueryCopyAll => {
+                self.query_copy_all();
+            }
             Command::SortByColumn => {
                 let focused = self.tab_manager.active().focused_pane;
                 if let Some(pane) = self.panes.get_mut(&focused) {

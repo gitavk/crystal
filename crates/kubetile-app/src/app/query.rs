@@ -195,7 +195,7 @@ impl App {
         let focused = self.tab_manager.active().focused_pane;
         if let Some(pane) = self.panes.get_mut(&focused) {
             if let Some(qp) = pane.as_any_mut().downcast_mut::<QueryPane>() {
-                qp.scroll_up();
+                qp.result_page_down();
             }
         }
     }
@@ -204,7 +204,55 @@ impl App {
         let focused = self.tab_manager.active().focused_pane;
         if let Some(pane) = self.panes.get_mut(&focused) {
             if let Some(qp) = pane.as_any_mut().downcast_mut::<QueryPane>() {
+                qp.result_page_up();
+            }
+        }
+    }
+
+    pub(super) fn enter_query_browse(&mut self) {
+        self.dispatcher.set_mode(InputMode::QueryBrowse);
+    }
+
+    pub(super) fn query_browse_next(&mut self) {
+        let focused = self.tab_manager.active().focused_pane;
+        if let Some(pane) = self.panes.get_mut(&focused) {
+            if let Some(qp) = pane.as_any_mut().downcast_mut::<QueryPane>() {
+                qp.scroll_up();
+            }
+        }
+    }
+
+    pub(super) fn query_browse_prev(&mut self) {
+        let focused = self.tab_manager.active().focused_pane;
+        if let Some(pane) = self.panes.get_mut(&focused) {
+            if let Some(qp) = pane.as_any_mut().downcast_mut::<QueryPane>() {
                 qp.scroll_down();
+            }
+        }
+    }
+
+    pub(super) fn query_copy_row(&mut self) {
+        let focused = self.tab_manager.active().focused_pane;
+        if let Some(pane) = self.panes.get(&focused) {
+            if let Some(qp) = pane.as_any().downcast_ref::<QueryPane>() {
+                match qp.selected_row_csv() {
+                    Some(csv) => self.toasts.push(ToastMessage::info(format!("Copied: {csv}"))),
+                    None => self.toasts.push(ToastMessage::info("No row selected")),
+                }
+            }
+        }
+    }
+
+    pub(super) fn query_copy_all(&mut self) {
+        let focused = self.tab_manager.active().focused_pane;
+        if let Some(pane) = self.panes.get(&focused) {
+            if let Some(qp) = pane.as_any().downcast_ref::<QueryPane>() {
+                let csv = qp.all_rows_csv();
+                if csv.is_empty() {
+                    self.toasts.push(ToastMessage::info("No results to copy"));
+                } else {
+                    self.toasts.push(ToastMessage::info(format!("Copied {} rows", qp.row_count())));
+                }
             }
         }
     }

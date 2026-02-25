@@ -66,6 +66,13 @@ pub enum Command {
     QueryEditorScrollUp,
     QueryEditorScrollDown,
     QueryEditorExecute,
+    EnterQueryBrowse,
+
+    // Query browse (result navigation)
+    QueryBrowseNext,
+    QueryBrowsePrev,
+    QueryCopyRow,
+    QueryCopyAll,
 
     // Resource actions
     ViewYaml,

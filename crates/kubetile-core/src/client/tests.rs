@@ -2,8 +2,11 @@ use super::*;
 
 use std::env;
 use std::fs;
+use std::sync::Mutex;
 
 use tempfile::tempdir;
+
+static ENV_LOCK: Mutex<()> = Mutex::new(());
 
 const SAMPLE_KUBECONFIG: &str = "\
 apiVersion: v1
@@ -45,6 +48,7 @@ async fn connect_and_list_namespaces() {
 
 #[test]
 fn kubeconfig_from_env_skips_missing_and_blank_paths() {
+    let _guard = ENV_LOCK.lock().unwrap();
     let dir = tempdir().expect("tempdir");
     let valid_path = dir.path().join("valid-config");
     fs::write(&valid_path, SAMPLE_KUBECONFIG).expect("write kubeconfig");
@@ -70,6 +74,7 @@ fn kubeconfig_from_env_skips_missing_and_blank_paths() {
 
 #[test]
 fn kubeconfig_from_env_returns_none_when_all_paths_are_missing() {
+    let _guard = ENV_LOCK.lock().unwrap();
     let previous = env::var_os("KUBECONFIG");
     let sep = if cfg!(windows) { ';' } else { ':' };
     let missing_path = "/nope/does/not/exist";

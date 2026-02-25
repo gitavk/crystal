@@ -26,6 +26,7 @@ impl App {
             InputMode::PortForwardInput => "PortForward",
             InputMode::QueryDialog => "QueryDialog",
             InputMode::QueryEditor => "QueryEditor",
+            InputMode::QueryBrowse => "QueryBrowse",
         }
     }
 

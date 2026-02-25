@@ -36,6 +36,7 @@ pub enum InputMode {
     PortForwardInput,
     QueryDialog,
     QueryEditor,
+    QueryBrowse,
 }
 
 #[allow(dead_code)]
@@ -189,6 +190,7 @@ impl KeybindingDispatcher {
                 (KeyCode::Esc, _) => return Some((Command::ExitMode, false)),
                 (KeyCode::Enter, KeyModifiers::CONTROL) => return Some((Command::QueryEditorExecute, false)),
                 (KeyCode::Enter, _) => return Some((Command::QueryEditorNewLine, false)),
+                (KeyCode::Tab, _) => return Some((Command::EnterQueryBrowse, false)),
                 (KeyCode::Char(c), _) => return Some((Command::QueryEditorInput(c), false)),
                 (KeyCode::Backspace, _) => return Some((Command::QueryEditorBackspace, false)),
                 (KeyCode::Up, _) => return Some((Command::QueryEditorCursorUp, false)),
@@ -197,8 +199,21 @@ impl KeybindingDispatcher {
                 (KeyCode::Right, _) => return Some((Command::QueryEditorCursorRight, false)),
                 (KeyCode::Home, _) => return Some((Command::QueryEditorHome, false)),
                 (KeyCode::End, _) => return Some((Command::QueryEditorEnd, false)),
-                (KeyCode::PageUp, _) => return Some((Command::QueryEditorScrollUp, false)),
-                (KeyCode::PageDown, _) => return Some((Command::QueryEditorScrollDown, false)),
+                (KeyCode::PageUp, _) => return Some((Command::QueryEditorScrollDown, false)),
+                (KeyCode::PageDown, _) => return Some((Command::QueryEditorScrollUp, false)),
+                _ => return None,
+            },
+            InputMode::QueryBrowse => match key.code {
+                KeyCode::Esc => return Some((Command::ExitMode, false)),
+                KeyCode::Char('i') | KeyCode::Enter => {
+                    return Some((Command::EnterMode(InputMode::QueryEditor), false))
+                }
+                KeyCode::Char('j') => return Some((Command::QueryBrowseNext, false)),
+                KeyCode::Char('k') => return Some((Command::QueryBrowsePrev, false)),
+                KeyCode::PageDown => return Some((Command::QueryEditorScrollUp, false)),
+                KeyCode::PageUp => return Some((Command::QueryEditorScrollDown, false)),
+                KeyCode::Char('y') => return Some((Command::QueryCopyRow, false)),
+                KeyCode::Char('Y') => return Some((Command::QueryCopyAll, false)),
                 _ => return None,
             },
             InputMode::QueryDialog => match key.code {
@@ -257,7 +272,8 @@ impl KeybindingDispatcher {
             | InputMode::FilterInput
             | InputMode::PortForwardInput
             | InputMode::QueryDialog
-            | InputMode::QueryEditor => {
+            | InputMode::QueryEditor
+            | InputMode::QueryBrowse => {
                 unreachable!("handled above")
             }
         }
