@@ -416,7 +416,11 @@ impl Pane for QueryPane {
                         .map(|(vi, &col_i)| {
                             let h = &result.headers[col_i];
                             let w = self.col_widths.get(col_i).copied().unwrap_or(h.len());
-                            if vi == 0 { format!("{:<width$}", h, width = w) } else { format!("  {:<width$}", h, width = w) }
+                            if vi == 0 {
+                                format!("{:<width$}", h, width = w)
+                            } else {
+                                format!("  {:<width$}", h, width = w)
+                            }
                         })
                         .collect();
 
@@ -425,7 +429,11 @@ impl Pane for QueryPane {
                         .enumerate()
                         .map(|(vi, &col_i)| {
                             let w = self.col_widths.get(col_i).copied().unwrap_or(0);
-                            if vi == 0 { "─".repeat(w) } else { format!("──{}", "─".repeat(w)) }
+                            if vi == 0 {
+                                "─".repeat(w)
+                            } else {
+                                format!("──{}", "─".repeat(w))
+                            }
                         })
                         .collect();
 
@@ -447,15 +455,16 @@ impl Pane for QueryPane {
                             .map(|(vi, &col_i)| {
                                 let cell = row.get(col_i).map(|s| s.as_str()).unwrap_or("");
                                 let w = self.col_widths.get(col_i).copied().unwrap_or(cell.len());
-                                if vi == 0 { format!("{:<width$}", cell, width = w) } else { format!("  {:<width$}", cell, width = w) }
+                                if vi == 0 {
+                                    format!("{:<width$}", cell, width = w)
+                                } else {
+                                    format!("  {:<width$}", cell, width = w)
+                                }
                             })
                             .collect();
                         let style =
                             if abs_row == self.result_selected_row { theme.selection } else { Style::default() };
-                        lines.push(Line::from(Span::styled(
-                            text.chars().take(text_width).collect::<String>(),
-                            style,
-                        )));
+                        lines.push(Line::from(Span::styled(text.chars().take(text_width).collect::<String>(), style)));
                     }
 
                     frame.render_widget(Paragraph::new(lines), text_area);

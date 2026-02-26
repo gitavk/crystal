@@ -251,27 +251,39 @@ impl App {
 
     pub(super) fn query_copy_row(&mut self) {
         let focused = self.tab_manager.active().focused_pane;
-        if let Some(pane) = self.panes.get(&focused) {
-            if let Some(qp) = pane.as_any().downcast_ref::<QueryPane>() {
-                match qp.selected_row_csv() {
-                    Some(csv) => self.toasts.push(ToastMessage::info(format!("Copied: {csv}"))),
-                    None => self.toasts.push(ToastMessage::info("No row selected")),
-                }
-            }
+        let csv = self
+            .panes
+            .get(&focused)
+            .and_then(|p| p.as_any().downcast_ref::<QueryPane>())
+            .and_then(|qp| qp.selected_row_csv());
+        match csv {
+            None => self.toasts.push(ToastMessage::info("No row selected")),
+            Some(csv) => match self.clipboard.as_mut() {
+                None => self.toasts.push(ToastMessage::error("Clipboard unavailable")),
+                Some(cb) => match cb.set_text(csv) {
+                    Ok(_) => self.toasts.push(ToastMessage::info("Copied 1 row")),
+                    Err(e) => self.toasts.push(ToastMessage::error(format!("Clipboard error: {e}"))),
+                },
+            },
         }
     }
 
     pub(super) fn query_copy_all(&mut self) {
         let focused = self.tab_manager.active().focused_pane;
-        if let Some(pane) = self.panes.get(&focused) {
-            if let Some(qp) = pane.as_any().downcast_ref::<QueryPane>() {
-                let csv = qp.all_rows_csv();
-                if csv.is_empty() {
-                    self.toasts.push(ToastMessage::info("No results to copy"));
-                } else {
-                    self.toasts.push(ToastMessage::info(format!("Copied {} rows", qp.row_count())));
-                }
-            }
+        let (csv, n) = match self.panes.get(&focused).and_then(|p| p.as_any().downcast_ref::<QueryPane>()) {
+            None => return,
+            Some(qp) => (qp.all_rows_csv(), qp.row_count()),
+        };
+        if csv.is_empty() {
+            self.toasts.push(ToastMessage::info("No results to copy"));
+            return;
+        }
+        match self.clipboard.as_mut() {
+            None => self.toasts.push(ToastMessage::error("Clipboard unavailable")),
+            Some(cb) => match cb.set_text(csv) {
+                Ok(_) => self.toasts.push(ToastMessage::info(format!("Copied {n} rows"))),
+                Err(e) => self.toasts.push(ToastMessage::error(format!("Clipboard error: {e}"))),
+            },
         }
     }
 
