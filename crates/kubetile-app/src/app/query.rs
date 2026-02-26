@@ -173,6 +173,24 @@ impl App {
         }
     }
 
+    pub(super) fn query_editor_indent(&mut self) {
+        let focused = self.tab_manager.active().focused_pane;
+        if let Some(pane) = self.panes.get_mut(&focused) {
+            if let Some(qp) = pane.as_any_mut().downcast_mut::<QueryPane>() {
+                qp.editor_indent();
+            }
+        }
+    }
+
+    pub(super) fn query_editor_deindent(&mut self) {
+        let focused = self.tab_manager.active().focused_pane;
+        if let Some(pane) = self.panes.get_mut(&focused) {
+            if let Some(qp) = pane.as_any_mut().downcast_mut::<QueryPane>() {
+                qp.editor_deindent();
+            }
+        }
+    }
+
     pub(super) fn query_editor_home(&mut self) {
         let focused = self.tab_manager.active().focused_pane;
         if let Some(pane) = self.panes.get_mut(&focused) {

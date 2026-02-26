@@ -66,6 +66,8 @@ pub enum Command {
     QueryEditorScrollUp,
     QueryEditorScrollDown,
     QueryEditorExecute,
+    QueryEditorIndent,
+    QueryEditorDeIndent,
     EnterQueryBrowse,
 
     // Query browse (result navigation)

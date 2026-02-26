@@ -351,6 +351,12 @@ impl App {
             Command::QueryEditorEnd => {
                 self.query_editor_end();
             }
+            Command::QueryEditorIndent => {
+                self.query_editor_indent();
+            }
+            Command::QueryEditorDeIndent => {
+                self.query_editor_deindent();
+            }
             Command::QueryEditorScrollUp => {
                 self.query_editor_scroll_up();
             }

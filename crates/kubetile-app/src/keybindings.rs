@@ -190,7 +190,9 @@ impl KeybindingDispatcher {
                 (KeyCode::Esc, _) => return Some((Command::ExitMode, false)),
                 (KeyCode::Enter, KeyModifiers::CONTROL) => return Some((Command::QueryEditorExecute, false)),
                 (KeyCode::Enter, _) => return Some((Command::QueryEditorNewLine, false)),
-                (KeyCode::Tab, _) => return Some((Command::EnterQueryBrowse, false)),
+                (KeyCode::Tab, _) => return Some((Command::QueryEditorIndent, false)),
+                (KeyCode::BackTab, _) => return Some((Command::QueryEditorDeIndent, false)),
+                (KeyCode::Down, KeyModifiers::CONTROL) => return Some((Command::EnterQueryBrowse, false)),
                 (KeyCode::Char(c), _) => return Some((Command::QueryEditorInput(c), false)),
                 (KeyCode::Backspace, _) => return Some((Command::QueryEditorBackspace, false)),
                 (KeyCode::Up, _) => return Some((Command::QueryEditorCursorUp, false)),
@@ -203,19 +205,22 @@ impl KeybindingDispatcher {
                 (KeyCode::PageDown, _) => return Some((Command::QueryEditorScrollUp, false)),
                 _ => return None,
             },
-            InputMode::QueryBrowse => match key.code {
-                KeyCode::Esc => return Some((Command::ExitMode, false)),
-                KeyCode::Char('i') | KeyCode::Enter => {
+            InputMode::QueryBrowse => match (key.code, key.modifiers) {
+                (KeyCode::Esc, _) => return Some((Command::ExitMode, false)),
+                (KeyCode::Char('i'), _) | (KeyCode::Enter, _) => {
                     return Some((Command::EnterMode(InputMode::QueryEditor), false))
                 }
-                KeyCode::Char('j') => return Some((Command::QueryBrowseNext, false)),
-                KeyCode::Char('k') => return Some((Command::QueryBrowsePrev, false)),
-                KeyCode::Char('h') | KeyCode::Left => return Some((Command::QueryBrowseScrollLeft, false)),
-                KeyCode::Char('l') | KeyCode::Right => return Some((Command::QueryBrowseScrollRight, false)),
-                KeyCode::PageDown => return Some((Command::QueryEditorScrollUp, false)),
-                KeyCode::PageUp => return Some((Command::QueryEditorScrollDown, false)),
-                KeyCode::Char('y') => return Some((Command::QueryCopyRow, false)),
-                KeyCode::Char('Y') => return Some((Command::QueryCopyAll, false)),
+                (KeyCode::Up, KeyModifiers::CONTROL) => {
+                    return Some((Command::EnterMode(InputMode::QueryEditor), false))
+                }
+                (KeyCode::Char('j'), _) => return Some((Command::QueryBrowseNext, false)),
+                (KeyCode::Char('k'), _) => return Some((Command::QueryBrowsePrev, false)),
+                (KeyCode::Char('h'), _) | (KeyCode::Left, _) => return Some((Command::QueryBrowseScrollLeft, false)),
+                (KeyCode::Char('l'), _) | (KeyCode::Right, _) => return Some((Command::QueryBrowseScrollRight, false)),
+                (KeyCode::PageDown, _) => return Some((Command::QueryEditorScrollUp, false)),
+                (KeyCode::PageUp, _) => return Some((Command::QueryEditorScrollDown, false)),
+                (KeyCode::Char('y'), _) => return Some((Command::QueryCopyRow, false)),
+                (KeyCode::Char('Y'), _) => return Some((Command::QueryCopyAll, false)),
                 _ => return None,
             },
             InputMode::QueryDialog => match key.code {

@@ -162,6 +162,20 @@ impl QueryPane {
         }
     }
 
+    pub fn editor_indent(&mut self) {
+        self.editor_lines[self.cursor_row].insert_str(0, "  ");
+        self.cursor_col += 2;
+    }
+
+    pub fn editor_deindent(&mut self) {
+        let spaces = self.editor_lines[self.cursor_row].chars().take(2).take_while(|&c| c == ' ').count();
+        if spaces == 0 {
+            return;
+        }
+        self.editor_lines[self.cursor_row].drain(..spaces);
+        self.cursor_col = self.cursor_col.saturating_sub(spaces);
+    }
+
     pub fn editor_home(&mut self) {
         self.cursor_col = 0;
     }
