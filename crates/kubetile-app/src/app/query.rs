@@ -110,7 +110,14 @@ impl App {
                         qp.set_error("Connection test returned no data".to_string());
                     }
                 } else {
+                    let sql = qp.last_executed_sql().map(|s| s.to_string());
+                    let config = qp.config.clone();
                     qp.set_result(result);
+                    if let Some(sql) = sql {
+                        let mut history =
+                            kubetile_core::QueryHistory::load(&config.namespace, &config.pod, &config.database);
+                        let _ = history.append(&sql);
+                    }
                 }
             }
         }
@@ -237,6 +244,85 @@ impl App {
         self.dispatcher.set_mode(InputMode::QueryBrowse);
     }
 
+    pub(super) fn open_query_history(&mut self) {
+        let focused = self.tab_manager.active().focused_pane;
+        let config = match self.panes.get(&focused) {
+            Some(pane) => pane.as_any().downcast_ref::<QueryPane>().map(|qp| qp.config.clone()),
+            None => None,
+        };
+        let Some(config) = config else { return };
+        let history = kubetile_core::QueryHistory::load(&config.namespace, &config.pod, &config.database);
+        let entries: Vec<String> = history.entries.iter().map(|e| e.sql.clone()).collect();
+        if let Some(pane) = self.panes.get_mut(&focused) {
+            if let Some(qp) = pane.as_any_mut().downcast_mut::<QueryPane>() {
+                qp.open_history(entries);
+            }
+        }
+        self.dispatcher.set_mode(InputMode::QueryHistory);
+    }
+
+    pub(super) fn close_query_history(&mut self) {
+        let focused = self.tab_manager.active().focused_pane;
+        if let Some(pane) = self.panes.get_mut(&focused) {
+            if let Some(qp) = pane.as_any_mut().downcast_mut::<QueryPane>() {
+                qp.close_history();
+            }
+        }
+        self.dispatcher.set_mode(InputMode::QueryEditor);
+    }
+
+    pub(super) fn query_history_next(&mut self) {
+        let focused = self.tab_manager.active().focused_pane;
+        if let Some(pane) = self.panes.get_mut(&focused) {
+            if let Some(qp) = pane.as_any_mut().downcast_mut::<QueryPane>() {
+                qp.history_next();
+            }
+        }
+    }
+
+    pub(super) fn query_history_prev(&mut self) {
+        let focused = self.tab_manager.active().focused_pane;
+        if let Some(pane) = self.panes.get_mut(&focused) {
+            if let Some(qp) = pane.as_any_mut().downcast_mut::<QueryPane>() {
+                qp.history_prev();
+            }
+        }
+    }
+
+    pub(super) fn query_history_select(&mut self) {
+        let focused = self.tab_manager.active().focused_pane;
+        let sql = self
+            .panes
+            .get(&focused)
+            .and_then(|p| p.as_any().downcast_ref::<QueryPane>())
+            .and_then(|qp| qp.history_selected_sql())
+            .map(|s| s.to_string());
+        let Some(sql) = sql else { return };
+        if let Some(pane) = self.panes.get_mut(&focused) {
+            if let Some(qp) = pane.as_any_mut().downcast_mut::<QueryPane>() {
+                qp.set_editor_content(&sql);
+                qp.close_history();
+            }
+        }
+        self.dispatcher.set_mode(InputMode::QueryEditor);
+    }
+
+    pub(super) fn query_history_delete(&mut self) {
+        let focused = self.tab_manager.active().focused_pane;
+        let (idx, config) = match self.panes.get(&focused).and_then(|p| p.as_any().downcast_ref::<QueryPane>()) {
+            Some(qp) => (qp.history_selected_index(), qp.config.clone()),
+            None => return,
+        };
+        let mut history = kubetile_core::QueryHistory::load(&config.namespace, &config.pod, &config.database);
+        let _ = history.delete(idx);
+        let entries: Vec<String> = history.entries.iter().map(|e| e.sql.clone()).collect();
+        if let Some(pane) = self.panes.get_mut(&focused) {
+            if let Some(qp) = pane.as_any_mut().downcast_mut::<QueryPane>() {
+                qp.open_history(entries);
+            }
+        }
+    }
+
     pub(super) fn query_browse_next(&mut self) {
         let focused = self.tab_manager.active().focused_pane;
         if let Some(pane) = self.panes.get_mut(&focused) {
@@ -325,7 +411,7 @@ impl App {
             if sql.is_empty() {
                 return;
             }
-            qp.set_executing();
+            qp.set_executing(&sql);
             (sql, qp.config.clone())
         };
         self.execute_query_for_pane(focused, config, sql);

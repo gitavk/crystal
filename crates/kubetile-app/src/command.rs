@@ -78,6 +78,14 @@ pub enum Command {
     QueryCopyRow,
     QueryCopyAll,
 
+    // Query history popup
+    OpenQueryHistory,
+    QueryHistoryNext,
+    QueryHistoryPrev,
+    QueryHistorySelect,
+    QueryHistoryDelete,
+    CloseQueryHistory,
+
     // Resource actions
     ViewYaml,
     ViewDescribe,

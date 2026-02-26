@@ -16,6 +16,7 @@ jiff.workspace = true
 serde_json.workspace = true
 serde_yaml.workspace = true
 csv.workspace = true
+dirs = "6"
 portable-pty.workspace = true
 vt100.workspace = true
 

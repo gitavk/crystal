@@ -37,6 +37,7 @@ pub enum InputMode {
     QueryDialog,
     QueryEditor,
     QueryBrowse,
+    QueryHistory,
 }
 
 #[allow(dead_code)]
@@ -192,6 +193,7 @@ impl KeybindingDispatcher {
                 (KeyCode::Enter, _) => return Some((Command::QueryEditorNewLine, false)),
                 (KeyCode::Tab, _) => return Some((Command::QueryEditorIndent, false)),
                 (KeyCode::BackTab, _) => return Some((Command::QueryEditorDeIndent, false)),
+                (KeyCode::Char('r'), KeyModifiers::CONTROL) => return Some((Command::OpenQueryHistory, false)),
                 (KeyCode::Down, KeyModifiers::CONTROL) => return Some((Command::EnterQueryBrowse, false)),
                 (KeyCode::Char(c), _) => return Some((Command::QueryEditorInput(c), false)),
                 (KeyCode::Backspace, _) => return Some((Command::QueryEditorBackspace, false)),
@@ -221,6 +223,14 @@ impl KeybindingDispatcher {
                 (KeyCode::PageUp, _) => return Some((Command::QueryEditorScrollDown, false)),
                 (KeyCode::Char('y'), _) => return Some((Command::QueryCopyRow, false)),
                 (KeyCode::Char('Y'), _) => return Some((Command::QueryCopyAll, false)),
+                _ => return None,
+            },
+            InputMode::QueryHistory => match (key.code, key.modifiers) {
+                (KeyCode::Esc, _) => return Some((Command::CloseQueryHistory, false)),
+                (KeyCode::Enter, _) => return Some((Command::QueryHistorySelect, false)),
+                (KeyCode::Char('j'), _) | (KeyCode::Down, _) => return Some((Command::QueryHistoryNext, false)),
+                (KeyCode::Char('k'), _) | (KeyCode::Up, _) => return Some((Command::QueryHistoryPrev, false)),
+                (KeyCode::Char('d'), _) => return Some((Command::QueryHistoryDelete, false)),
                 _ => return None,
             },
             InputMode::QueryDialog => match key.code {
@@ -280,7 +290,8 @@ impl KeybindingDispatcher {
             | InputMode::PortForwardInput
             | InputMode::QueryDialog
             | InputMode::QueryEditor
-            | InputMode::QueryBrowse => {
+            | InputMode::QueryBrowse
+            | InputMode::QueryHistory => {
                 unreachable!("handled above")
             }
         }

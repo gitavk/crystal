@@ -27,6 +27,7 @@ impl App {
             InputMode::QueryDialog => "QueryDialog",
             InputMode::QueryEditor => "QueryEditor",
             InputMode::QueryBrowse => "QueryBrowse",
+            InputMode::QueryHistory => "QueryHistory",
         }
     }
 

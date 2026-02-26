@@ -1350,6 +1350,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "csv",
+ "dirs",
  "futures",
  "jiff",
  "k8s-openapi",

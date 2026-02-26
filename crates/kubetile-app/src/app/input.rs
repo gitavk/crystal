@@ -387,6 +387,24 @@ impl App {
             Command::QueryCopyAll => {
                 self.query_copy_all();
             }
+            Command::OpenQueryHistory => {
+                self.open_query_history();
+            }
+            Command::QueryHistoryNext => {
+                self.query_history_next();
+            }
+            Command::QueryHistoryPrev => {
+                self.query_history_prev();
+            }
+            Command::QueryHistorySelect => {
+                self.query_history_select();
+            }
+            Command::QueryHistoryDelete => {
+                self.query_history_delete();
+            }
+            Command::CloseQueryHistory => {
+                self.close_query_history();
+            }
             Command::SortByColumn => {
                 let focused = self.tab_manager.active().focused_pane;
                 if let Some(pane) = self.panes.get_mut(&focused) {

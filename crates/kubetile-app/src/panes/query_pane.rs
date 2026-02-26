@@ -2,11 +2,16 @@ use std::any::Any;
 use std::cell::Cell;
 
 use ratatui::prelude::*;
-use ratatui::widgets::{Block, Borders, Paragraph, Scrollbar, ScrollbarOrientation, ScrollbarState};
+use ratatui::widgets::{Block, Borders, Clear, Paragraph, Scrollbar, ScrollbarOrientation, ScrollbarState};
 
 use kubetile_core::{QueryConfig, QueryResult};
 use kubetile_tui::pane::{Pane, PaneCommand, ViewType};
 use kubetile_tui::theme::Theme;
+
+struct QueryHistoryState {
+    entries: Vec<String>,
+    selected: usize,
+}
 
 enum QueryPaneStatus {
     Connecting,
@@ -35,6 +40,8 @@ pub struct QueryPane {
     result_visible_rows: Cell<usize>,
     result_last_visible_col: Cell<usize>,
     editor_area_height: Cell<usize>,
+    last_executed_sql: Option<String>,
+    history: Option<QueryHistoryState>,
 }
 
 impl QueryPane {
@@ -59,6 +66,8 @@ impl QueryPane {
             result_visible_rows: Cell::new(0),
             result_last_visible_col: Cell::new(0),
             editor_area_height: Cell::new(5),
+            last_executed_sql: None,
+            history: None,
         }
     }
 
@@ -71,13 +80,59 @@ impl QueryPane {
         self.status = QueryPaneStatus::Connected(version);
     }
 
-    pub fn set_executing(&mut self) {
+    pub fn set_executing(&mut self, sql: &str) {
+        self.last_executed_sql = Some(sql.to_string());
         self.result = None;
         self.col_widths.clear();
         self.result_selected_row = 0;
         self.result_scroll = 0;
         self.result_h_col_offset = 0;
         self.status = QueryPaneStatus::Executing;
+    }
+
+    pub fn last_executed_sql(&self) -> Option<&str> {
+        self.last_executed_sql.as_deref()
+    }
+
+    pub fn set_editor_content(&mut self, sql: &str) {
+        self.editor_lines = sql.split('\n').map(|s| s.to_string()).collect();
+        if self.editor_lines.is_empty() {
+            self.editor_lines = vec![String::new()];
+        }
+        self.cursor_row = 0;
+        self.cursor_col = 0;
+        self.editor_scroll = 0;
+    }
+
+    pub fn open_history(&mut self, entries: Vec<String>) {
+        let selected = 0;
+        self.history = Some(QueryHistoryState { entries, selected });
+    }
+
+    pub fn close_history(&mut self) {
+        self.history = None;
+    }
+
+    pub fn history_next(&mut self) {
+        if let Some(ref mut h) = self.history {
+            if h.selected + 1 < h.entries.len() {
+                h.selected += 1;
+            }
+        }
+    }
+
+    pub fn history_prev(&mut self) {
+        if let Some(ref mut h) = self.history {
+            h.selected = h.selected.saturating_sub(1);
+        }
+    }
+
+    pub fn history_selected_sql(&self) -> Option<&str> {
+        self.history.as_ref()?.entries.get(self.history.as_ref()?.selected).map(|s| s.as_str())
+    }
+
+    pub fn history_selected_index(&self) -> usize {
+        self.history.as_ref().map(|h| h.selected).unwrap_or(0)
     }
 
     pub fn set_result(&mut self, result: QueryResult) {
@@ -306,6 +361,92 @@ fn compute_col_widths(result: &QueryResult) -> Vec<usize> {
         .collect()
 }
 
+fn render_history_popup(frame: &mut Frame, area: Rect, h: &QueryHistoryState, theme: &Theme) {
+    let popup_w = (area.width.saturating_sub(4)).min(area.width * 9 / 10).max(20);
+    let popup_h = (area.height.saturating_sub(2)).min(area.height * 4 / 5).max(6);
+    let popup = Rect {
+        x: area.x + (area.width.saturating_sub(popup_w)) / 2,
+        y: area.y + (area.height.saturating_sub(popup_h)) / 2,
+        width: popup_w,
+        height: popup_h,
+    };
+    frame.render_widget(Clear, popup);
+
+    let count = h.entries.len();
+    let title = format!(" Query History ({count}) ");
+    let block = Block::default()
+        .title(title)
+        .title_style(Style::default().fg(theme.accent).bold())
+        .borders(Borders::ALL)
+        .border_style(Style::default().fg(theme.accent))
+        .style(theme.overlay);
+    let inner = block.inner(popup);
+    frame.render_widget(block, popup);
+
+    if inner.height < 2 {
+        return;
+    }
+
+    // Bottom hint line
+    let hint_y = inner.y + inner.height.saturating_sub(1);
+    let hint_area = Rect { x: inner.x, y: hint_y, width: inner.width, height: 1 };
+    let list_area = Rect { height: inner.height.saturating_sub(1), ..inner };
+
+    frame.render_widget(
+        Paragraph::new("j/k navigate  Enter select  d delete  Esc cancel").style(theme.text_dim),
+        hint_area,
+    );
+
+    // Split list area: left 40% list, right 60% preview
+    let list_w = (list_area.width * 2 / 5).max(10);
+    let preview_w = list_area.width.saturating_sub(list_w + 1);
+    let left_area = Rect { width: list_w, ..list_area };
+    let divider_area = Rect { x: list_area.x + list_w, y: list_area.y, width: 1, height: list_area.height };
+    let right_area = Rect { x: list_area.x + list_w + 1, y: list_area.y, width: preview_w, height: list_area.height };
+
+    // Divider — one │ per row, stops before the hint line
+    let divider_lines: Vec<Line> = std::iter::repeat_n(Line::from("│"), list_area.height as usize).collect();
+    frame.render_widget(Paragraph::new(divider_lines).style(theme.text_dim), divider_area);
+
+    // List
+    let visible = list_area.height as usize;
+    let scroll = if h.selected >= visible { h.selected + 1 - visible } else { 0 };
+    let list_lines: Vec<Line> = h
+        .entries
+        .iter()
+        .enumerate()
+        .skip(scroll)
+        .take(visible)
+        .map(|(i, sql)| {
+            let first_line = sql.lines().next().unwrap_or("").chars().take(list_w as usize - 3).collect::<String>();
+            let prefix = if i == h.selected { "> " } else { "  " };
+            let text = format!("{prefix}{first_line}");
+            let style = if i == h.selected { Style::default().fg(theme.accent).bold() } else { Style::default() };
+            Line::from(Span::styled(text, style))
+        })
+        .collect();
+    frame.render_widget(Paragraph::new(list_lines), left_area);
+
+    // Preview
+    if let Some(sql) = h.entries.get(h.selected) {
+        let preview_lines: Vec<Line> = sql
+            .lines()
+            .flat_map(|line| {
+                if line.is_empty() {
+                    vec![Line::from("")]
+                } else {
+                    line.chars()
+                        .collect::<Vec<_>>()
+                        .chunks(preview_w as usize)
+                        .map(|chunk| Line::from(chunk.iter().collect::<String>()))
+                        .collect()
+                }
+            })
+            .collect();
+        frame.render_widget(Paragraph::new(preview_lines).style(Style::default().fg(theme.fg)), right_area);
+    }
+}
+
 fn render_cursor_line(line: &str, cursor_col: usize, normal_style: Style, cursor_style: Style) -> Line<'static> {
     let char_count = line.chars().count();
     let byte = char_to_byte(line, cursor_col);
@@ -508,6 +649,10 @@ impl Pane for QueryPane {
             }
         }
         frame.render_widget(Paragraph::new(status_text).style(status_style), status_area);
+
+        if let Some(ref h) = self.history {
+            render_history_popup(frame, area, h, theme);
+        }
     }
 
     fn handle_command(&mut self, _cmd: &PaneCommand) {}
