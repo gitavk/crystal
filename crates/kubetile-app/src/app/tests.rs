@@ -615,7 +615,8 @@ fn insert_mode_hints_contain_esc() {
 async fn enter_insert_mode_is_gated_by_focused_pane_type() {
     let dispatcher = test_dispatcher();
     let mut app =
-        App::new(50, dispatcher, kubetile_tui::theme::Theme::default(), kubetile_config::ViewsConfig::default()).await;
+        App::new(50, dispatcher, kubetile_tui::theme::Theme::default(), kubetile_config::ViewsConfig::default(), true)
+            .await;
     app.dispatcher.set_mode(InputMode::Normal);
 
     app.handle_command(Command::EnterMode(InputMode::Insert));
@@ -635,7 +636,8 @@ async fn enter_insert_mode_is_gated_by_focused_pane_type() {
 async fn exec_spawns_kubectl_and_enters_insert_mode() {
     let dispatcher = test_dispatcher();
     let mut app =
-        App::new(50, dispatcher, kubetile_tui::theme::Theme::default(), kubetile_config::ViewsConfig::default()).await;
+        App::new(50, dispatcher, kubetile_tui::theme::Theme::default(), kubetile_config::ViewsConfig::default(), true)
+            .await;
     app.dispatcher.set_mode(InputMode::Normal);
 
     app.with_pods_pane(|pane| {

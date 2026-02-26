@@ -65,15 +65,21 @@ impl App {
         };
 
         let pane = QueryPane::new(&config);
-        let focused = self.tab_manager.active().focused_pane;
-        let view = ViewType::Query(config.pod.clone());
-        let Some(new_id) = self.tab_manager.split_pane_with_ratio(focused, SplitDirection::Horizontal, view, 0.7)
-        else {
-            return;
+        let new_id = if self.query_open_new_tab {
+            let tab_name = format!("query:{}", config.pod);
+            self.tab_manager.new_tab(&tab_name, ViewType::Query(config.pod.clone()));
+            self.tab_manager.active().focused_pane
+        } else {
+            let focused = self.tab_manager.active().focused_pane;
+            let view = ViewType::Query(config.pod.clone());
+            let Some(id) = self.tab_manager.split_pane_with_ratio(focused, SplitDirection::Horizontal, view, 0.7)
+            else {
+                return;
+            };
+            id
         };
         self.panes.insert(new_id, Box::new(pane));
         self.set_focus(new_id);
-        self.dispatcher.set_mode(InputMode::QueryEditor);
 
         self.execute_query_for_pane(new_id, config, "SELECT version()".to_string());
     }

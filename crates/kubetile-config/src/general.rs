@@ -17,6 +17,8 @@ pub struct GeneralConfig {
     pub confirm_delete: bool,
     #[serde(alias = "show-managed-fields")]
     pub show_managed_fields: bool,
+    #[serde(alias = "query-open-new-tab")]
+    pub query_open_new_tab: bool,
 }
 
 impl Default for GeneralConfig {
@@ -30,6 +32,7 @@ impl Default for GeneralConfig {
             log_tail_lines: 1000,
             confirm_delete: true,
             show_managed_fields: false,
+            query_open_new_tab: true,
         }
     }
 }

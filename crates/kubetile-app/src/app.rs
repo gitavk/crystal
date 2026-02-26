@@ -159,6 +159,7 @@ pub struct App {
     app_tx: mpsc::UnboundedSender<AppEvent>,
     theme: kubetile_tui::theme::Theme,
     views_config: kubetile_config::ViewsConfig,
+    query_open_new_tab: bool,
 }
 
 impl App {
@@ -167,6 +168,7 @@ impl App {
         dispatcher: KeybindingDispatcher,
         theme: kubetile_tui::theme::Theme,
         views_config: kubetile_config::ViewsConfig,
+        query_open_new_tab: bool,
     ) -> Self {
         let mut context_resolver = ContextResolver::new();
         let kube_client = match KubeClient::from_kubeconfig().await {
@@ -227,6 +229,7 @@ impl App {
             app_tx: tx,
             theme,
             views_config,
+            query_open_new_tab,
         };
         app.sync_active_scope();
         app.update_active_tab_title();
