@@ -210,6 +210,8 @@ impl KeybindingDispatcher {
                 }
                 KeyCode::Char('j') => return Some((Command::QueryBrowseNext, false)),
                 KeyCode::Char('k') => return Some((Command::QueryBrowsePrev, false)),
+                KeyCode::Char('h') | KeyCode::Left => return Some((Command::QueryBrowseScrollLeft, false)),
+                KeyCode::Char('l') | KeyCode::Right => return Some((Command::QueryBrowseScrollRight, false)),
                 KeyCode::PageDown => return Some((Command::QueryEditorScrollUp, false)),
                 KeyCode::PageUp => return Some((Command::QueryEditorScrollDown, false)),
                 KeyCode::Char('y') => return Some((Command::QueryCopyRow, false)),

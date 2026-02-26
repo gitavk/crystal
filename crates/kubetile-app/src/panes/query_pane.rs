@@ -30,8 +30,10 @@ pub struct QueryPane {
     col_widths: Vec<usize>,
     result_selected_row: usize,
     result_scroll: usize,
+    result_h_col_offset: usize,
     result_row_count: Cell<usize>,
     result_visible_rows: Cell<usize>,
+    result_last_visible_col: Cell<usize>,
     editor_area_height: Cell<usize>,
 }
 
@@ -52,8 +54,10 @@ impl QueryPane {
             col_widths: Vec::new(),
             result_selected_row: 0,
             result_scroll: 0,
+            result_h_col_offset: 0,
             result_row_count: Cell::new(0),
             result_visible_rows: Cell::new(0),
+            result_last_visible_col: Cell::new(0),
             editor_area_height: Cell::new(5),
         }
     }
@@ -72,6 +76,7 @@ impl QueryPane {
         self.col_widths.clear();
         self.result_selected_row = 0;
         self.result_scroll = 0;
+        self.result_h_col_offset = 0;
         self.status = QueryPaneStatus::Executing;
     }
 
@@ -79,6 +84,7 @@ impl QueryPane {
         self.col_widths = compute_col_widths(&result);
         self.result_selected_row = 0;
         self.result_scroll = 0;
+        self.result_h_col_offset = 0;
         let label = self.connected_version.clone().unwrap_or_else(|| "Ready".to_string());
         self.status = QueryPaneStatus::Connected(label);
         self.result = Some(result);
@@ -228,6 +234,20 @@ impl QueryPane {
         self.adjust_result_scroll();
     }
 
+    pub fn scroll_h_left(&mut self) {
+        if self.result_h_col_offset > 0 {
+            self.result_h_col_offset -= 1;
+        }
+    }
+
+    pub fn scroll_h_right(&mut self) {
+        let total = self.col_widths.len();
+        let last_visible = self.result_last_visible_col.get();
+        if total > 0 && last_visible + 1 < total {
+            self.result_h_col_offset += 1;
+        }
+    }
+
     fn adjust_editor_scroll(&mut self) {
         let h = self.editor_area_height.get().max(1);
         if self.cursor_row < self.editor_scroll {
@@ -270,18 +290,6 @@ fn compute_col_widths(result: &QueryResult) -> Vec<usize> {
             h.len().max(max_data)
         })
         .collect()
-}
-
-fn pad_row(cells: &[String], widths: &[usize]) -> String {
-    cells
-        .iter()
-        .enumerate()
-        .map(|(i, cell)| {
-            let w = widths.get(i).copied().unwrap_or(cell.len());
-            format!("{:<width$}", cell, width = w)
-        })
-        .collect::<Vec<_>>()
-        .join("  ")
 }
 
 fn render_cursor_line(line: &str, cursor_col: usize, normal_style: Style, cursor_style: Style) -> Line<'static> {
@@ -351,7 +359,8 @@ impl Pane for QueryPane {
         let sep_text = "─".repeat(inner.width as usize);
         frame.render_widget(Paragraph::new(sep_text).style(theme.text_dim), sep_area);
 
-        // Results
+        // Results — also produces col_range for the status line
+        let mut col_range: Option<(usize, usize, usize)> = None; // (first, last, total) 1-indexed
         if results_height > 0 {
             match &self.result {
                 None => {
@@ -381,21 +390,44 @@ impl Pane for QueryPane {
                     let scroll = self.result_scroll.min(row_count.saturating_sub(1));
                     let data_end = (scroll + data_visible).min(row_count);
 
+                    // Compute which columns are visible given h_col_offset and text_width
+                    let h_offset = self.result_h_col_offset;
+                    let total_cols = result.headers.len();
+                    let mut visible_cols: Vec<usize> = Vec::new();
+                    let mut used = 0usize;
+                    for col_i in h_offset..total_cols {
+                        let w = self.col_widths.get(col_i).copied().unwrap_or(0);
+                        let needed = if visible_cols.is_empty() { w } else { 2 + w };
+                        if used + needed > text_width && !visible_cols.is_empty() {
+                            break;
+                        }
+                        used += needed;
+                        visible_cols.push(col_i);
+                    }
+                    let last_visible = visible_cols.last().copied().unwrap_or(h_offset);
+                    self.result_last_visible_col.set(last_visible);
+
                     let header_style = Style::default().fg(theme.accent).bold();
                     let sep_style = theme.text_dim;
 
-                    let header_str = result
-                        .headers
+                    let header_str: String = visible_cols
                         .iter()
                         .enumerate()
-                        .map(|(i, h)| {
-                            let w = self.col_widths.get(i).copied().unwrap_or(h.len());
-                            format!("{:<width$}", h, width = w)
+                        .map(|(vi, &col_i)| {
+                            let h = &result.headers[col_i];
+                            let w = self.col_widths.get(col_i).copied().unwrap_or(h.len());
+                            if vi == 0 { format!("{:<width$}", h, width = w) } else { format!("  {:<width$}", h, width = w) }
                         })
-                        .collect::<Vec<_>>()
-                        .join("  ");
+                        .collect();
 
-                    let sep_str: String = self.col_widths.iter().map(|&w| "─".repeat(w)).collect::<Vec<_>>().join("──");
+                    let sep_str: String = visible_cols
+                        .iter()
+                        .enumerate()
+                        .map(|(vi, &col_i)| {
+                            let w = self.col_widths.get(col_i).copied().unwrap_or(0);
+                            if vi == 0 { "─".repeat(w) } else { format!("──{}", "─".repeat(w)) }
+                        })
+                        .collect();
 
                     let mut lines: Vec<Line> = Vec::with_capacity(2 + data_visible);
                     lines.push(Line::from(Span::styled(
@@ -409,10 +441,21 @@ impl Pane for QueryPane {
 
                     for (idx, row) in result.rows[scroll..data_end].iter().enumerate() {
                         let abs_row = scroll + idx;
-                        let text = pad_row(row, &self.col_widths).chars().take(text_width).collect::<String>();
+                        let text: String = visible_cols
+                            .iter()
+                            .enumerate()
+                            .map(|(vi, &col_i)| {
+                                let cell = row.get(col_i).map(|s| s.as_str()).unwrap_or("");
+                                let w = self.col_widths.get(col_i).copied().unwrap_or(cell.len());
+                                if vi == 0 { format!("{:<width$}", cell, width = w) } else { format!("  {:<width$}", cell, width = w) }
+                            })
+                            .collect();
                         let style =
                             if abs_row == self.result_selected_row { theme.selection } else { Style::default() };
-                        lines.push(Line::from(Span::styled(text, style)));
+                        lines.push(Line::from(Span::styled(
+                            text.chars().take(text_width).collect::<String>(),
+                            style,
+                        )));
                     }
 
                     frame.render_widget(Paragraph::new(lines), text_area);
@@ -422,11 +465,13 @@ impl Pane for QueryPane {
                         let scrollbar = Scrollbar::new(ScrollbarOrientation::VerticalRight).style(theme.border);
                         frame.render_stateful_widget(scrollbar, scrollbar_area, &mut scrollbar_state);
                     }
+
+                    col_range = Some((h_offset + 1, last_visible + 1, total_cols));
                 }
             }
         }
 
-        let (status_text, status_style) = match &self.status {
+        let (mut status_text, status_style) = match &self.status {
             QueryPaneStatus::Connecting => ("Connecting…".to_string(), theme.text_dim),
             QueryPaneStatus::Connected(version) => {
                 (format!("Connected — {version}"), Style::default().fg(theme.accent))
@@ -434,6 +479,11 @@ impl Pane for QueryPane {
             QueryPaneStatus::Executing => ("Executing…".to_string(), theme.text_dim),
             QueryPaneStatus::Error(msg) => (format!("Connection failed: {msg}"), theme.status_failed),
         };
+        if let Some((first, last, total)) = col_range {
+            if total > 1 {
+                status_text.push_str(&format!("  cols {first}–{last} of {total}"));
+            }
+        }
         frame.render_widget(Paragraph::new(status_text).style(status_style), status_area);
     }
 

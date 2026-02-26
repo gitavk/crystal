@@ -369,6 +369,12 @@ impl App {
             Command::QueryBrowsePrev => {
                 self.query_browse_prev();
             }
+            Command::QueryBrowseScrollLeft => {
+                self.query_browse_scroll_left();
+            }
+            Command::QueryBrowseScrollRight => {
+                self.query_browse_scroll_right();
+            }
             Command::QueryCopyRow => {
                 self.query_copy_row();
             }

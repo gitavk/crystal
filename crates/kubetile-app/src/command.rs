@@ -71,6 +71,8 @@ pub enum Command {
     // Query browse (result navigation)
     QueryBrowseNext,
     QueryBrowsePrev,
+    QueryBrowseScrollLeft,
+    QueryBrowseScrollRight,
     QueryCopyRow,
     QueryCopyAll,
 

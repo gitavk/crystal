@@ -231,6 +231,24 @@ impl App {
         }
     }
 
+    pub(super) fn query_browse_scroll_left(&mut self) {
+        let focused = self.tab_manager.active().focused_pane;
+        if let Some(pane) = self.panes.get_mut(&focused) {
+            if let Some(qp) = pane.as_any_mut().downcast_mut::<QueryPane>() {
+                qp.scroll_h_left();
+            }
+        }
+    }
+
+    pub(super) fn query_browse_scroll_right(&mut self) {
+        let focused = self.tab_manager.active().focused_pane;
+        if let Some(pane) = self.panes.get_mut(&focused) {
+            if let Some(qp) = pane.as_any_mut().downcast_mut::<QueryPane>() {
+                qp.scroll_h_right();
+            }
+        }
+    }
+
     pub(super) fn query_copy_row(&mut self) {
         let focused = self.tab_manager.active().focused_pane;
         if let Some(pane) = self.panes.get(&focused) {
