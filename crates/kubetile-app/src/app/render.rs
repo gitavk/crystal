@@ -30,6 +30,7 @@ impl App {
             InputMode::QueryHistory => "QueryHistory",
             InputMode::SaveQueryName => "SaveQueryName",
             InputMode::SavedQueries => "SavedQueries",
+            InputMode::ExportDialog => "ExportDialog",
         }
     }
 

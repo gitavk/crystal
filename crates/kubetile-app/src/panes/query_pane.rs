@@ -51,6 +51,7 @@ pub struct QueryPane {
     history: Option<QueryHistoryState>,
     pending_save_name: Option<String>,
     saved_queries: Option<SavedQueriesState>,
+    export_dialog_path: Option<String>,
 }
 
 impl QueryPane {
@@ -79,6 +80,7 @@ impl QueryPane {
             history: None,
             pending_save_name: None,
             saved_queries: None,
+            export_dialog_path: None,
         }
     }
 
@@ -267,6 +269,50 @@ impl QueryPane {
 
     pub fn saved_queries_rename_input(&self) -> Option<&str> {
         self.saved_queries.as_ref()?.rename_input.as_deref()
+    }
+
+    // --- Export dialog ---
+
+    pub fn open_export_dialog(&mut self, pre_filled: String) {
+        self.export_dialog_path = Some(pre_filled);
+    }
+
+    pub fn close_export_dialog(&mut self) {
+        self.export_dialog_path = None;
+    }
+
+    pub fn export_path_input(&mut self, c: char) {
+        if let Some(ref mut buf) = self.export_dialog_path {
+            buf.push(c);
+        }
+    }
+
+    pub fn export_path_backspace(&mut self) {
+        if let Some(ref mut buf) = self.export_dialog_path {
+            buf.pop();
+        }
+    }
+
+    pub fn current_export_path(&self) -> Option<&str> {
+        self.export_dialog_path.as_deref()
+    }
+
+    pub fn size_hint(&self) -> (usize, usize) {
+        let row_count = self.result.as_ref().map(|r| r.rows.len()).unwrap_or(0);
+        let est_bytes = self.col_widths.iter().sum::<usize>() * row_count.max(1);
+        (row_count, est_bytes)
+    }
+
+    fn export_hint_text(&self) -> Option<&'static str> {
+        if !matches!(self.status, QueryPaneStatus::Connected(_)) || self.result.is_none() {
+            return None;
+        }
+        let (rows, bytes) = self.size_hint();
+        if rows >= 100 || bytes >= 64_000 {
+            Some("Y copies all · E exports to file")
+        } else {
+            None
+        }
     }
 
     pub fn set_result(&mut self, result: QueryResult) {
@@ -592,7 +638,7 @@ fn saved_queries_filtered(sq: &SavedQueriesState) -> Vec<(usize, &SavedQuery)> {
 }
 
 fn render_save_name_popup(frame: &mut Frame, area: Rect, name_buf: &str, theme: &Theme) {
-    let popup_w = (area.width.saturating_sub(4)).min(60).max(30);
+    let popup_w = (area.width.saturating_sub(4)).clamp(30, 60);
     let popup_h = 5u16;
     let popup = Rect {
         x: area.x + (area.width.saturating_sub(popup_w)) / 2,
@@ -747,6 +793,46 @@ fn render_saved_queries_popup(frame: &mut Frame, area: Rect, sq: &SavedQueriesSt
     } else if filtered.is_empty() {
         frame.render_widget(Paragraph::new("No matches").style(theme.text_dim), left_area);
     }
+}
+
+fn render_export_dialog_popup(frame: &mut Frame, area: Rect, path_buf: &str, theme: &Theme) {
+    let popup_w = (area.width.saturating_sub(4)).clamp(30, 70);
+    let popup_h = 5u16;
+    let popup = Rect {
+        x: area.x + (area.width.saturating_sub(popup_w)) / 2,
+        y: area.y + (area.height.saturating_sub(popup_h)) / 2,
+        width: popup_w,
+        height: popup_h,
+    };
+    frame.render_widget(Clear, popup);
+
+    let block = Block::default()
+        .title(" Export to File ")
+        .title_style(Style::default().fg(theme.accent).bold())
+        .borders(Borders::ALL)
+        .border_style(Style::default().fg(theme.accent))
+        .style(theme.overlay);
+    let inner = block.inner(popup);
+    frame.render_widget(block, popup);
+
+    if inner.height < 3 {
+        return;
+    }
+
+    let input_area = Rect { x: inner.x, y: inner.y, width: inner.width, height: 1 };
+    let hint_area = Rect { x: inner.x, y: inner.y + inner.height.saturating_sub(1), width: inner.width, height: 1 };
+
+    // Show end of path when it's too long to fit
+    let prefix = "Path: ";
+    let max_path_w = inner.width.saturating_sub(prefix.len() as u16) as usize;
+    let display = if path_buf.len() > max_path_w {
+        format!("…{}", &path_buf[path_buf.len().saturating_sub(max_path_w.saturating_sub(1))..])
+    } else {
+        path_buf.to_string()
+    };
+    let label = format!("{prefix}{display}");
+    frame.render_widget(Paragraph::new(label).style(Style::default().fg(theme.accent)), input_area);
+    frame.render_widget(Paragraph::new("Enter confirm  Esc cancel").style(theme.text_dim), hint_area);
 }
 
 fn render_cursor_line(line: &str, cursor_col: usize, normal_style: Style, cursor_style: Style) -> Line<'static> {
@@ -950,6 +1036,9 @@ impl Pane for QueryPane {
                 status_text.push_str(&format!("  cols {first}–{last} of {total}"));
             }
         }
+        if let Some(hint) = self.export_hint_text() {
+            status_text.push_str(&format!("  {hint}"));
+        }
         frame.render_widget(Paragraph::new(status_text).style(status_style), status_area);
 
         if let Some(ref h) = self.history {
@@ -960,6 +1049,9 @@ impl Pane for QueryPane {
         }
         if let Some(ref sq) = self.saved_queries {
             render_saved_queries_popup(frame, area, sq, theme);
+        }
+        if let Some(ref path_buf) = self.export_dialog_path {
+            render_export_dialog_popup(frame, area, path_buf, theme);
         }
     }
 

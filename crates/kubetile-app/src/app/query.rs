@@ -113,6 +113,10 @@ impl App {
                     let sql = qp.last_executed_sql().map(|s| s.to_string());
                     let config = qp.config.clone();
                     qp.set_result(result);
+                    let (rows, bytes) = qp.size_hint();
+                    if rows > 500 || bytes > 512_000 {
+                        self.toasts.push(ToastMessage::info("Result is large — consider E to export"));
+                    }
                     if let Some(sql) = sql {
                         let mut history =
                             kubetile_core::QueryHistory::load(&config.namespace, &config.pod, &config.database);
@@ -676,6 +680,97 @@ impl App {
         if !still_open {
             self.dispatcher.set_mode(InputMode::QueryEditor);
         }
+    }
+
+    // --- Export dialog ---
+
+    pub(super) fn open_export_dialog(&mut self) {
+        let focused = self.tab_manager.active().focused_pane;
+        let config = match self.panes.get(&focused).and_then(|p| p.as_any().downcast_ref::<QueryPane>()) {
+            Some(qp) => qp.config.clone(),
+            None => return,
+        };
+        let now = jiff::Zoned::now();
+        let ts = now.strftime("%Y%m%d_%H%M%S");
+        let path = format!("~/kubetile_{}_{ts}.csv", config.pod);
+        if let Some(pane) = self.panes.get_mut(&focused) {
+            if let Some(qp) = pane.as_any_mut().downcast_mut::<QueryPane>() {
+                qp.open_export_dialog(path);
+            }
+        }
+        self.dispatcher.set_mode(InputMode::ExportDialog);
+    }
+
+    pub(super) fn export_path_input(&mut self, c: char) {
+        let focused = self.tab_manager.active().focused_pane;
+        if let Some(pane) = self.panes.get_mut(&focused) {
+            if let Some(qp) = pane.as_any_mut().downcast_mut::<QueryPane>() {
+                qp.export_path_input(c);
+            }
+        }
+    }
+
+    pub(super) fn export_path_backspace(&mut self) {
+        let focused = self.tab_manager.active().focused_pane;
+        if let Some(pane) = self.panes.get_mut(&focused) {
+            if let Some(qp) = pane.as_any_mut().downcast_mut::<QueryPane>() {
+                qp.export_path_backspace();
+            }
+        }
+    }
+
+    pub(super) fn confirm_export(&mut self) {
+        let focused = self.tab_manager.active().focused_pane;
+        let (path_str, csv, row_count) =
+            match self.panes.get(&focused).and_then(|p| p.as_any().downcast_ref::<QueryPane>()) {
+                Some(qp) => {
+                    let path = qp.current_export_path().unwrap_or("").to_string();
+                    let csv = qp.all_rows_csv();
+                    let n = qp.row_count();
+                    (path, csv, n)
+                }
+                None => return,
+            };
+        if let Some(pane) = self.panes.get_mut(&focused) {
+            if let Some(qp) = pane.as_any_mut().downcast_mut::<QueryPane>() {
+                qp.close_export_dialog();
+            }
+        }
+        self.dispatcher.set_mode(InputMode::QueryBrowse);
+
+        let full_path = expand_tilde(&path_str);
+        if let Some(parent) = full_path.parent() {
+            if !parent.as_os_str().is_empty() {
+                if let Err(e) = std::fs::create_dir_all(parent) {
+                    self.toasts.push(ToastMessage::error(format!("Export failed: {e}")));
+                    return;
+                }
+            }
+        }
+        match std::fs::write(&full_path, csv) {
+            Ok(()) => self.toasts.push(ToastMessage::info(format!("Exported {row_count} rows → {path_str}"))),
+            Err(e) => self.toasts.push(ToastMessage::error(format!("Export failed: {e}"))),
+        }
+    }
+
+    pub(super) fn cancel_export(&mut self) {
+        let focused = self.tab_manager.active().focused_pane;
+        if let Some(pane) = self.panes.get_mut(&focused) {
+            if let Some(qp) = pane.as_any_mut().downcast_mut::<QueryPane>() {
+                qp.close_export_dialog();
+            }
+        }
+        self.dispatcher.set_mode(InputMode::QueryBrowse);
+    }
+}
+
+fn expand_tilde(path: &str) -> std::path::PathBuf {
+    if let Some(rest) = path.strip_prefix("~/") {
+        dirs::home_dir().unwrap_or_else(|| std::path::PathBuf::from(".")).join(rest)
+    } else if path == "~" {
+        dirs::home_dir().unwrap_or_else(|| std::path::PathBuf::from("."))
+    } else {
+        std::path::PathBuf::from(path)
     }
 }
 

@@ -86,6 +86,13 @@ pub enum Command {
     QueryHistoryDelete,
     CloseQueryHistory,
 
+    // Export to file dialog
+    OpenExportDialog,
+    ExportDialogInput(char),
+    ExportDialogBackspace,
+    ExportDialogConfirm,
+    ExportDialogCancel,
+
     // Save query name dialog
     OpenSaveQueryDialog,
     SaveQueryNameInput(char),

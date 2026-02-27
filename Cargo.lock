@@ -1316,6 +1316,7 @@ dependencies = [
  "arboard",
  "clap",
  "crossterm",
+ "dirs",
  "jiff",
  "k8s-openapi",
  "kube",

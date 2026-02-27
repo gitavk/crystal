@@ -40,6 +40,7 @@ pub enum InputMode {
     QueryHistory,
     SaveQueryName,
     SavedQueries,
+    ExportDialog,
 }
 
 #[allow(dead_code)]
@@ -227,6 +228,7 @@ impl KeybindingDispatcher {
                 (KeyCode::PageUp, _) => return Some((Command::QueryEditorScrollDown, false)),
                 (KeyCode::Char('y'), _) => return Some((Command::QueryCopyRow, false)),
                 (KeyCode::Char('Y'), _) => return Some((Command::QueryCopyAll, false)),
+                (KeyCode::Char('E'), _) => return Some((Command::OpenExportDialog, false)),
                 _ => return None,
             },
             InputMode::QueryHistory => match (key.code, key.modifiers) {
@@ -235,6 +237,13 @@ impl KeybindingDispatcher {
                 (KeyCode::Char('j'), _) | (KeyCode::Down, _) => return Some((Command::QueryHistoryNext, false)),
                 (KeyCode::Char('k'), _) | (KeyCode::Up, _) => return Some((Command::QueryHistoryPrev, false)),
                 (KeyCode::Char('d'), _) => return Some((Command::QueryHistoryDelete, false)),
+                _ => return None,
+            },
+            InputMode::ExportDialog => match (key.code, key.modifiers) {
+                (KeyCode::Esc, _) => return Some((Command::ExportDialogCancel, false)),
+                (KeyCode::Enter, _) => return Some((Command::ExportDialogConfirm, false)),
+                (KeyCode::Char(c), _) => return Some((Command::ExportDialogInput(c), false)),
+                (KeyCode::Backspace, _) => return Some((Command::ExportDialogBackspace, false)),
                 _ => return None,
             },
             InputMode::SaveQueryName => match (key.code, key.modifiers) {
@@ -316,7 +325,8 @@ impl KeybindingDispatcher {
             | InputMode::QueryBrowse
             | InputMode::QueryHistory
             | InputMode::SaveQueryName
-            | InputMode::SavedQueries => {
+            | InputMode::SavedQueries
+            | InputMode::ExportDialog => {
                 unreachable!("handled above")
             }
         }

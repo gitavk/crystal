@@ -450,6 +450,21 @@ impl App {
             Command::SavedQueriesClose => {
                 self.close_saved_queries();
             }
+            Command::OpenExportDialog => {
+                self.open_export_dialog();
+            }
+            Command::ExportDialogInput(c) => {
+                self.export_path_input(c);
+            }
+            Command::ExportDialogBackspace => {
+                self.export_path_backspace();
+            }
+            Command::ExportDialogConfirm => {
+                self.confirm_export();
+            }
+            Command::ExportDialogCancel => {
+                self.cancel_export();
+            }
             Command::SortByColumn => {
                 let focused = self.tab_manager.active().focused_pane;
                 if let Some(pane) = self.panes.get_mut(&focused) {
