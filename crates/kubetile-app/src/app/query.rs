@@ -462,6 +462,221 @@ impl App {
             pending.active_field = pending.active_field.next();
         }
     }
+
+    // --- Save-name dialog ---
+
+    pub(super) fn open_save_query_dialog(&mut self) {
+        let focused = self.tab_manager.active().focused_pane;
+        if let Some(pane) = self.panes.get_mut(&focused) {
+            if let Some(qp) = pane.as_any_mut().downcast_mut::<QueryPane>() {
+                qp.open_save_name();
+            }
+        }
+        self.dispatcher.set_mode(InputMode::SaveQueryName);
+    }
+
+    pub(super) fn save_query_name_input(&mut self, c: char) {
+        let focused = self.tab_manager.active().focused_pane;
+        if let Some(pane) = self.panes.get_mut(&focused) {
+            if let Some(qp) = pane.as_any_mut().downcast_mut::<QueryPane>() {
+                qp.save_name_input(c);
+            }
+        }
+    }
+
+    pub(super) fn save_query_name_backspace(&mut self) {
+        let focused = self.tab_manager.active().focused_pane;
+        if let Some(pane) = self.panes.get_mut(&focused) {
+            if let Some(qp) = pane.as_any_mut().downcast_mut::<QueryPane>() {
+                qp.save_name_backspace();
+            }
+        }
+    }
+
+    pub(super) fn confirm_save_query(&mut self) {
+        let focused = self.tab_manager.active().focused_pane;
+        let (name, sql) = match self.panes.get(&focused).and_then(|p| p.as_any().downcast_ref::<QueryPane>()) {
+            Some(qp) => {
+                let name = qp.current_save_name().unwrap_or("").trim().to_string();
+                let sql = qp.editor_content();
+                (name, sql)
+            }
+            None => return,
+        };
+        if name.is_empty() {
+            return;
+        }
+        let mut saved = kubetile_core::SavedQueries::load();
+        let _ = saved.add(&name, &sql);
+        if let Some(pane) = self.panes.get_mut(&focused) {
+            if let Some(qp) = pane.as_any_mut().downcast_mut::<QueryPane>() {
+                qp.close_save_name();
+            }
+        }
+        self.dispatcher.set_mode(InputMode::QueryEditor);
+        self.toasts.push(ToastMessage::info(format!("Saved \"{name}\"")));
+    }
+
+    pub(super) fn cancel_save_query(&mut self) {
+        let focused = self.tab_manager.active().focused_pane;
+        if let Some(pane) = self.panes.get_mut(&focused) {
+            if let Some(qp) = pane.as_any_mut().downcast_mut::<QueryPane>() {
+                qp.close_save_name();
+            }
+        }
+        self.dispatcher.set_mode(InputMode::QueryEditor);
+    }
+
+    // --- Saved-queries popup ---
+
+    pub(super) fn open_saved_queries(&mut self) {
+        let focused = self.tab_manager.active().focused_pane;
+        let saved = kubetile_core::SavedQueries::load();
+        if let Some(pane) = self.panes.get_mut(&focused) {
+            if let Some(qp) = pane.as_any_mut().downcast_mut::<QueryPane>() {
+                qp.open_saved_queries(saved.entries);
+            }
+        }
+        self.dispatcher.set_mode(InputMode::SavedQueries);
+    }
+
+    pub(super) fn saved_queries_next(&mut self) {
+        let focused = self.tab_manager.active().focused_pane;
+        if let Some(pane) = self.panes.get_mut(&focused) {
+            if let Some(qp) = pane.as_any_mut().downcast_mut::<QueryPane>() {
+                qp.saved_queries_next();
+            }
+        }
+    }
+
+    pub(super) fn saved_queries_prev(&mut self) {
+        let focused = self.tab_manager.active().focused_pane;
+        if let Some(pane) = self.panes.get_mut(&focused) {
+            if let Some(qp) = pane.as_any_mut().downcast_mut::<QueryPane>() {
+                qp.saved_queries_prev();
+            }
+        }
+    }
+
+    /// Handles both "load into editor" (normal mode) and "confirm rename" (rename mode).
+    pub(super) fn saved_queries_select(&mut self) {
+        let focused = self.tab_manager.active().focused_pane;
+
+        // Check if we're in rename mode first
+        let is_renaming = self
+            .panes
+            .get(&focused)
+            .and_then(|p| p.as_any().downcast_ref::<QueryPane>())
+            .map(|qp| qp.saved_queries_is_renaming())
+            .unwrap_or(false);
+
+        if is_renaming {
+            // Confirm rename: get (real_index, new_name)
+            let data = self.panes.get(&focused).and_then(|p| p.as_any().downcast_ref::<QueryPane>()).and_then(|qp| {
+                let (real_idx, _, _) = qp.saved_queries_selected()?;
+                let new_name = qp.saved_queries_rename_input()?.trim().to_string();
+                Some((real_idx, new_name))
+            });
+            if let Some((real_idx, new_name)) = data {
+                if !new_name.is_empty() {
+                    let mut saved = kubetile_core::SavedQueries::load();
+                    let _ = saved.rename(real_idx, &new_name);
+                    // Reload popup with updated entries
+                    if let Some(pane) = self.panes.get_mut(&focused) {
+                        if let Some(qp) = pane.as_any_mut().downcast_mut::<QueryPane>() {
+                            qp.open_saved_queries(saved.entries);
+                        }
+                    }
+                    self.toasts.push(ToastMessage::info(format!("Renamed to \"{new_name}\"")));
+                }
+            }
+            return;
+        }
+
+        // Normal select: load SQL into editor
+        let sql = self
+            .panes
+            .get(&focused)
+            .and_then(|p| p.as_any().downcast_ref::<QueryPane>())
+            .and_then(|qp| qp.saved_queries_selected())
+            .map(|(_, _, sql)| sql.to_string());
+        let Some(sql) = sql else { return };
+        if let Some(pane) = self.panes.get_mut(&focused) {
+            if let Some(qp) = pane.as_any_mut().downcast_mut::<QueryPane>() {
+                qp.set_editor_content(&sql);
+                qp.close_saved_queries();
+            }
+        }
+        self.dispatcher.set_mode(InputMode::QueryEditor);
+    }
+
+    pub(super) fn saved_queries_delete(&mut self) {
+        let focused = self.tab_manager.active().focused_pane;
+        let real_idx = self
+            .panes
+            .get(&focused)
+            .and_then(|p| p.as_any().downcast_ref::<QueryPane>())
+            .and_then(|qp| qp.saved_queries_selected())
+            .map(|(idx, _, _)| idx);
+        let Some(real_idx) = real_idx else { return };
+        let mut saved = kubetile_core::SavedQueries::load();
+        let _ = saved.delete(real_idx);
+        if let Some(pane) = self.panes.get_mut(&focused) {
+            if let Some(qp) = pane.as_any_mut().downcast_mut::<QueryPane>() {
+                qp.open_saved_queries(saved.entries);
+            }
+        }
+    }
+
+    pub(super) fn saved_queries_start_rename(&mut self) {
+        let focused = self.tab_manager.active().focused_pane;
+        if let Some(pane) = self.panes.get_mut(&focused) {
+            if let Some(qp) = pane.as_any_mut().downcast_mut::<QueryPane>() {
+                qp.saved_queries_start_rename();
+            }
+        }
+    }
+
+    pub(super) fn saved_queries_input(&mut self, c: char) {
+        let focused = self.tab_manager.active().focused_pane;
+        if let Some(pane) = self.panes.get_mut(&focused) {
+            if let Some(qp) = pane.as_any_mut().downcast_mut::<QueryPane>() {
+                qp.saved_queries_input(c);
+            }
+        }
+    }
+
+    pub(super) fn saved_queries_backspace(&mut self) {
+        let focused = self.tab_manager.active().focused_pane;
+        if let Some(pane) = self.panes.get_mut(&focused) {
+            if let Some(qp) = pane.as_any_mut().downcast_mut::<QueryPane>() {
+                qp.saved_queries_backspace();
+            }
+        }
+    }
+
+    pub(super) fn saved_queries_start_filter(&mut self) {
+        let focused = self.tab_manager.active().focused_pane;
+        if let Some(pane) = self.panes.get_mut(&focused) {
+            if let Some(qp) = pane.as_any_mut().downcast_mut::<QueryPane>() {
+                qp.saved_queries_start_filter();
+            }
+        }
+    }
+
+    pub(super) fn close_saved_queries(&mut self) {
+        let focused = self.tab_manager.active().focused_pane;
+        let still_open = match self.panes.get_mut(&focused) {
+            Some(pane) => match pane.as_any_mut().downcast_mut::<QueryPane>() {
+                Some(qp) => qp.saved_queries_close_sub_mode(),
+                None => false,
+            },
+            None => false,
+        };
+        if !still_open {
+            self.dispatcher.set_mode(InputMode::QueryEditor);
+        }
+    }
 }
 
 fn extract_pg_version(version_str: &str) -> String {

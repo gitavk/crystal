@@ -38,6 +38,8 @@ pub enum InputMode {
     QueryEditor,
     QueryBrowse,
     QueryHistory,
+    SaveQueryName,
+    SavedQueries,
 }
 
 #[allow(dead_code)]
@@ -194,6 +196,8 @@ impl KeybindingDispatcher {
                 (KeyCode::Tab, _) => return Some((Command::QueryEditorIndent, false)),
                 (KeyCode::BackTab, _) => return Some((Command::QueryEditorDeIndent, false)),
                 (KeyCode::Char('r'), KeyModifiers::CONTROL) => return Some((Command::OpenQueryHistory, false)),
+                (KeyCode::Char('s'), KeyModifiers::CONTROL) => return Some((Command::OpenSaveQueryDialog, false)),
+                (KeyCode::Char('o'), KeyModifiers::CONTROL) => return Some((Command::OpenSavedQueries, false)),
                 (KeyCode::Down, KeyModifiers::CONTROL) => return Some((Command::EnterQueryBrowse, false)),
                 (KeyCode::Char(c), _) => return Some((Command::QueryEditorInput(c), false)),
                 (KeyCode::Backspace, _) => return Some((Command::QueryEditorBackspace, false)),
@@ -231,6 +235,25 @@ impl KeybindingDispatcher {
                 (KeyCode::Char('j'), _) | (KeyCode::Down, _) => return Some((Command::QueryHistoryNext, false)),
                 (KeyCode::Char('k'), _) | (KeyCode::Up, _) => return Some((Command::QueryHistoryPrev, false)),
                 (KeyCode::Char('d'), _) => return Some((Command::QueryHistoryDelete, false)),
+                _ => return None,
+            },
+            InputMode::SaveQueryName => match (key.code, key.modifiers) {
+                (KeyCode::Esc, _) => return Some((Command::SaveQueryNameCancel, false)),
+                (KeyCode::Enter, _) => return Some((Command::SaveQueryNameConfirm, false)),
+                (KeyCode::Char(c), _) => return Some((Command::SaveQueryNameInput(c), false)),
+                (KeyCode::Backspace, _) => return Some((Command::SaveQueryNameBackspace, false)),
+                _ => return None,
+            },
+            InputMode::SavedQueries => match (key.code, key.modifiers) {
+                (KeyCode::Esc, _) => return Some((Command::SavedQueriesClose, false)),
+                (KeyCode::Enter, _) => return Some((Command::SavedQueriesSelect, false)),
+                (KeyCode::Char('j'), _) | (KeyCode::Down, _) => return Some((Command::SavedQueriesNext, false)),
+                (KeyCode::Char('k'), _) | (KeyCode::Up, _) => return Some((Command::SavedQueriesPrev, false)),
+                (KeyCode::Char('d'), _) => return Some((Command::SavedQueriesDelete, false)),
+                (KeyCode::Char('e'), _) => return Some((Command::SavedQueriesStartRename, false)),
+                (KeyCode::Char('/'), _) => return Some((Command::SavedQueriesStartFilter, false)),
+                (KeyCode::Char(c), _) => return Some((Command::SavedQueriesInput(c), false)),
+                (KeyCode::Backspace, _) => return Some((Command::SavedQueriesBackspace, false)),
                 _ => return None,
             },
             InputMode::QueryDialog => match key.code {
@@ -291,7 +314,9 @@ impl KeybindingDispatcher {
             | InputMode::QueryDialog
             | InputMode::QueryEditor
             | InputMode::QueryBrowse
-            | InputMode::QueryHistory => {
+            | InputMode::QueryHistory
+            | InputMode::SaveQueryName
+            | InputMode::SavedQueries => {
                 unreachable!("handled above")
             }
         }

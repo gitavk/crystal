@@ -28,6 +28,8 @@ impl App {
             InputMode::QueryEditor => "QueryEditor",
             InputMode::QueryBrowse => "QueryBrowse",
             InputMode::QueryHistory => "QueryHistory",
+            InputMode::SaveQueryName => "SaveQueryName",
+            InputMode::SavedQueries => "SavedQueries",
         }
     }
 

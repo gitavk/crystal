@@ -10,6 +10,7 @@ pub mod query;
 pub mod query_history;
 pub mod resource;
 pub mod resources;
+pub mod saved_queries;
 pub mod terminal_manager;
 
 pub use actions::{ActionExecutor, ResourceAction, ResourceKind};
@@ -23,4 +24,5 @@ pub use query::{QueryConfig, QueryResult};
 pub use query_history::QueryHistory;
 pub use resource::{DetailSection, ResourceSummary};
 pub use resources::*;
+pub use saved_queries::{SavedQueries, SavedQuery};
 pub use terminal_manager::{SessionId, SessionKind, TerminalManager};

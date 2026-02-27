@@ -86,6 +86,25 @@ pub enum Command {
     QueryHistoryDelete,
     CloseQueryHistory,
 
+    // Save query name dialog
+    OpenSaveQueryDialog,
+    SaveQueryNameInput(char),
+    SaveQueryNameBackspace,
+    SaveQueryNameConfirm,
+    SaveQueryNameCancel,
+
+    // Saved queries popup
+    OpenSavedQueries,
+    SavedQueriesNext,
+    SavedQueriesPrev,
+    SavedQueriesSelect,
+    SavedQueriesDelete,
+    SavedQueriesStartRename,
+    SavedQueriesInput(char),
+    SavedQueriesBackspace,
+    SavedQueriesStartFilter,
+    SavedQueriesClose,
+
     // Resource actions
     ViewYaml,
     ViewDescribe,

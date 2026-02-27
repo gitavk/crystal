@@ -405,6 +405,51 @@ impl App {
             Command::CloseQueryHistory => {
                 self.close_query_history();
             }
+            Command::OpenSaveQueryDialog => {
+                self.open_save_query_dialog();
+            }
+            Command::SaveQueryNameInput(c) => {
+                self.save_query_name_input(c);
+            }
+            Command::SaveQueryNameBackspace => {
+                self.save_query_name_backspace();
+            }
+            Command::SaveQueryNameConfirm => {
+                self.confirm_save_query();
+            }
+            Command::SaveQueryNameCancel => {
+                self.cancel_save_query();
+            }
+            Command::OpenSavedQueries => {
+                self.open_saved_queries();
+            }
+            Command::SavedQueriesNext => {
+                self.saved_queries_next();
+            }
+            Command::SavedQueriesPrev => {
+                self.saved_queries_prev();
+            }
+            Command::SavedQueriesSelect => {
+                self.saved_queries_select();
+            }
+            Command::SavedQueriesDelete => {
+                self.saved_queries_delete();
+            }
+            Command::SavedQueriesStartRename => {
+                self.saved_queries_start_rename();
+            }
+            Command::SavedQueriesInput(c) => {
+                self.saved_queries_input(c);
+            }
+            Command::SavedQueriesBackspace => {
+                self.saved_queries_backspace();
+            }
+            Command::SavedQueriesStartFilter => {
+                self.saved_queries_start_filter();
+            }
+            Command::SavedQueriesClose => {
+                self.close_saved_queries();
+            }
             Command::SortByColumn => {
                 let focused = self.tab_manager.active().focused_pane;
                 if let Some(pane) = self.panes.get_mut(&focused) {

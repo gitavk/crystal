@@ -66,9 +66,14 @@ impl App {
         let new_is_query = self.panes.get(&new_id).is_some_and(|p| matches!(p.view_type(), ViewType::Query(_)));
         match (new_is_query, self.dispatcher.mode()) {
             (true, InputMode::Normal) => self.dispatcher.set_mode(InputMode::QueryEditor),
-            (false, InputMode::QueryEditor | InputMode::QueryBrowse | InputMode::QueryHistory) => {
-                self.dispatcher.set_mode(InputMode::Normal)
-            }
+            (
+                false,
+                InputMode::QueryEditor
+                | InputMode::QueryBrowse
+                | InputMode::QueryHistory
+                | InputMode::SaveQueryName
+                | InputMode::SavedQueries,
+            ) => self.dispatcher.set_mode(InputMode::Normal),
             _ => {}
         }
     }
