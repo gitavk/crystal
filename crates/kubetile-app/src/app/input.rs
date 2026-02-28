@@ -68,6 +68,18 @@ impl App {
             AppEvent::PortForwardPromptReady { pod, namespace, suggested_remote } => {
                 self.open_port_forward_prompt(pod, namespace, suggested_remote);
             }
+            AppEvent::QueryPromptReady { config } => {
+                self.open_query_dialog(config);
+            }
+            AppEvent::QueryReady { pane_id, result } => {
+                self.handle_query_ready(pane_id, result);
+            }
+            AppEvent::QueryError { pane_id, error } => {
+                self.handle_query_error(pane_id, error);
+            }
+            AppEvent::SchemaReady { pane_id, rows } => {
+                self.handle_schema_ready(pane_id, rows);
+            }
             AppEvent::ContextSwitchReady { client, namespaces } => {
                 self.apply_context_switch(client, namespaces);
             }
@@ -124,8 +136,15 @@ impl App {
             Command::SplitHorizontal => self.split_focused(SplitDirection::Horizontal),
             Command::ClosePane => self.close_focused(),
             Command::EnterMode(mode) => {
-                if mode == InputMode::Insert && !self.focused_supports_insert_mode() {
-                    return;
+                if mode == InputMode::Insert {
+                    let focused = self.tab_manager.active().focused_pane;
+                    if self.panes.get(&focused).is_some_and(|p| matches!(p.view_type(), ViewType::Query(_))) {
+                        self.dispatcher.set_mode(InputMode::QueryEditor);
+                        return;
+                    }
+                    if !self.focused_supports_insert_mode() {
+                        return;
+                    }
                 }
                 self.dispatcher.set_mode(mode);
                 if mode == InputMode::NamespaceSelector {
@@ -289,6 +308,186 @@ impl App {
             Command::PortForwardCancel => {
                 self.pending_port_forward = None;
                 self.dispatcher.set_mode(InputMode::Normal);
+            }
+            Command::OpenQueryPane => {
+                self.open_query_pane_for_selected();
+            }
+            Command::QueryDialogInput(c) => {
+                self.query_dialog_input(c);
+            }
+            Command::QueryDialogBackspace => {
+                self.query_dialog_backspace();
+            }
+            Command::QueryDialogNextField => {
+                self.query_dialog_next_field();
+            }
+            Command::QueryDialogConfirm => {
+                self.confirm_query_dialog();
+            }
+            Command::QueryDialogCancel => {
+                self.cancel_query_dialog();
+            }
+            Command::QueryEditorInput(c) => {
+                self.query_editor_input(c);
+            }
+            Command::QueryEditorBackspace => {
+                self.query_editor_backspace();
+            }
+            Command::QueryEditorNewLine => {
+                self.query_editor_newline();
+            }
+            Command::QueryEditorCursorUp => {
+                self.query_editor_cursor_up();
+            }
+            Command::QueryEditorCursorDown => {
+                self.query_editor_cursor_down();
+            }
+            Command::QueryEditorCursorLeft => {
+                self.query_editor_cursor_left();
+            }
+            Command::QueryEditorCursorRight => {
+                self.query_editor_cursor_right();
+            }
+            Command::QueryEditorHome => {
+                self.query_editor_home();
+            }
+            Command::QueryEditorEnd => {
+                self.query_editor_end();
+            }
+            Command::QueryEditorIndent => {
+                self.query_editor_indent();
+            }
+            Command::QueryEditorDeIndent => {
+                self.query_editor_deindent();
+            }
+            Command::QueryEditorScrollUp => {
+                self.query_editor_scroll_up();
+            }
+            Command::QueryEditorScrollDown => {
+                self.query_editor_scroll_down();
+            }
+            Command::QueryEditorExecute => {
+                self.execute_current_query();
+            }
+            Command::EnterQueryBrowse => {
+                self.enter_query_browse();
+            }
+            Command::QueryBrowseNext => {
+                self.query_browse_next();
+            }
+            Command::QueryBrowsePrev => {
+                self.query_browse_prev();
+            }
+            Command::QueryBrowseScrollLeft => {
+                self.query_browse_scroll_left();
+            }
+            Command::QueryBrowseScrollRight => {
+                self.query_browse_scroll_right();
+            }
+            Command::QueryCopyRow => {
+                self.query_copy_row();
+            }
+            Command::QueryCopyAll => {
+                self.query_copy_all();
+            }
+            Command::OpenQueryHistory => {
+                self.open_query_history();
+            }
+            Command::QueryHistoryNext => {
+                self.query_history_next();
+            }
+            Command::QueryHistoryPrev => {
+                self.query_history_prev();
+            }
+            Command::QueryHistorySelect => {
+                self.query_history_select();
+            }
+            Command::QueryHistoryDelete => {
+                self.query_history_delete();
+            }
+            Command::CloseQueryHistory => {
+                self.close_query_history();
+            }
+            Command::OpenSaveQueryDialog => {
+                self.open_save_query_dialog();
+            }
+            Command::SaveQueryNameInput(c) => {
+                self.save_query_name_input(c);
+            }
+            Command::SaveQueryNameBackspace => {
+                self.save_query_name_backspace();
+            }
+            Command::SaveQueryNameConfirm => {
+                self.confirm_save_query();
+            }
+            Command::SaveQueryNameCancel => {
+                self.cancel_save_query();
+            }
+            Command::OpenSavedQueries => {
+                self.open_saved_queries();
+            }
+            Command::SavedQueriesNext => {
+                self.saved_queries_next();
+            }
+            Command::SavedQueriesPrev => {
+                self.saved_queries_prev();
+            }
+            Command::SavedQueriesSelect => {
+                self.saved_queries_select();
+            }
+            Command::SavedQueriesDelete => {
+                self.saved_queries_delete();
+            }
+            Command::SavedQueriesStartRename => {
+                self.saved_queries_start_rename();
+            }
+            Command::SavedQueriesInput(c) => {
+                self.saved_queries_input(c);
+            }
+            Command::SavedQueriesBackspace => {
+                self.saved_queries_backspace();
+            }
+            Command::SavedQueriesStartFilter => {
+                self.saved_queries_start_filter();
+            }
+            Command::SavedQueriesClose => {
+                self.close_saved_queries();
+            }
+            Command::TriggerCompletion => {
+                self.trigger_completion();
+            }
+            Command::CompleteNext => {
+                self.complete_next();
+            }
+            Command::CompletePrev => {
+                self.complete_prev();
+            }
+            Command::CompleteAccept => {
+                self.complete_accept();
+            }
+            Command::CompleteDismiss => {
+                self.complete_dismiss();
+            }
+            Command::CompleteInput(c) => {
+                self.complete_input(c);
+            }
+            Command::CompleteBackspace => {
+                self.complete_backspace();
+            }
+            Command::OpenExportDialog => {
+                self.open_export_dialog();
+            }
+            Command::ExportDialogInput(c) => {
+                self.export_path_input(c);
+            }
+            Command::ExportDialogBackspace => {
+                self.export_path_backspace();
+            }
+            Command::ExportDialogConfirm => {
+                self.confirm_export();
+            }
+            Command::ExportDialogCancel => {
+                self.cancel_export();
             }
             Command::SortByColumn => {
                 let focused = self.tab_manager.active().focused_pane;

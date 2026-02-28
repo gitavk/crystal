@@ -97,4 +97,5 @@ pub enum ViewType {
     Help,
     Empty,
     Plugin(String), // plugin name
+    Query(String),  // pod name
 }

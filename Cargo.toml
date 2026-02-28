@@ -28,3 +28,5 @@ serde_yaml = "0.9"
 portable-pty = "0.9"
 vt100 = "0.15"
 clap = { version = "4", features = ["derive"] }
+csv = "1"
+arboard = "3"

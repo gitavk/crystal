@@ -10,6 +10,7 @@ mod state;
 use std::io;
 
 use clap::Parser;
+use crossterm::event::{KeyboardEnhancementFlags, PopKeyboardEnhancementFlags, PushKeyboardEnhancementFlags};
 use crossterm::execute;
 use crossterm::terminal::{self, EnterAlternateScreen, LeaveAlternateScreen};
 use ratatui::backend::CrosstermBackend;
@@ -58,7 +59,11 @@ async fn main() -> anyhow::Result<()> {
     install_panic_hook();
 
     terminal::enable_raw_mode()?;
-    execute!(io::stdout(), EnterAlternateScreen)?;
+    execute!(
+        io::stdout(),
+        EnterAlternateScreen,
+        PushKeyboardEnhancementFlags(KeyboardEnhancementFlags::DISAMBIGUATE_ESCAPE_CODES)
+    )?;
 
     let backend = CrosstermBackend::new(io::stdout());
     let mut terminal = Terminal::new(backend)?;
@@ -66,11 +71,12 @@ async fn main() -> anyhow::Result<()> {
     let config = kubetile_config::Config::load();
     let dispatcher = KeybindingDispatcher::from_config(&config.keybindings);
     let theme = kubetile_tui::theme::Theme::from_config(&config.theme);
-    let mut app = App::new(config.tick_rate_ms(), dispatcher, theme, config.views).await;
+    let mut app =
+        App::new(config.tick_rate_ms(), dispatcher, theme, config.views, config.general.query_open_new_tab).await;
     let result = app.run(&mut terminal).await;
 
     terminal::disable_raw_mode()?;
-    execute!(io::stdout(), LeaveAlternateScreen)?;
+    execute!(io::stdout(), PopKeyboardEnhancementFlags, LeaveAlternateScreen)?;
 
     result
 }
@@ -79,7 +85,7 @@ fn install_panic_hook() {
     let original_hook = std::panic::take_hook();
     std::panic::set_hook(Box::new(move |panic_info| {
         let _ = terminal::disable_raw_mode();
-        let _ = execute!(io::stdout(), LeaveAlternateScreen);
+        let _ = execute!(io::stdout(), PopKeyboardEnhancementFlags, LeaveAlternateScreen);
         original_hook(panic_info);
     }));
 }

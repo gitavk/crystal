@@ -1,7 +1,7 @@
 use std::time::Duration;
 
 use crossterm::event::{self, Event, KeyEvent};
-use kubetile_core::{KubeClient, LogLine, LogStream, PortForward};
+use kubetile_core::{KubeClient, LogLine, LogStream, PortForward, QueryConfig, QueryResult};
 use kubetile_tui::pane::{PaneId, ResourceKind};
 use kubetile_tui::widgets::toast::ToastMessage;
 use tokio::sync::mpsc;
@@ -58,6 +58,21 @@ pub enum AppEvent {
         pod: String,
         namespace: String,
         suggested_remote: u16,
+    },
+    QueryPromptReady {
+        config: QueryConfig,
+    },
+    QueryReady {
+        pane_id: PaneId,
+        result: QueryResult,
+    },
+    QueryError {
+        pane_id: PaneId,
+        error: String,
+    },
+    SchemaReady {
+        pane_id: PaneId,
+        rows: Vec<Vec<String>>,
     },
     ContextSwitchReady {
         client: KubeClient,

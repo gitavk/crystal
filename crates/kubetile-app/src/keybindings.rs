@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use crossterm::event::{KeyCode, KeyEvent};
+use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 
 use kubetile_config::KeybindingsConfig;
 use kubetile_tui::pane::PaneCommand;
@@ -34,6 +34,14 @@ pub enum InputMode {
     ConfirmDialog,
     FilterInput,
     PortForwardInput,
+    QueryDialog,
+    QueryEditor,
+    QueryBrowse,
+    QueryHistory,
+    SaveQueryName,
+    SavedQueries,
+    ExportDialog,
+    Completion,
 }
 
 #[allow(dead_code)]
@@ -183,6 +191,105 @@ impl KeybindingDispatcher {
                 KeyCode::Backspace => return Some((Command::PortForwardBackspace, false)),
                 _ => return None,
             },
+            InputMode::QueryEditor => match (key.code, key.modifiers) {
+                (KeyCode::Esc, _) => return Some((Command::ExitMode, false)),
+                (KeyCode::Enter, KeyModifiers::CONTROL) => return Some((Command::QueryEditorExecute, false)),
+                (KeyCode::Enter, _) => return Some((Command::QueryEditorNewLine, false)),
+                (KeyCode::Tab, _) => return Some((Command::QueryEditorIndent, false)),
+                (KeyCode::BackTab, _) => return Some((Command::QueryEditorDeIndent, false)),
+                (KeyCode::Char('r'), KeyModifiers::CONTROL) => return Some((Command::OpenQueryHistory, false)),
+                (KeyCode::Char('s'), KeyModifiers::CONTROL) => return Some((Command::OpenSaveQueryDialog, false)),
+                (KeyCode::Char('o'), KeyModifiers::CONTROL) => return Some((Command::OpenSavedQueries, false)),
+                (KeyCode::Down, KeyModifiers::CONTROL) => return Some((Command::EnterQueryBrowse, false)),
+                (KeyCode::Char(' '), KeyModifiers::CONTROL) => return Some((Command::TriggerCompletion, false)),
+                (KeyCode::Char(c), _) => return Some((Command::QueryEditorInput(c), false)),
+                (KeyCode::Backspace, _) => return Some((Command::QueryEditorBackspace, false)),
+                (KeyCode::Up, _) => return Some((Command::QueryEditorCursorUp, false)),
+                (KeyCode::Down, _) => return Some((Command::QueryEditorCursorDown, false)),
+                (KeyCode::Left, _) => return Some((Command::QueryEditorCursorLeft, false)),
+                (KeyCode::Right, _) => return Some((Command::QueryEditorCursorRight, false)),
+                (KeyCode::Home, _) => return Some((Command::QueryEditorHome, false)),
+                (KeyCode::End, _) => return Some((Command::QueryEditorEnd, false)),
+                (KeyCode::PageUp, _) => return Some((Command::QueryEditorScrollDown, false)),
+                (KeyCode::PageDown, _) => return Some((Command::QueryEditorScrollUp, false)),
+                _ => return None,
+            },
+            InputMode::QueryBrowse => match (key.code, key.modifiers) {
+                (KeyCode::Esc, _) => return Some((Command::ExitMode, false)),
+                (KeyCode::Char('i'), _) | (KeyCode::Enter, _) => {
+                    return Some((Command::EnterMode(InputMode::QueryEditor), false))
+                }
+                (KeyCode::Up, KeyModifiers::CONTROL) => {
+                    return Some((Command::EnterMode(InputMode::QueryEditor), false))
+                }
+                (KeyCode::Char('j'), _) => return Some((Command::QueryBrowseNext, false)),
+                (KeyCode::Char('k'), _) => return Some((Command::QueryBrowsePrev, false)),
+                (KeyCode::Char('h'), _) | (KeyCode::Left, _) => return Some((Command::QueryBrowseScrollLeft, false)),
+                (KeyCode::Char('l'), _) | (KeyCode::Right, _) => return Some((Command::QueryBrowseScrollRight, false)),
+                (KeyCode::PageDown, _) => return Some((Command::QueryEditorScrollUp, false)),
+                (KeyCode::PageUp, _) => return Some((Command::QueryEditorScrollDown, false)),
+                (KeyCode::Char('y'), _) => return Some((Command::QueryCopyRow, false)),
+                (KeyCode::Char('Y'), _) => return Some((Command::QueryCopyAll, false)),
+                (KeyCode::Char('E'), _) => return Some((Command::OpenExportDialog, false)),
+                _ => return None,
+            },
+            InputMode::QueryHistory => match (key.code, key.modifiers) {
+                (KeyCode::Esc, _) => return Some((Command::CloseQueryHistory, false)),
+                (KeyCode::Enter, _) => return Some((Command::QueryHistorySelect, false)),
+                (KeyCode::Char('j'), _) | (KeyCode::Down, _) => return Some((Command::QueryHistoryNext, false)),
+                (KeyCode::Char('k'), _) | (KeyCode::Up, _) => return Some((Command::QueryHistoryPrev, false)),
+                (KeyCode::Char('d'), _) => return Some((Command::QueryHistoryDelete, false)),
+                _ => return None,
+            },
+            InputMode::ExportDialog => match (key.code, key.modifiers) {
+                (KeyCode::Esc, _) => return Some((Command::ExportDialogCancel, false)),
+                (KeyCode::Enter, _) => return Some((Command::ExportDialogConfirm, false)),
+                (KeyCode::Char(c), _) => return Some((Command::ExportDialogInput(c), false)),
+                (KeyCode::Backspace, _) => return Some((Command::ExportDialogBackspace, false)),
+                _ => return None,
+            },
+            InputMode::SaveQueryName => match (key.code, key.modifiers) {
+                (KeyCode::Esc, _) => return Some((Command::SaveQueryNameCancel, false)),
+                (KeyCode::Enter, _) => return Some((Command::SaveQueryNameConfirm, false)),
+                (KeyCode::Char(c), _) => return Some((Command::SaveQueryNameInput(c), false)),
+                (KeyCode::Backspace, _) => return Some((Command::SaveQueryNameBackspace, false)),
+                _ => return None,
+            },
+            InputMode::SavedQueries => match (key.code, key.modifiers) {
+                (KeyCode::Esc, _) => return Some((Command::SavedQueriesClose, false)),
+                (KeyCode::Enter, _) => return Some((Command::SavedQueriesSelect, false)),
+                (KeyCode::Char('j'), _) | (KeyCode::Down, _) => return Some((Command::SavedQueriesNext, false)),
+                (KeyCode::Char('k'), _) | (KeyCode::Up, _) => return Some((Command::SavedQueriesPrev, false)),
+                (KeyCode::Char('d'), _) => return Some((Command::SavedQueriesDelete, false)),
+                (KeyCode::Char('e'), _) => return Some((Command::SavedQueriesStartRename, false)),
+                (KeyCode::Char('/'), _) => return Some((Command::SavedQueriesStartFilter, false)),
+                (KeyCode::Char(c), _) => return Some((Command::SavedQueriesInput(c), false)),
+                (KeyCode::Backspace, _) => return Some((Command::SavedQueriesBackspace, false)),
+                _ => return None,
+            },
+            InputMode::Completion => match (key.code, key.modifiers) {
+                (KeyCode::Esc, _) => return Some((Command::CompleteDismiss, false)),
+                (KeyCode::Enter, _) | (KeyCode::Tab, _) => return Some((Command::CompleteAccept, false)),
+                (KeyCode::Up, _) | (KeyCode::Char('p'), KeyModifiers::CONTROL) => {
+                    return Some((Command::CompletePrev, false))
+                }
+                (KeyCode::Down, _) | (KeyCode::Char('n'), KeyModifiers::CONTROL) => {
+                    return Some((Command::CompleteNext, false))
+                }
+                (KeyCode::Char(c), _) => return Some((Command::CompleteInput(c), false)),
+                (KeyCode::Backspace, _) => return Some((Command::CompleteBackspace, false)),
+                _ => return None,
+            },
+            InputMode::QueryDialog => match key.code {
+                KeyCode::Esc => return Some((Command::QueryDialogCancel, false)),
+                KeyCode::Enter => return Some((Command::QueryDialogConfirm, false)),
+                KeyCode::Tab | KeyCode::BackTab | KeyCode::Up | KeyCode::Down => {
+                    return Some((Command::QueryDialogNextField, false));
+                }
+                KeyCode::Char(c) => return Some((Command::QueryDialogInput(c), false)),
+                KeyCode::Backspace => return Some((Command::QueryDialogBackspace, false)),
+                _ => return None,
+            },
             _ => {}
         }
 
@@ -227,7 +334,15 @@ impl KeybindingDispatcher {
             InputMode::ResourceSwitcher
             | InputMode::ConfirmDialog
             | InputMode::FilterInput
-            | InputMode::PortForwardInput => {
+            | InputMode::PortForwardInput
+            | InputMode::QueryDialog
+            | InputMode::QueryEditor
+            | InputMode::QueryBrowse
+            | InputMode::QueryHistory
+            | InputMode::SaveQueryName
+            | InputMode::SavedQueries
+            | InputMode::ExportDialog
+            | InputMode::Completion => {
                 unreachable!("handled above")
             }
         }

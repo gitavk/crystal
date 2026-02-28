@@ -45,6 +45,82 @@ pub enum Command {
     ContextBackspace,
     Pane(PaneCommand),
 
+    // Query dialog
+    OpenQueryPane,
+    QueryDialogInput(char),
+    QueryDialogBackspace,
+    QueryDialogNextField,
+    QueryDialogConfirm,
+    QueryDialogCancel,
+
+    // Query editor
+    QueryEditorInput(char),
+    QueryEditorBackspace,
+    QueryEditorNewLine,
+    QueryEditorCursorUp,
+    QueryEditorCursorDown,
+    QueryEditorCursorLeft,
+    QueryEditorCursorRight,
+    QueryEditorHome,
+    QueryEditorEnd,
+    QueryEditorScrollUp,
+    QueryEditorScrollDown,
+    QueryEditorExecute,
+    QueryEditorIndent,
+    QueryEditorDeIndent,
+    EnterQueryBrowse,
+
+    // Query browse (result navigation)
+    QueryBrowseNext,
+    QueryBrowsePrev,
+    QueryBrowseScrollLeft,
+    QueryBrowseScrollRight,
+    QueryCopyRow,
+    QueryCopyAll,
+
+    // Query history popup
+    OpenQueryHistory,
+    QueryHistoryNext,
+    QueryHistoryPrev,
+    QueryHistorySelect,
+    QueryHistoryDelete,
+    CloseQueryHistory,
+
+    // Export to file dialog
+    OpenExportDialog,
+    ExportDialogInput(char),
+    ExportDialogBackspace,
+    ExportDialogConfirm,
+    ExportDialogCancel,
+
+    // Save query name dialog
+    OpenSaveQueryDialog,
+    SaveQueryNameInput(char),
+    SaveQueryNameBackspace,
+    SaveQueryNameConfirm,
+    SaveQueryNameCancel,
+
+    // Saved queries popup
+    OpenSavedQueries,
+    SavedQueriesNext,
+    SavedQueriesPrev,
+    SavedQueriesSelect,
+    SavedQueriesDelete,
+    SavedQueriesStartRename,
+    SavedQueriesInput(char),
+    SavedQueriesBackspace,
+    SavedQueriesStartFilter,
+    SavedQueriesClose,
+
+    // Autocomplete popup
+    TriggerCompletion,
+    CompleteNext,
+    CompletePrev,
+    CompleteAccept,
+    CompleteDismiss,
+    CompleteInput(char),
+    CompleteBackspace,
+
     // Resource actions
     ViewYaml,
     ViewDescribe,

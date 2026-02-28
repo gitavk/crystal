@@ -26,6 +26,8 @@ clap.workspace = true
 toml.workspace = true
 portable-pty.workspace = true
 jiff.workspace = true
+arboard.workspace = true
+dirs = "6"
 
 [package.metadata.deb]
 maintainer = "kubetile"
