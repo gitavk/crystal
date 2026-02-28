@@ -450,6 +450,27 @@ impl App {
             Command::SavedQueriesClose => {
                 self.close_saved_queries();
             }
+            Command::TriggerCompletion => {
+                self.trigger_completion();
+            }
+            Command::CompleteNext => {
+                self.complete_next();
+            }
+            Command::CompletePrev => {
+                self.complete_prev();
+            }
+            Command::CompleteAccept => {
+                self.complete_accept();
+            }
+            Command::CompleteDismiss => {
+                self.complete_dismiss();
+            }
+            Command::CompleteInput(c) => {
+                self.complete_input(c);
+            }
+            Command::CompleteBackspace => {
+                self.complete_backspace();
+            }
             Command::OpenExportDialog => {
                 self.open_export_dialog();
             }

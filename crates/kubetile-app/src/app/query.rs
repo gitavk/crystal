@@ -762,6 +762,83 @@ impl App {
         }
         self.dispatcher.set_mode(InputMode::QueryBrowse);
     }
+
+    // --- Autocomplete ---
+
+    pub(super) fn trigger_completion(&mut self) {
+        let focused = self.tab_manager.active().focused_pane;
+        if let Some(pane) = self.panes.get_mut(&focused) {
+            if let Some(qp) = pane.as_any_mut().downcast_mut::<QueryPane>() {
+                if qp.trigger_completion() {
+                    self.dispatcher.set_mode(InputMode::Completion);
+                }
+            }
+        }
+    }
+
+    pub(super) fn complete_next(&mut self) {
+        let focused = self.tab_manager.active().focused_pane;
+        if let Some(pane) = self.panes.get_mut(&focused) {
+            if let Some(qp) = pane.as_any_mut().downcast_mut::<QueryPane>() {
+                qp.complete_next();
+            }
+        }
+    }
+
+    pub(super) fn complete_prev(&mut self) {
+        let focused = self.tab_manager.active().focused_pane;
+        if let Some(pane) = self.panes.get_mut(&focused) {
+            if let Some(qp) = pane.as_any_mut().downcast_mut::<QueryPane>() {
+                qp.complete_prev();
+            }
+        }
+    }
+
+    pub(super) fn complete_accept(&mut self) {
+        let focused = self.tab_manager.active().focused_pane;
+        if let Some(pane) = self.panes.get_mut(&focused) {
+            if let Some(qp) = pane.as_any_mut().downcast_mut::<QueryPane>() {
+                qp.complete_accept();
+            }
+        }
+        self.dispatcher.set_mode(InputMode::QueryEditor);
+    }
+
+    pub(super) fn complete_dismiss(&mut self) {
+        let focused = self.tab_manager.active().focused_pane;
+        if let Some(pane) = self.panes.get_mut(&focused) {
+            if let Some(qp) = pane.as_any_mut().downcast_mut::<QueryPane>() {
+                qp.complete_dismiss();
+            }
+        }
+        self.dispatcher.set_mode(InputMode::QueryEditor);
+    }
+
+    pub(super) fn complete_input(&mut self, c: char) {
+        let focused = self.tab_manager.active().focused_pane;
+        if let Some(pane) = self.panes.get_mut(&focused) {
+            if let Some(qp) = pane.as_any_mut().downcast_mut::<QueryPane>() {
+                qp.editor_push(c);
+                qp.update_completion();
+                if !qp.completion_is_open() {
+                    self.dispatcher.set_mode(InputMode::QueryEditor);
+                }
+            }
+        }
+    }
+
+    pub(super) fn complete_backspace(&mut self) {
+        let focused = self.tab_manager.active().focused_pane;
+        if let Some(pane) = self.panes.get_mut(&focused) {
+            if let Some(qp) = pane.as_any_mut().downcast_mut::<QueryPane>() {
+                qp.editor_pop();
+                qp.update_completion();
+                if !qp.completion_is_open() {
+                    self.dispatcher.set_mode(InputMode::QueryEditor);
+                }
+            }
+        }
+    }
 }
 
 fn expand_tilde(path: &str) -> std::path::PathBuf {

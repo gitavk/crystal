@@ -8,6 +8,158 @@ use kubetile_core::{QueryConfig, QueryResult, SavedQuery};
 use kubetile_tui::pane::{Pane, PaneCommand, ViewType};
 use kubetile_tui::theme::Theme;
 
+struct CompletionState {
+    items: Vec<String>,
+    selected: usize,
+    prefix_len: usize,
+}
+
+static PG_KEYWORDS: &[&str] = &[
+    "ALL",
+    "ANALYSE",
+    "ANALYZE",
+    "AND",
+    "ANY",
+    "ARRAY",
+    "AS",
+    "ASC",
+    "ASYMMETRIC",
+    "BETWEEN",
+    "BOTH",
+    "BY",
+    "CALLED",
+    "CASE",
+    "CAST",
+    "CHECK",
+    "CLUSTER",
+    "COALESCE",
+    "COLLATE",
+    "COLUMN",
+    "COMMENT",
+    "COMMIT",
+    "CONCURRENTLY",
+    "CONSTRAINT",
+    "COPY",
+    "CREATE",
+    "CROSS",
+    "CURRENT",
+    "CURRENT_DATE",
+    "CURRENT_ROLE",
+    "CURRENT_TIME",
+    "CURRENT_TIMESTAMP",
+    "CURRENT_USER",
+    "DATABASE",
+    "DEFAULT",
+    "DELETE",
+    "DESC",
+    "DISTINCT",
+    "DO",
+    "DROP",
+    "ELSE",
+    "END",
+    "ENUM",
+    "ESCAPE",
+    "EXCEPT",
+    "EXISTS",
+    "EXPLAIN",
+    "EXTENSION",
+    "FALSE",
+    "FETCH",
+    "FOLLOWING",
+    "FOR",
+    "FOREIGN",
+    "FORMAT",
+    "FROM",
+    "FULL",
+    "FUNCTION",
+    "GRANT",
+    "GROUP",
+    "HAVING",
+    "ILIKE",
+    "IMMUTABLE",
+    "IN",
+    "INDEX",
+    "INNER",
+    "INSERT",
+    "INTERSECT",
+    "INTO",
+    "IS",
+    "JOIN",
+    "JSON",
+    "KEY",
+    "LANGUAGE",
+    "LATERAL",
+    "LEADING",
+    "LEFT",
+    "LIKE",
+    "LIMIT",
+    "LOCK",
+    "MATERIALIZED",
+    "NATURAL",
+    "NOT",
+    "NULL",
+    "NULLIF",
+    "OFFSET",
+    "ON",
+    "ONLY",
+    "OR",
+    "ORDER",
+    "OUTER",
+    "OVER",
+    "OVERLAPS",
+    "PARTITION",
+    "PRECEDING",
+    "PRIMARY",
+    "PROCEDURE",
+    "RANGE",
+    "RECURSIVE",
+    "REFERENCES",
+    "REINDEX",
+    "RETURNING",
+    "REVOKE",
+    "RIGHT",
+    "ROLE",
+    "ROLLBACK",
+    "ROW",
+    "ROWS",
+    "SAVEPOINT",
+    "SCHEMA",
+    "SELECT",
+    "SEQUENCE",
+    "SESSION",
+    "SET",
+    "SIMILAR",
+    "SOME",
+    "STABLE",
+    "STRICT",
+    "TABLE",
+    "TABLESAMPLE",
+    "TEXT",
+    "THEN",
+    "TO",
+    "TRAILING",
+    "TRANSACTION",
+    "TRIGGER",
+    "TRUE",
+    "TRUNCATE",
+    "TYPE",
+    "UNBOUNDED",
+    "UNION",
+    "UNIQUE",
+    "UPDATE",
+    "USER",
+    "VACUUM",
+    "VALUES",
+    "VERBOSE",
+    "VIEW",
+    "VOLATILE",
+    "WHEN",
+    "WHERE",
+    "WINDOW",
+    "WITH",
+    "YAML",
+];
+
 struct QueryHistoryState {
     entries: Vec<String>,
     selected: usize,
@@ -52,6 +204,7 @@ pub struct QueryPane {
     pending_save_name: Option<String>,
     saved_queries: Option<SavedQueriesState>,
     export_dialog_path: Option<String>,
+    completion: Option<CompletionState>,
 }
 
 impl QueryPane {
@@ -81,6 +234,7 @@ impl QueryPane {
             pending_save_name: None,
             saved_queries: None,
             export_dialog_path: None,
+            completion: None,
         }
     }
 
@@ -269,6 +423,87 @@ impl QueryPane {
 
     pub fn saved_queries_rename_input(&self) -> Option<&str> {
         self.saved_queries.as_ref()?.rename_input.as_deref()
+    }
+
+    // --- Autocomplete ---
+
+    pub fn trigger_completion(&mut self) -> bool {
+        let prefix = token_before_cursor(&self.editor_lines[self.cursor_row], self.cursor_col);
+        if prefix.is_empty() {
+            self.completion = None;
+            return false;
+        }
+        let prefix_upper = prefix.to_ascii_uppercase();
+        let items: Vec<String> = PG_KEYWORDS
+            .iter()
+            .filter(|kw| kw.starts_with(prefix_upper.as_str()))
+            .map(|s| (*s).to_string())
+            .take(8)
+            .collect();
+        if items.is_empty() {
+            self.completion = None;
+            return false;
+        }
+        self.completion = Some(CompletionState { items, selected: 0, prefix_len: prefix.chars().count() });
+        true
+    }
+
+    pub fn update_completion(&mut self) {
+        let prefix = token_before_cursor(&self.editor_lines[self.cursor_row], self.cursor_col);
+        if prefix.is_empty() {
+            self.completion = None;
+            return;
+        }
+        let prefix_upper = prefix.to_ascii_uppercase();
+        let items: Vec<String> = PG_KEYWORDS
+            .iter()
+            .filter(|kw| kw.starts_with(prefix_upper.as_str()))
+            .map(|s| (*s).to_string())
+            .take(8)
+            .collect();
+        if items.is_empty() {
+            self.completion = None;
+        } else if let Some(ref mut c) = self.completion {
+            c.selected = c.selected.min(items.len().saturating_sub(1));
+            c.prefix_len = prefix.chars().count();
+            c.items = items;
+        }
+    }
+
+    pub fn complete_next(&mut self) {
+        if let Some(ref mut c) = self.completion {
+            if c.selected + 1 < c.items.len() {
+                c.selected += 1;
+            }
+        }
+    }
+
+    pub fn complete_prev(&mut self) {
+        if let Some(ref mut c) = self.completion {
+            c.selected = c.selected.saturating_sub(1);
+        }
+    }
+
+    pub fn complete_accept(&mut self) {
+        let Some(ref c) = self.completion else { return };
+        let Some(word) = c.items.get(c.selected) else { return };
+        let word = word.clone();
+        let prefix_len = c.prefix_len;
+        self.completion = None;
+
+        let line = &mut self.editor_lines[self.cursor_row];
+        let end_byte = char_to_byte(line, self.cursor_col);
+        let start_byte = char_to_byte(line, self.cursor_col.saturating_sub(prefix_len));
+        line.replace_range(start_byte..end_byte, &word);
+        self.cursor_col = self.cursor_col.saturating_sub(prefix_len) + word.chars().count();
+    }
+
+    pub fn complete_dismiss(&mut self) {
+        self.completion = None;
+    }
+
+    pub fn completion_is_open(&self) -> bool {
+        self.completion.is_some()
     }
 
     // --- Export dialog ---
@@ -523,6 +758,16 @@ fn csv_escape(s: &str) -> String {
     } else {
         s.to_string()
     }
+}
+
+fn token_before_cursor(line: &str, cursor_col: usize) -> String {
+    let chars: Vec<char> = line.chars().collect();
+    let end = cursor_col.min(chars.len());
+    let mut start = end;
+    while start > 0 && (chars[start - 1].is_ascii_alphabetic() || chars[start - 1] == '_') {
+        start -= 1;
+    }
+    chars[start..end].iter().collect()
 }
 
 fn char_to_byte(s: &str, char_idx: usize) -> usize {
@@ -835,6 +1080,47 @@ fn render_export_dialog_popup(frame: &mut Frame, area: Rect, path_buf: &str, the
     frame.render_widget(Paragraph::new("Enter confirm  Esc cancel").style(theme.text_dim), hint_area);
 }
 
+fn render_completion_popup(
+    frame: &mut Frame,
+    full_area: Rect,
+    popup_x: u16,
+    popup_y: u16,
+    state: &CompletionState,
+    theme: &Theme,
+) {
+    if popup_y >= full_area.y + full_area.height {
+        return;
+    }
+
+    let max_item_len = state.items.iter().map(|s| s.len()).max().unwrap_or(4);
+    let popup_w = ((max_item_len + 2) as u16).clamp(10, 40);
+    let popup_h = (state.items.len() as u16).min((full_area.y + full_area.height).saturating_sub(popup_y));
+
+    if popup_h == 0 {
+        return;
+    }
+
+    let max_x = full_area.x + full_area.width;
+    let popup_x = popup_x.min(max_x.saturating_sub(popup_w));
+
+    let popup = Rect { x: popup_x, y: popup_y, width: popup_w, height: popup_h };
+    frame.render_widget(Clear, popup);
+
+    let inner_w = popup_w as usize;
+    let lines: Vec<Line> = state
+        .items
+        .iter()
+        .enumerate()
+        .take(popup_h as usize)
+        .map(|(i, item)| {
+            let style = if i == state.selected { theme.selection } else { theme.overlay };
+            let text = format!(" {:<width$}", item, width = inner_w.saturating_sub(1));
+            Line::from(Span::styled(text, style))
+        })
+        .collect();
+    frame.render_widget(Paragraph::new(lines).style(theme.overlay), popup);
+}
+
 fn render_cursor_line(line: &str, cursor_col: usize, normal_style: Style, cursor_style: Style) -> Line<'static> {
     let char_count = line.chars().count();
     let byte = char_to_byte(line, cursor_col);
@@ -1041,6 +1327,12 @@ impl Pane for QueryPane {
         }
         frame.render_widget(Paragraph::new(status_text).style(status_style), status_area);
 
+        if let Some(ref c) = self.completion {
+            let visible_row = self.cursor_row.saturating_sub(editor_scroll);
+            let popup_x = editor_area.x + self.cursor_col as u16;
+            let popup_y = editor_area.y + visible_row as u16 + 1;
+            render_completion_popup(frame, area, popup_x, popup_y, c, theme);
+        }
         if let Some(ref h) = self.history {
             render_history_popup(frame, area, h, theme);
         }

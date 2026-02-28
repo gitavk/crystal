@@ -31,6 +31,7 @@ impl App {
             InputMode::SaveQueryName => "SaveQueryName",
             InputMode::SavedQueries => "SavedQueries",
             InputMode::ExportDialog => "ExportDialog",
+            InputMode::Completion => "Completion",
         }
     }
 

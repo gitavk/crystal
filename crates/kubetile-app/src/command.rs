@@ -112,6 +112,15 @@ pub enum Command {
     SavedQueriesStartFilter,
     SavedQueriesClose,
 
+    // Autocomplete popup
+    TriggerCompletion,
+    CompleteNext,
+    CompletePrev,
+    CompleteAccept,
+    CompleteDismiss,
+    CompleteInput(char),
+    CompleteBackspace,
+
     // Resource actions
     ViewYaml,
     ViewDescribe,

@@ -73,7 +73,8 @@ impl App {
                 | InputMode::QueryHistory
                 | InputMode::SaveQueryName
                 | InputMode::SavedQueries
-                | InputMode::ExportDialog,
+                | InputMode::ExportDialog
+                | InputMode::Completion,
             ) => self.dispatcher.set_mode(InputMode::Normal),
             _ => {}
         }

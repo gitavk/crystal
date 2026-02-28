@@ -41,6 +41,7 @@ pub enum InputMode {
     SaveQueryName,
     SavedQueries,
     ExportDialog,
+    Completion,
 }
 
 #[allow(dead_code)]
@@ -200,6 +201,7 @@ impl KeybindingDispatcher {
                 (KeyCode::Char('s'), KeyModifiers::CONTROL) => return Some((Command::OpenSaveQueryDialog, false)),
                 (KeyCode::Char('o'), KeyModifiers::CONTROL) => return Some((Command::OpenSavedQueries, false)),
                 (KeyCode::Down, KeyModifiers::CONTROL) => return Some((Command::EnterQueryBrowse, false)),
+                (KeyCode::Char(' '), KeyModifiers::CONTROL) => return Some((Command::TriggerCompletion, false)),
                 (KeyCode::Char(c), _) => return Some((Command::QueryEditorInput(c), false)),
                 (KeyCode::Backspace, _) => return Some((Command::QueryEditorBackspace, false)),
                 (KeyCode::Up, _) => return Some((Command::QueryEditorCursorUp, false)),
@@ -265,6 +267,19 @@ impl KeybindingDispatcher {
                 (KeyCode::Backspace, _) => return Some((Command::SavedQueriesBackspace, false)),
                 _ => return None,
             },
+            InputMode::Completion => match (key.code, key.modifiers) {
+                (KeyCode::Esc, _) => return Some((Command::CompleteDismiss, false)),
+                (KeyCode::Enter, _) | (KeyCode::Tab, _) => return Some((Command::CompleteAccept, false)),
+                (KeyCode::Up, _) | (KeyCode::Char('p'), KeyModifiers::CONTROL) => {
+                    return Some((Command::CompletePrev, false))
+                }
+                (KeyCode::Down, _) | (KeyCode::Char('n'), KeyModifiers::CONTROL) => {
+                    return Some((Command::CompleteNext, false))
+                }
+                (KeyCode::Char(c), _) => return Some((Command::CompleteInput(c), false)),
+                (KeyCode::Backspace, _) => return Some((Command::CompleteBackspace, false)),
+                _ => return None,
+            },
             InputMode::QueryDialog => match key.code {
                 KeyCode::Esc => return Some((Command::QueryDialogCancel, false)),
                 KeyCode::Enter => return Some((Command::QueryDialogConfirm, false)),
@@ -326,7 +341,8 @@ impl KeybindingDispatcher {
             | InputMode::QueryHistory
             | InputMode::SaveQueryName
             | InputMode::SavedQueries
-            | InputMode::ExportDialog => {
+            | InputMode::ExportDialog
+            | InputMode::Completion => {
                 unreachable!("handled above")
             }
         }
