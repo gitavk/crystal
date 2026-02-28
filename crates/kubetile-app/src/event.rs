@@ -70,6 +70,10 @@ pub enum AppEvent {
         pane_id: PaneId,
         error: String,
     },
+    SchemaReady {
+        pane_id: PaneId,
+        rows: Vec<Vec<String>>,
+    },
     ContextSwitchReady {
         client: KubeClient,
         namespaces: Vec<String>,

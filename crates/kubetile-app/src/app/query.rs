@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use kubetile_core::{QueryConfig, QueryResult};
 use kubetile_tui::pane::{PaneId, ResourceKind, SplitDirection, ViewType};
 use kubetile_tui::widgets::toast::ToastMessage;
@@ -101,11 +103,13 @@ impl App {
     }
 
     pub(super) fn handle_query_ready(&mut self, pane_id: PaneId, result: QueryResult) {
+        let mut schema_config: Option<QueryConfig> = None;
         if let Some(pane) = self.panes.get_mut(&pane_id) {
             if let Some(qp) = pane.as_any_mut().downcast_mut::<QueryPane>() {
                 if qp.is_connecting() {
                     if let Some(version_str) = result.rows.first().and_then(|row| row.first()) {
                         qp.set_connected(extract_pg_version(version_str));
+                        schema_config = Some(qp.config.clone());
                     } else {
                         qp.set_error("Connection test returned no data".to_string());
                     }
@@ -124,6 +128,9 @@ impl App {
                     }
                 }
             }
+        }
+        if let Some(config) = schema_config {
+            self.execute_schema_for_pane(pane_id, config);
         }
     }
 
@@ -761,6 +768,53 @@ impl App {
             }
         }
         self.dispatcher.set_mode(InputMode::QueryBrowse);
+    }
+
+    // --- Schema fetch ---
+
+    fn execute_schema_for_pane(&self, pane_id: PaneId, config: QueryConfig) {
+        let Some(client) = &self.kube_client else {
+            return;
+        };
+        let kube_client = client.inner_client();
+        let app_tx = self.app_tx.clone();
+        const SCHEMA_SQL: &str = "\
+            SELECT table_schema, table_name, column_name, data_type \
+            FROM information_schema.columns \
+            WHERE table_schema NOT IN ('pg_catalog','information_schema') \
+            ORDER BY table_name, ordinal_position";
+
+        tokio::spawn(async move {
+            if let Ok(result) = kubetile_core::query::execute_query(&kube_client, &config, SCHEMA_SQL).await {
+                let _ = app_tx.send(crate::event::AppEvent::SchemaReady { pane_id, rows: result.rows });
+            }
+        });
+    }
+
+    pub(super) fn handle_schema_ready(&mut self, pane_id: PaneId, rows: Vec<Vec<String>>) {
+        let mut tables: Vec<(String, String)> = Vec::new();
+        let mut columns: HashMap<String, Vec<(String, String)>> = HashMap::new();
+
+        for row in &rows {
+            if row.len() < 4 {
+                continue;
+            }
+            let schema = row[0].clone();
+            let table = row[1].clone();
+            let col_name = row[2].clone();
+            let col_type = row[3].clone();
+
+            if !tables.iter().any(|(n, _)| n == &table) {
+                tables.push((table.clone(), schema));
+            }
+            columns.entry(table).or_default().push((col_name, col_type));
+        }
+
+        if let Some(pane) = self.panes.get_mut(&pane_id) {
+            if let Some(qp) = pane.as_any_mut().downcast_mut::<QueryPane>() {
+                qp.set_schema(tables, columns);
+            }
+        }
     }
 
     // --- Autocomplete ---

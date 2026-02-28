@@ -77,6 +77,9 @@ impl App {
             AppEvent::QueryError { pane_id, error } => {
                 self.handle_query_error(pane_id, error);
             }
+            AppEvent::SchemaReady { pane_id, rows } => {
+                self.handle_schema_ready(pane_id, rows);
+            }
             AppEvent::ContextSwitchReady { client, namespaces } => {
                 self.apply_context_switch(client, namespaces);
             }
