@@ -20,6 +20,7 @@ impl App {
     pub(super) fn handle_event(&mut self, event: AppEvent) {
         match event {
             AppEvent::Key(key) => self.handle_key(key),
+            AppEvent::Mouse(mouse) => self.handle_mouse(mouse),
             AppEvent::Tick => {
                 self.poll_runtime_panes();
                 self.toasts.retain(|t| !t.is_expired());
@@ -110,7 +111,6 @@ impl App {
         if key.kind != KeyEventKind::Press {
             return;
         }
-
         if let Some((cmd, requires_confirm)) = self.dispatcher.dispatch(key) {
             if requires_confirm || matches!(cmd, Command::Quit) {
                 self.pending_confirmation = Some(super::PendingConfirmation::from_command(cmd));

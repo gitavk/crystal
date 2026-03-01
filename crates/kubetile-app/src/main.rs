@@ -10,7 +10,10 @@ mod state;
 use std::io;
 
 use clap::Parser;
-use crossterm::event::{KeyboardEnhancementFlags, PopKeyboardEnhancementFlags, PushKeyboardEnhancementFlags};
+use crossterm::event::{
+    DisableMouseCapture, EnableMouseCapture, KeyboardEnhancementFlags, PopKeyboardEnhancementFlags,
+    PushKeyboardEnhancementFlags,
+};
 use crossterm::execute;
 use crossterm::terminal::{self, EnterAlternateScreen, LeaveAlternateScreen};
 use ratatui::backend::CrosstermBackend;
@@ -62,6 +65,7 @@ async fn main() -> anyhow::Result<()> {
     execute!(
         io::stdout(),
         EnterAlternateScreen,
+        EnableMouseCapture,
         PushKeyboardEnhancementFlags(KeyboardEnhancementFlags::DISAMBIGUATE_ESCAPE_CODES)
     )?;
 
@@ -76,7 +80,7 @@ async fn main() -> anyhow::Result<()> {
     let result = app.run(&mut terminal).await;
 
     terminal::disable_raw_mode()?;
-    execute!(io::stdout(), PopKeyboardEnhancementFlags, LeaveAlternateScreen)?;
+    execute!(io::stdout(), PopKeyboardEnhancementFlags, DisableMouseCapture, LeaveAlternateScreen)?;
 
     result
 }
@@ -85,7 +89,7 @@ fn install_panic_hook() {
     let original_hook = std::panic::take_hook();
     std::panic::set_hook(Box::new(move |panic_info| {
         let _ = terminal::disable_raw_mode();
-        let _ = execute!(io::stdout(), PopKeyboardEnhancementFlags, LeaveAlternateScreen);
+        let _ = execute!(io::stdout(), PopKeyboardEnhancementFlags, DisableMouseCapture, LeaveAlternateScreen);
         original_hook(panic_info);
     }));
 }

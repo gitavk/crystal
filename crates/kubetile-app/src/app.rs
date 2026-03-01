@@ -4,6 +4,7 @@ use std::path::{Path, PathBuf};
 use std::time::Duration;
 
 use ratatui::backend::Backend;
+use ratatui::prelude::Rect;
 use ratatui::Terminal;
 use tokio::sync::mpsc;
 
@@ -23,6 +24,7 @@ mod actions;
 mod context;
 mod input;
 mod logs_exec;
+mod mouse;
 mod pane_ops;
 mod port_forward;
 mod query;
@@ -160,6 +162,11 @@ pub struct App {
     theme: kubetile_tui::theme::Theme,
     views_config: kubetile_config::ViewsConfig,
     query_open_new_tab: bool,
+    // Mouse state (Phase A)
+    mouse_pane_rects: Vec<(PaneId, Rect)>,
+    mouse_tab_spans: Vec<(usize, u16, u16)>, // (tab_idx, x_start, x_end)
+    mouse_tab_bar_row: u16,
+    mouse_status_bar_row: u16,
 }
 
 impl App {
@@ -230,6 +237,10 @@ impl App {
             theme,
             views_config,
             query_open_new_tab,
+            mouse_pane_rects: Vec::new(),
+            mouse_tab_spans: Vec::new(),
+            mouse_tab_bar_row: 0,
+            mouse_status_bar_row: 0,
         };
         app.sync_active_scope();
         app.update_active_tab_title();
@@ -261,7 +272,7 @@ impl App {
         }
 
         while self.running {
-            terminal.draw(|frame| {
+            let completed = terminal.draw(|frame| {
                 let (mut ctx, tab_names, keys) = self.build_render_context();
                 ctx.tab_names = &tab_names;
                 ctx.help_key = keys[0].as_deref();
@@ -272,6 +283,7 @@ impl App {
                 ctx.quit_key = keys[5].as_deref();
                 kubetile_tui::layout::render_root(frame, &ctx);
             })?;
+            self.update_mouse_geometry(completed.area);
 
             let first = events.next().await?;
             self.handle_event(first);

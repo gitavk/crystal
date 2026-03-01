@@ -1,6 +1,6 @@
 use std::time::Duration;
 
-use crossterm::event::{self, Event, KeyEvent};
+use crossterm::event::{self, Event, KeyEvent, MouseEvent};
 use kubetile_core::{KubeClient, LogLine, LogStream, PortForward, QueryConfig, QueryResult};
 use kubetile_tui::pane::{PaneId, ResourceKind};
 use kubetile_tui::widgets::toast::ToastMessage;
@@ -8,6 +8,7 @@ use tokio::sync::mpsc;
 
 pub enum AppEvent {
     Key(KeyEvent),
+    Mouse(MouseEvent),
     Tick,
     #[allow(dead_code)]
     Resize(u16, u16),
@@ -113,6 +114,11 @@ impl EventHandler {
                 }
                 Ok(Event::Resize(w, h)) => {
                     if input_tx.send(AppEvent::Resize(w, h)).is_err() {
+                        break;
+                    }
+                }
+                Ok(Event::Mouse(mouse)) => {
+                    if input_tx.send(AppEvent::Mouse(mouse)).is_err() {
                         break;
                     }
                 }
