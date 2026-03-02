@@ -110,6 +110,7 @@ impl QueryDialogField {
 struct PendingQueryDialog {
     pod: String,
     namespace: String,
+    container: Option<String>,
     db_input: String,
     user_input: String,
     password_input: String,

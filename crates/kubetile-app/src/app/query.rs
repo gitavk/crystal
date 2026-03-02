@@ -37,6 +37,7 @@ impl App {
         self.pending_query_dialog = Some(PendingQueryDialog {
             pod: config.pod,
             namespace: config.namespace,
+            container: config.container,
             db_input: config.database,
             user_input: config.user,
             password_input: config.password,
@@ -60,6 +61,7 @@ impl App {
         let config = QueryConfig {
             pod: pending.pod,
             namespace: pending.namespace,
+            container: pending.container,
             database: pending.db_input,
             user: pending.user_input,
             password: pending.password_input,
