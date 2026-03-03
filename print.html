@@ -90,7 +90,7 @@
 
         <nav id="sidebar" class="sidebar" aria-label="Table of contents">
             <div class="sidebar-scrollbox">
-                <ol class="chapter"><li class="chapter-item expanded "><a href="introduction.html"><strong aria-hidden="true">1.</strong> Introduction</a></li><li class="chapter-item expanded "><a href="installation.html"><strong aria-hidden="true">2.</strong> Installation</a></li><li class="chapter-item expanded "><a href="demo-stand.html"><strong aria-hidden="true">3.</strong> Demo Stand</a></li><li class="chapter-item expanded "><a href="keybindings.html"><strong aria-hidden="true">4.</strong> Keybindings</a></li><li class="chapter-item expanded "><a href="configuration.html"><strong aria-hidden="true">5.</strong> Configuration</a></li><li class="chapter-item expanded "><a href="views.html"><strong aria-hidden="true">6.</strong> Views</a></li><li class="chapter-item expanded affix "><a href="404.html">404</a></li></ol>
+                <ol class="chapter"><li class="chapter-item expanded "><a href="introduction.html"><strong aria-hidden="true">1.</strong> Introduction</a></li><li class="chapter-item expanded "><a href="installation.html"><strong aria-hidden="true">2.</strong> Installation</a></li><li class="chapter-item expanded "><a href="demo-stand.html"><strong aria-hidden="true">3.</strong> Demo Stand</a></li><li class="chapter-item expanded "><a href="keybindings.html"><strong aria-hidden="true">4.</strong> Keybindings</a></li><li class="chapter-item expanded "><a href="configuration.html"><strong aria-hidden="true">5.</strong> Configuration</a></li><li class="chapter-item expanded "><a href="views.html"><strong aria-hidden="true">6.</strong> Views</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="views/resource-list.html"><strong aria-hidden="true">6.1.</strong> Resource List</a></li><li class="chapter-item expanded "><a href="views/yaml.html"><strong aria-hidden="true">6.2.</strong> YAML</a></li><li class="chapter-item expanded "><a href="views/describe.html"><strong aria-hidden="true">6.3.</strong> Describe</a></li><li class="chapter-item expanded "><a href="views/detail.html"><strong aria-hidden="true">6.4.</strong> Detail</a></li><li class="chapter-item expanded "><a href="views/logs.html"><strong aria-hidden="true">6.5.</strong> Logs & Terminal</a></li><li class="chapter-item expanded "><a href="views/port-forward.html"><strong aria-hidden="true">6.6.</strong> Port Forward</a></li><li class="chapter-item expanded "><a href="views/debug.html"><strong aria-hidden="true">6.7.</strong> Debug Mode</a></li><li class="chapter-item expanded "><a href="views/query-pane.html"><strong aria-hidden="true">6.8.</strong> Query Pane</a></li></ol></li><li class="chapter-item expanded "><a href="404.html">404</a></li></ol>
             </div>
             <div id="sidebar-resize-handle" class="sidebar-resize-handle">
                 <div class="sidebar-resize-indicator"></div>
@@ -458,48 +458,55 @@ columns = ["name", "type", "cluster-ip", "external-ip", "ports", "age"]
 </code></pre>
 <p>Available resource kinds: <code>pods</code>, <code>deployments</code>, <code>services</code>, <code>statefulsets</code>, <code>daemonsets</code>, <code>jobs</code>, <code>cronjobs</code>, <code>configmaps</code>, <code>secrets</code>, <code>ingresses</code>, <code>nodes</code>, <code>namespaces</code>, <code>pvs</code>, <code>pvcs</code>.</p>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="views"><a class="header" href="#views">Views</a></h1>
-<p>KubeTile features a powerful layout system inspired by Zellij, allowing you to create a workspace that fits your needs with Tabs and Panes.</p>
-<h2 id="resource-list"><a class="header" href="#resource-list">Resource List</a></h2>
+<p>KubeTile features a powerful layout system,
+allowing you to create a workspace that fits your needs with tabs and panes.
+Each pane can show a different view of your cluster.</p>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="resource-list"><a class="header" href="#resource-list">Resource List</a></h1>
 <p>The default view when opening a pane. Shows a live-updating table of Kubernetes resources filtered to the selected namespace.</p>
-<ul>
-<li><strong>Supported Resource Kinds:</strong> Pods, Deployments, Services, StatefulSets, DaemonSets, Jobs, CronJobs, ConfigMaps, Secrets, Ingresses, Nodes, Namespaces, PVs, and PVCs.</li>
-<li><strong>Commands:</strong> Press <code>/</code> to filter, <code>s</code> to sort, <code>a</code> to toggle all-namespaces, and <code>:</code> to open the <strong>Resource Switcher</strong> (command palette).</li>
-</ul>
-<h2 id="yaml-view"><a class="header" href="#yaml-view">YAML View</a></h2>
-<p>Press <code>y</code> on any resource to view its full YAML definition with syntax highlighting. The configuration <code>show_managed_fields</code> in <code>[general]</code> controls whether <code>managedFields</code> are included.</p>
-<h2 id="describe-view"><a class="header" href="#describe-view">Describe View</a></h2>
+<p><strong>Supported Resource Kinds:</strong> Pods, Deployments, Services, StatefulSets, DaemonSets, Jobs, CronJobs, ConfigMaps, Secrets, Ingresses, Nodes, Namespaces, PVs, and PVCs.</p>
+<div class="table-wrapper"><table><thead><tr><th>Key</th><th>Action</th></tr></thead><tbody>
+<tr><td><code>/</code></td><td>Filter resources by name</td></tr>
+<tr><td><code>s</code></td><td>Sort by column</td></tr>
+<tr><td><code>a</code></td><td>Toggle all-namespaces view</td></tr>
+<tr><td><code>:</code></td><td>Open the <strong>Resource Switcher</strong> (command palette)</td></tr>
+</tbody></table>
+</div><div style="break-before: page; page-break-before: always;"></div><h1 id="yaml-view"><a class="header" href="#yaml-view">YAML View</a></h1>
+<p>Press <code>y</code> on any resource to view its full YAML definition with syntax highlighting.</p>
+<p>The configuration key <code>show_managed_fields</code> in <code>[general]</code> controls whether <code>managedFields</code> are included in the output.</p>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="describe-view"><a class="header" href="#describe-view">Describe View</a></h1>
 <p>Press <code>d</code> on any resource to view detailed <code>kubectl describe</code>-style output.</p>
-<h2 id="detail-view"><a class="header" href="#detail-view">Detail View</a></h2>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="detail-view"><a class="header" href="#detail-view">Detail View</a></h1>
 <p>Press <code>Enter</code> on any resource to open a detailed view in a new pane. This shows metadata, status, specs, and more.</p>
-<h2 id="integrated-terminal--logs"><a class="header" href="#integrated-terminal--logs">Integrated Terminal &amp; Logs</a></h2>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="terminal--logs"><a class="header" href="#terminal--logs">Terminal &amp; Logs</a></h1>
 <p>KubeTile's terminal integration provides shells and log streams automatically configured for your cluster.</p>
-<h3 id="log-streaming"><a class="header" href="#log-streaming">Log Streaming</a></h3>
-<p>Select a Pod and press <code>l</code> to stream its logs in a new pane.
-The log view supports:</p>
+<h2 id="log-streaming"><a class="header" href="#log-streaming">Log Streaming</a></h2>
+<p>Select a Pod and press <code>l</code> to stream its logs in a new pane.</p>
+<div class="table-wrapper"><table><thead><tr><th>Key</th><th>Action</th></tr></thead><tbody>
+<tr><td><code>f</code></td><td>Toggle follow mode</td></tr>
+<tr><td><code>/</code></td><td>Filter log lines</td></tr>
+<tr><td><code>w</code></td><td>Toggle line wrapping</td></tr>
+<tr><td><code>Ctrl+S</code></td><td>Save visible logs (including any active filter) to a file</td></tr>
+<tr><td><code>Ctrl+E</code></td><td>Export (download) the full available log</td></tr>
+</tbody></table>
+</div>
+<h2 id="exec-into-pods"><a class="header" href="#exec-into-pods">Exec into Pods</a></h2>
+<p>Select a Pod and press <code>e</code> to open an interactive shell inside its container (uses the shell configured in <code>[general] shell</code>).</p>
 <ul>
-<li>following (<code>f</code>)</li>
-<li>filtering (<code>/</code>)</li>
-<li>toggling line wrapping (<code>w</code>)</li>
-<li>saving visible logs(include filtering) to a file (<code>Ctrl+s</code>)</li>
-<li>export (download) full availeble logs (<code>Ctrl+e</code>)</li>
+<li>Press <code>Esc</code> to switch from the terminal to <code>NORMAL</code> mode.</li>
+<li>Press <code>i</code> to switch back to <code>INSERT</code> mode and resume typing in the terminal.</li>
 </ul>
-<h3 id="exec-into-pods"><a class="header" href="#exec-into-pods">Exec into Pods</a></h3>
-<p>Select a Pod and press <code>e</code> to open an interactive shell inside its container
-(uses the shell configured in <code>[general] shell</code>).
-To switch to from the terminal you should go to <code>NORMAL</code> mode by <code>esc</code> key,
-to again start work in terminal need to switch to <code>INSERT</code> mode by <code>i</code> key.</p>
-<h2 id="port-forward"><a class="header" href="#port-forward">Port-forward</a></h2>
-<p>Press <code>p</code> on a Pod or Service row to open the port-forward input. Manage active forwards with <code>Ctrl+Shift+p</code>.</p>
-<h2 id="debug-mode"><a class="header" href="#debug-mode">Debug Mode</a></h2>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="port-forward"><a class="header" href="#port-forward">Port Forward</a></h1>
+<p>Press <code>p</code> on a Pod or Service row to open the port-forward input. Manage active forwards with <code>Ctrl+Shift+P</code>.</p>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="debug-mode"><a class="header" href="#debug-mode">Debug Mode</a></h1>
 <p>Debug mode lets you replace a running container's command with <code>sleep infinity</code> so you can exec into it for investigation without the application process interfering.</p>
-<p>Select a <strong>Pod</strong> and press <code>Ctrl+Alt+d</code> to toggle debug mode. KubeTile will:</p>
+<p>Select a <strong>Pod</strong> and press <code>Ctrl+Alt+D</code> to toggle debug mode. KubeTile will:</p>
 <ol>
 <li>Resolve the Pod's owner Deployment via its ReplicaSet.</li>
 <li>Save the original <code>command</code> and <code>args</code> as annotations on the Deployment.</li>
 <li>Patch the Deployment to run <code>sleep infinity</code> — all pods in the Deployment restart.</li>
 <li>Press the same key again to restore the original command and exit debug mode.</li>
 </ol>
-<h3 id="root-debug-mode"><a class="header" href="#root-debug-mode">Root Debug Mode</a></h3>
+<h2 id="root-debug-mode"><a class="header" href="#root-debug-mode">Root Debug Mode</a></h2>
 <p>Press <code>F5</code> on a Pod to toggle <strong>root debug mode</strong>. This does everything debug mode does, and additionally sets:</p>
 <pre><code class="language-yaml">securityContext:
   runAsUser: 0
@@ -508,6 +515,199 @@ to again start work in terminal need to switch to <code>INSERT</code> mode by <c
 <blockquote>
 <p><strong>Safety:</strong> if the Deployment is already in one debug mode when you activate the other, the original application command is never overwritten — it is reused from the existing saved annotation.</p>
 </blockquote>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="query-pane"><a class="header" href="#query-pane">Query Pane</a></h1>
+<p>The Query Pane is an integrated SQL environment for interacting with PostgreSQL
+databases running inside your Kubernetes cluster — without leaving the terminal.
+It combines a multi-line editor, a scrollable result table, query history,
+saved queries, and clipboard copy into a single keyboard-driven interface.</p>
+<hr />
+<h2 id="the-problem"><a class="header" href="#the-problem">The Problem</a></h2>
+<p>Running <code>psql</code> inside a Kubernetes pod is a common pattern, but it creates
+friction the moment you try to get data out of the terminal:</p>
+<ul>
+<li>Results that overflow the screen cannot be captured at all without shell
+redirects and additional <code>kubectl exec</code> invocations.</li>
+<li>There is no persistent history or way to name and recall frequently-used
+queries across sessions.</li>
+</ul>
+<p>KubeTile solves these problems by executing queries through the Kubernetes API
+(not a subprocess), storing the full result set in memory regardless of viewport
+size, and rendering a clean, border-free table that can be copied or exported
+as standards-compliant CSV.</p>
+<hr />
+<h2 id="opening-the-query-pane"><a class="header" href="#opening-the-query-pane">Opening the Query Pane</a></h2>
+<h3 id="selecting-a-target"><a class="header" href="#selecting-a-target">Selecting a Target</a></h3>
+<p>Select any <strong>Pod</strong>, <strong>Service</strong>, or <strong>StatefulSet</strong> in the resource list and
+press <code>Shift+Q</code>.</p>
+<p>KubeTile reads the pod's environment variables from the Kubernetes API
+(no exec required at this point). It looks for the standard PostgreSQL
+environment variable names:</p>
+<div class="table-wrapper"><table><thead><tr><th>Env var</th><th>Maps to</th></tr></thead><tbody>
+<tr><td><code>POSTGRES_DB</code> or <code>PGDATABASE</code></td><td>Database name</td></tr>
+<tr><td><code>POSTGRES_USER</code> or <code>PGUSER</code></td><td>Username</td></tr>
+<tr><td><code>POSTGRES_PASSWORD</code> or <code>PGPASSWORD</code></td><td>Password</td></tr>
+<tr><td><code>PGPORT</code> or <code>POSTGRES_PORT</code></td><td>Port (default <code>5432</code>)</td></tr>
+</tbody></table>
+</div>
+<h3 id="container-detection"><a class="header" href="#container-detection">Container Detection</a></h3>
+<p>When a pod runs multiple containers, KubeTile automatically selects the PostgreSQL
+container by preferring one that exposes port <code>5432</code> or whose name or image contains
+<code>"postgres"</code> (but not <code>"exporter"</code>). Environment variables are resolved from inline
+<code>env</code>, <code>envFrom</code>-backed ConfigMaps, and Secrets — so credentials stored in
+Kubernetes Secrets are discovered automatically without manual entry.</p>
+<h3 id="the-connection-dialog"><a class="header" href="#the-connection-dialog">The Connection Dialog</a></h3>
+<p>A centered modal appears pre-filled with the detected values:</p>
+<pre><code>┌─── Connect to PostgreSQL ────────────────────────────────────────┐
+│                                                                    │
+│  Database  [mydb                          ]                        │
+│  User      [postgres                      ]                        │
+│  Password  [••••••••                      ]                        │
+│  Port      [5432                          ]                        │
+│                                                                    │
+│  Tab / Shift+Tab: cycle fields   Enter: connect   Esc: cancel      │
+└────────────────────────────────────────────────────────────────────┘
+</code></pre>
+<ul>
+<li><code>Tab</code> / <code>Shift+Tab</code> cycles through the four fields.</li>
+<li><code>Enter</code> confirms and opens the Query Pane.</li>
+<li><code>Esc</code> cancels without any connection.</li>
+<li>Password is always masked with <code>•</code> characters.</li>
+</ul>
+<hr />
+<h2 id="the-query-pane-layout"><a class="header" href="#the-query-pane-layout">The Query Pane Layout</a></h2>
+<p>On confirm, KubeTile opens the Query Pane. By default it opens in a <strong>new tab</strong>
+(full-screen), giving the editor and result table the full terminal width.
+A <code>split</code> mode is also available via configuration for users who prefer a
+side-by-side view with the resource list.</p>
+<p>The tab is named <code>query:&lt;pod&gt;</code>. Closing the sole pane in the tab (with <code>q</code> or
+navigating away) closes the tab and returns to the previous tab automatically.</p>
+<p>A status line below the editor shows the current connection state and the
+active input mode.</p>
+<hr />
+<h2 id="the-sql-editor"><a class="header" href="#the-sql-editor">The SQL Editor</a></h2>
+<p>The editor is active as soon as the pane opens (<code>InputMode::QueryEditor</code>).
+It is a full multi-line editor backed by a <code>Vec&lt;String&gt;</code> with a (row, col)
+cursor, vertical scroll, and a visual cursor marker rendered with reversed
+colors.</p>
+<h3 id="basic-editing"><a class="header" href="#basic-editing">Basic Editing</a></h3>
+<div class="table-wrapper"><table><thead><tr><th>Key</th><th>Action</th></tr></thead><tbody>
+<tr><td>Any printable character</td><td>Insert at cursor</td></tr>
+<tr><td><code>Backspace</code></td><td>Delete character before cursor; at column 0 merges line with the one above</td></tr>
+<tr><td><code>Enter</code></td><td>Insert a newline (splits the current line at the cursor)</td></tr>
+<tr><td><code>Tab</code></td><td>Indent: insert 2 spaces at the start of the current line</td></tr>
+<tr><td><code>Shift+Tab</code></td><td>De-indent: remove up to 2 leading spaces from the current line</td></tr>
+</tbody></table>
+</div>
+<h3 id="editor-actions"><a class="header" href="#editor-actions">Editor Actions</a></h3>
+<div class="table-wrapper"><table><thead><tr><th>Key</th><th>Action</th></tr></thead><tbody>
+<tr><td><code>Ctrl+Enter</code></td><td>Execute the query</td></tr>
+<tr><td><code>Ctrl+Space</code></td><td>Trigger autocomplete</td></tr>
+<tr><td><code>Ctrl+R</code></td><td>Open query history</td></tr>
+<tr><td><code>Ctrl+S</code></td><td>Save current query with a name</td></tr>
+<tr><td><code>Ctrl+O</code></td><td>Open saved queries</td></tr>
+<tr><td><code>Ctrl+Down</code></td><td>Switch focus to the result table (Browse mode)</td></tr>
+<tr><td><code>Esc</code></td><td>Return to Normal mode</td></tr>
+</tbody></table>
+</div>
+<hr />
+<h2 id="executing-a-query"><a class="header" href="#executing-a-query">Executing a Query</a></h2>
+<p>Press <code>Ctrl+Enter</code> to execute the SQL currently in the editor.</p>
+<p>KubeTile sends the query to the pod via the Kubernetes exec API — the same
+mechanism as <code>kubectl exec</code> but without spawning a subprocess. The command
+executed inside the pod is:</p>
+<pre><code>env PGPASSWORD=&lt;password&gt; psql -U &lt;user&gt; -d &lt;database&gt; -p &lt;port&gt; --csv -c &lt;sql&gt;
+</code></pre>
+<p>A successful query appends the SQL to the persistent per-pod history file.</p>
+<hr />
+<h2 id="the-result-table"><a class="header" href="#the-result-table">The Result Table</a></h2>
+<h3 id="vertical-navigation-browse-mode"><a class="header" href="#vertical-navigation-browse-mode">Vertical Navigation (Browse Mode)</a></h3>
+<p>Enter Browse mode by pressing <code>Ctrl+Down</code> in the editor, or <code>i</code>/<code>Enter</code> from Normal mode.</p>
+<div class="table-wrapper"><table><thead><tr><th>Key</th><th>Action</th></tr></thead><tbody>
+<tr><td><code>j</code> / <code>Down</code></td><td>Select next row</td></tr>
+<tr><td><code>k</code> / <code>Up</code></td><td>Select previous row</td></tr>
+<tr><td><code>PgDn</code> / <code>Ctrl+F</code></td><td>Page down</td></tr>
+<tr><td><code>PgUp</code> / <code>Ctrl+B</code></td><td>Page up</td></tr>
+<tr><td><code>i</code> / <code>Enter</code> / <code>Ctrl+Up</code></td><td>Return to editor</td></tr>
+<tr><td><code>Esc</code></td><td>Return to Normal mode</td></tr>
+</tbody></table>
+</div>
+<h3 id="horizontal-scroll"><a class="header" href="#horizontal-scroll">Horizontal Scroll</a></h3>
+<p>For result sets wider than the terminal, KubeTile supports horizontal
+column-by-column scrolling.</p>
+<div class="table-wrapper"><table><thead><tr><th>Key</th><th>Action</th></tr></thead><tbody>
+<tr><td><code>l</code> / <code>Right</code></td><td>Scroll right by one column</td></tr>
+<tr><td><code>h</code> / <code>Left</code></td><td>Scroll left by one column</td></tr>
+</tbody></table>
+</div>
+<hr />
+<h2 id="clipboard-copy"><a class="header" href="#clipboard-copy">Clipboard Copy</a></h2>
+<p>In Browse mode:</p>
+<div class="table-wrapper"><table><thead><tr><th>Key</th><th>Action</th></tr></thead><tbody>
+<tr><td><code>y</code></td><td>Copy the selected row as a CSV line</td></tr>
+<tr><td><code>Y</code></td><td>Copy all rows (with the header row) as CSV</td></tr>
+<tr><td><code>E</code></td><td>Export to File.</td></tr>
+</tbody></table>
+</div>
+<p>The clipboard integration uses the <code>arboard</code> crate, which supports X11,
+Wayland, and macOS. The <code>Clipboard</code> instance is kept alive for the duration of
+the application so that X11's selection ownership is maintained — copying to
+clipboard and then quitting KubeTile does not clear the clipboard contents.</p>
+<hr />
+<h2 id="query-history"><a class="header" href="#query-history">Query History</a></h2>
+<p>Press <code>Ctrl+R</code> in the editor to open the history popup.</p>
+<h3 id="storage"><a class="header" href="#storage">Storage</a></h3>
+<p>History is stored per-pod at:</p>
+<pre><code>~/.config/kubetile/query_history/&lt;namespace&gt;__&lt;pod&gt;__&lt;db&gt;.json
+</code></pre>
+<p>Each entry is a JSON object: <code>{ "sql": "...", "ts": "2026-02-26T12:00:00Z" }</code>.
+The list is capped at <strong>200 entries</strong> per pod; older entries are pruned on
+each append. Consecutive duplicate queries are de-duplicated (only the most
+recent timestamp is kept).</p>
+<hr />
+<h2 id="named-saved-queries"><a class="header" href="#named-saved-queries">Named Saved Queries</a></h2>
+<h3 id="saving-a-query"><a class="header" href="#saving-a-query">Saving a Query</a></h3>
+<p>Press <code>Ctrl+S</code> in the editor. A small name-input popup appears:</p>
+<pre><code>┌─── Save Query ──────────────────────────┐
+│                                          │
+│  Name: [slow queries▌               ]    │
+│                                          │
+│  Enter: save   Esc: cancel               │
+└──────────────────────────────────────────┘
+</code></pre>
+<p>Type a name and press <code>Enter</code>. The current editor content is saved under that
+name. Saved queries are global — not per-pod — since the same query often
+works across different pods.</p>
+<h3 id="opening-saved-queries"><a class="header" href="#opening-saved-queries">Opening Saved Queries</a></h3>
+<p>Press <code>Ctrl+O</code> in the editor to open the saved queries popup. It has the same
+two-panel layout as the history popup.</p>
+<div class="table-wrapper"><table><thead><tr><th>Key</th><th>Action</th></tr></thead><tbody>
+<tr><td><code>d</code></td><td>Delete the selected entry</td></tr>
+<tr><td><code>e</code></td><td>Rename the selected entry inline</td></tr>
+<tr><td><code>/</code></td><td>Filter the list by name</td></tr>
+<tr><td><code>Esc</code></td><td>Close sub-mode or close popup</td></tr>
+</tbody></table>
+</div>
+<pre><code>~/.config/kubetile/saved_queries.json
+</code></pre>
+<p>Format: <code>[ { "name": "slow queries", "sql": "...", "ts": "..." }, … ]</code></p>
+<hr />
+<h2 id="autocomplete"><a class="header" href="#autocomplete">Autocomplete</a></h2>
+<p>Press <code>Ctrl+Space</code> in the editor to trigger autocomplete. A floating popup
+appears just below the cursor showing up to 8 matching suggestions.</p>
+<p>Typing re-filters the suggestions live. Backspace removes a character and
+re-filters. The popup closes automatically if there are no matches.</p>
+<h3 id="schema-aware-completion"><a class="header" href="#schema-aware-completion">Schema-Aware Completion</a></h3>
+<p>When the connection test succeeds, KubeTile runs a background query against
+<code>information_schema.columns</code> to fetch the full schema: table names, schemas,
+column names, and data types. This is cached for the lifetime of the pane — no
+repeated round-trips.</p>
+<hr />
+<h2 id="configuration-1"><a class="header" href="#configuration-1">Configuration</a></h2>
+<p>One configuration key affects the Query Pane's opening behavior:</p>
+<pre><code class="language-toml">[general]
+query-open-new-tab = true   # default: true
+                            # false → split the current pane horizontally (0.7 ratio)
+</code></pre>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="page-not-found"><a class="header" href="#page-not-found">Page not found</a></h1>
 <p>The page you are looking for does not exist.</p>
 <p><a href="introduction.html">Return to the introduction</a></p>

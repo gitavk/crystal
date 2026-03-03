@@ -89,7 +89,7 @@
 
         <nav id="sidebar" class="sidebar" aria-label="Table of contents">
             <div class="sidebar-scrollbox">
-                <ol class="chapter"><li class="chapter-item expanded "><a href="introduction.html"><strong aria-hidden="true">1.</strong> Introduction</a></li><li class="chapter-item expanded "><a href="installation.html"><strong aria-hidden="true">2.</strong> Installation</a></li><li class="chapter-item expanded "><a href="demo-stand.html"><strong aria-hidden="true">3.</strong> Demo Stand</a></li><li class="chapter-item expanded "><a href="keybindings.html"><strong aria-hidden="true">4.</strong> Keybindings</a></li><li class="chapter-item expanded "><a href="configuration.html"><strong aria-hidden="true">5.</strong> Configuration</a></li><li class="chapter-item expanded "><a href="views.html" class="active"><strong aria-hidden="true">6.</strong> Views</a></li><li class="chapter-item expanded affix "><a href="404.html">404</a></li></ol>
+                <ol class="chapter"><li class="chapter-item expanded "><a href="introduction.html"><strong aria-hidden="true">1.</strong> Introduction</a></li><li class="chapter-item expanded "><a href="installation.html"><strong aria-hidden="true">2.</strong> Installation</a></li><li class="chapter-item expanded "><a href="demo-stand.html"><strong aria-hidden="true">3.</strong> Demo Stand</a></li><li class="chapter-item expanded "><a href="keybindings.html"><strong aria-hidden="true">4.</strong> Keybindings</a></li><li class="chapter-item expanded "><a href="configuration.html"><strong aria-hidden="true">5.</strong> Configuration</a></li><li class="chapter-item expanded "><a href="views.html" class="active"><strong aria-hidden="true">6.</strong> Views</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="views/resource-list.html"><strong aria-hidden="true">6.1.</strong> Resource List</a></li><li class="chapter-item expanded "><a href="views/yaml.html"><strong aria-hidden="true">6.2.</strong> YAML</a></li><li class="chapter-item expanded "><a href="views/describe.html"><strong aria-hidden="true">6.3.</strong> Describe</a></li><li class="chapter-item expanded "><a href="views/detail.html"><strong aria-hidden="true">6.4.</strong> Detail</a></li><li class="chapter-item expanded "><a href="views/logs.html"><strong aria-hidden="true">6.5.</strong> Logs & Terminal</a></li><li class="chapter-item expanded "><a href="views/port-forward.html"><strong aria-hidden="true">6.6.</strong> Port Forward</a></li><li class="chapter-item expanded "><a href="views/debug.html"><strong aria-hidden="true">6.7.</strong> Debug Mode</a></li><li class="chapter-item expanded "><a href="views/query-pane.html"><strong aria-hidden="true">6.8.</strong> Query Pane</a></li></ol></li><li class="chapter-item expanded "><a href="404.html">404</a></li></ol>
             </div>
             <div id="sidebar-resize-handle" class="sidebar-resize-handle">
                 <div class="sidebar-resize-indicator"></div>
@@ -181,56 +181,9 @@
                 <div id="content" class="content">
                     <main>
                         <h1 id="views"><a class="header" href="#views">Views</a></h1>
-<p>KubeTile features a powerful layout system inspired by Zellij, allowing you to create a workspace that fits your needs with Tabs and Panes.</p>
-<h2 id="resource-list"><a class="header" href="#resource-list">Resource List</a></h2>
-<p>The default view when opening a pane. Shows a live-updating table of Kubernetes resources filtered to the selected namespace.</p>
-<ul>
-<li><strong>Supported Resource Kinds:</strong> Pods, Deployments, Services, StatefulSets, DaemonSets, Jobs, CronJobs, ConfigMaps, Secrets, Ingresses, Nodes, Namespaces, PVs, and PVCs.</li>
-<li><strong>Commands:</strong> Press <code>/</code> to filter, <code>s</code> to sort, <code>a</code> to toggle all-namespaces, and <code>:</code> to open the <strong>Resource Switcher</strong> (command palette).</li>
-</ul>
-<h2 id="yaml-view"><a class="header" href="#yaml-view">YAML View</a></h2>
-<p>Press <code>y</code> on any resource to view its full YAML definition with syntax highlighting. The configuration <code>show_managed_fields</code> in <code>[general]</code> controls whether <code>managedFields</code> are included.</p>
-<h2 id="describe-view"><a class="header" href="#describe-view">Describe View</a></h2>
-<p>Press <code>d</code> on any resource to view detailed <code>kubectl describe</code>-style output.</p>
-<h2 id="detail-view"><a class="header" href="#detail-view">Detail View</a></h2>
-<p>Press <code>Enter</code> on any resource to open a detailed view in a new pane. This shows metadata, status, specs, and more.</p>
-<h2 id="integrated-terminal--logs"><a class="header" href="#integrated-terminal--logs">Integrated Terminal &amp; Logs</a></h2>
-<p>KubeTile's terminal integration provides shells and log streams automatically configured for your cluster.</p>
-<h3 id="log-streaming"><a class="header" href="#log-streaming">Log Streaming</a></h3>
-<p>Select a Pod and press <code>l</code> to stream its logs in a new pane.
-The log view supports:</p>
-<ul>
-<li>following (<code>f</code>)</li>
-<li>filtering (<code>/</code>)</li>
-<li>toggling line wrapping (<code>w</code>)</li>
-<li>saving visible logs(include filtering) to a file (<code>Ctrl+s</code>)</li>
-<li>export (download) full availeble logs (<code>Ctrl+e</code>)</li>
-</ul>
-<h3 id="exec-into-pods"><a class="header" href="#exec-into-pods">Exec into Pods</a></h3>
-<p>Select a Pod and press <code>e</code> to open an interactive shell inside its container
-(uses the shell configured in <code>[general] shell</code>).
-To switch to from the terminal you should go to <code>NORMAL</code> mode by <code>esc</code> key,
-to again start work in terminal need to switch to <code>INSERT</code> mode by <code>i</code> key.</p>
-<h2 id="port-forward"><a class="header" href="#port-forward">Port-forward</a></h2>
-<p>Press <code>p</code> on a Pod or Service row to open the port-forward input. Manage active forwards with <code>Ctrl+Shift+p</code>.</p>
-<h2 id="debug-mode"><a class="header" href="#debug-mode">Debug Mode</a></h2>
-<p>Debug mode lets you replace a running container's command with <code>sleep infinity</code> so you can exec into it for investigation without the application process interfering.</p>
-<p>Select a <strong>Pod</strong> and press <code>Ctrl+Alt+d</code> to toggle debug mode. KubeTile will:</p>
-<ol>
-<li>Resolve the Pod's owner Deployment via its ReplicaSet.</li>
-<li>Save the original <code>command</code> and <code>args</code> as annotations on the Deployment.</li>
-<li>Patch the Deployment to run <code>sleep infinity</code> — all pods in the Deployment restart.</li>
-<li>Press the same key again to restore the original command and exit debug mode.</li>
-</ol>
-<h3 id="root-debug-mode"><a class="header" href="#root-debug-mode">Root Debug Mode</a></h3>
-<p>Press <code>F5</code> on a Pod to toggle <strong>root debug mode</strong>. This does everything debug mode does, and additionally sets:</p>
-<pre><code class="language-yaml">securityContext:
-  runAsUser: 0
-</code></pre>
-<p>This is useful when you need root access inside the container (e.g., to inspect system files or install debugging tools). The original <code>securityContext</code> is preserved and restored on exit.</p>
-<blockquote>
-<p><strong>Safety:</strong> if the Deployment is already in one debug mode when you activate the other, the original application command is never overwritten — it is reused from the existing saved annotation.</p>
-</blockquote>
+<p>KubeTile features a powerful layout system,
+allowing you to create a workspace that fits your needs with tabs and panes.
+Each pane can show a different view of your cluster.</p>
 
                     </main>
 
@@ -240,7 +193,7 @@ to again start work in terminal need to switch to <code>INSERT</code> mode by <c
                                 <i class="fa fa-angle-left"></i>
                             </a>
 
-                            <a rel="next prefetch" href="404.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                            <a rel="next prefetch" href="views/resource-list.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                                 <i class="fa fa-angle-right"></i>
                             </a>
 
@@ -254,7 +207,7 @@ to again start work in terminal need to switch to <code>INSERT</code> mode by <c
                         <i class="fa fa-angle-left"></i>
                     </a>
 
-                    <a rel="next prefetch" href="404.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                    <a rel="next prefetch" href="views/resource-list.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                         <i class="fa fa-angle-right"></i>
                     </a>
             </nav>
