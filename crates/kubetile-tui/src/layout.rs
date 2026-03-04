@@ -7,6 +7,8 @@ use crate::theme::Theme;
 use crate::widgets::confirm_dialog::ConfirmDialogWidget;
 use crate::widgets::context_selector::ContextSelectorWidget;
 use crate::widgets::namespace_selector::NamespaceSelectorWidget;
+pub use crate::widgets::pane_help::PaneHelpView;
+use crate::widgets::pane_help::PaneHelpWidget;
 use crate::widgets::port_forward_dialog::PortForwardDialogWidget;
 use crate::widgets::query_dialog::QueryDialogWidget;
 use crate::widgets::resource_switcher::ResourceSwitcherWidget;
@@ -77,6 +79,7 @@ pub struct RenderContext<'a> {
     pub confirm_dialog: Option<ConfirmDialogView<'a>>,
     pub port_forward_dialog: Option<PortForwardDialogView<'a>>,
     pub query_dialog: Option<QueryDialogView<'a>>,
+    pub pane_help: Option<PaneHelpView<'a>>,
     pub toasts: &'a [ToastMessage],
     pub pane_tree: &'a PaneTree,
     pub focused_pane: Option<PaneId>,
@@ -86,6 +89,7 @@ pub struct RenderContext<'a> {
     pub active_tab: usize,
     pub mode_name: &'a str,
     pub help_key: Option<&'a str>,
+    pub pane_help_key: Option<&'a str>,
     pub namespace_key: Option<&'a str>,
     pub context_key: Option<&'a str>,
     pub close_pane_key: Option<&'a str>,
@@ -178,6 +182,11 @@ fn render_body(frame: &mut Frame, area: Rect, ctx: &RenderContext) {
         widget.render(frame, area);
     }
 
+    if let Some(ref ph) = ctx.pane_help {
+        let widget = PaneHelpWidget { view: ph, theme: ctx.theme };
+        widget.render(frame, area);
+    }
+
     if !ctx.toasts.is_empty() {
         let widget = ToastWidget { toasts: ctx.toasts, theme: ctx.theme };
         widget.render(frame, area);
@@ -189,6 +198,7 @@ fn render_status_bar(frame: &mut Frame, area: Rect, ctx: &RenderContext) {
         mode: ctx.mode_name,
         context: ctx.cluster_name,
         help_key: ctx.help_key,
+        pane_help_key: ctx.pane_help_key,
         namespace_key: ctx.namespace_key,
         context_key: ctx.context_key,
         close_pane_key: ctx.close_pane_key,

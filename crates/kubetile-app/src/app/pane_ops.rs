@@ -6,6 +6,100 @@ use crate::panes::ResourceListPane;
 use super::App;
 
 impl App {
+    pub(super) fn show_pane_help(&mut self) {
+        let focused = self.tab_manager.active().focused_pane;
+        let view_type = self.panes.get(&focused).map(|p| p.view_type().clone());
+        let entries = view_type.as_ref().map(|vt| self.build_pane_help(vt)).unwrap_or_default();
+        self.pane_help_prev_mode = self.dispatcher.mode();
+        self.pane_help_overlay = Some(entries);
+        self.dispatcher.set_mode(InputMode::PaneHelp);
+    }
+
+    fn build_pane_help(&self, view_type: &ViewType) -> Vec<(String, String)> {
+        let d = &self.dispatcher;
+        let k = |name: &str| d.key_for(name).unwrap_or_default();
+
+        match view_type {
+            ViewType::ResourceList(_) => vec![
+                (k("scroll_up"), "Up".into()),
+                (k("scroll_down"), "Down".into()),
+                (k("select"), "Open".into()),
+                (k("go_to_top"), "Top".into()),
+                (k("go_to_bottom"), "Bottom".into()),
+                (k("page_up"), "Page up".into()),
+                (k("page_down"), "Page down".into()),
+                (k("view_yaml"), "YAML".into()),
+                (k("view_logs"), "Logs".into()),
+                (k("exec"), "Exec into".into()),
+                (k("port_forward"), "Port forward".into()),
+                (k("view_describe"), "Describe".into()),
+                (k("filter"), "Filter".into()),
+                (k("resource_switcher"), "Switch resource".into()),
+                (k("toggle_all_namespaces"), "All namespaces".into()),
+                (k("open_query"), "Query DB".into()),
+                (k("sort_column"), "Sort column".into()),
+                (k("toggle_sort_order"), "Toggle sort order".into()),
+            ],
+            ViewType::Logs(_) => vec![
+                (k("scroll_up"), "Scroll up".into()),
+                (k("scroll_down"), "Scroll down".into()),
+                (k("page_up"), "Page up".into()),
+                (k("page_down"), "Page down".into()),
+                (k("go_to_top"), "Top".into()),
+                (k("go_to_bottom"), "Bottom".into()),
+                (k("toggle_follow"), "Follow mode".into()),
+                (k("toggle_wrap"), "Wrap text".into()),
+                (k("filter"), "Filter".into()),
+                (k("save_logs"), "Save visible logs to file".into()),
+                (k("download_logs"), "Download full log history".into()),
+            ],
+            ViewType::Yaml(_, _) => vec![
+                (k("scroll_up"), "Scroll up".into()),
+                (k("scroll_down"), "Scroll down".into()),
+                (k("page_up"), "Page up".into()),
+                (k("page_down"), "Page down".into()),
+                (k("go_to_top"), "Top".into()),
+                (k("go_to_bottom"), "Bottom".into()),
+                (k("filter"), "Search".into()),
+            ],
+            ViewType::Detail(_, _) => vec![
+                (k("select_next"), "Next section".into()),
+                (k("select_prev"), "Previous section".into()),
+                (k("scroll_up"), "Scroll up".into()),
+                (k("scroll_down"), "Scroll down".into()),
+                (k("page_up"), "Page up".into()),
+                (k("page_down"), "Page down".into()),
+            ],
+            ViewType::Query(_) => {
+                let mut entries = d.query_editor_shortcuts();
+                entries.push(("──────".into(), "Results (browse mode)".into()));
+                entries.extend(d.query_browse_shortcuts());
+                entries
+            }
+            ViewType::Exec(_) | ViewType::Terminal => {
+                vec![("(all keys)".into(), "Forwarded to shell".into()), (k("back"), "Normal mode".into())]
+            }
+            ViewType::Plugin(name) if name == "AppLogs" => vec![
+                (k("scroll_up"), "Scroll up".into()),
+                (k("scroll_down"), "Scroll down".into()),
+                (k("page_up"), "Page up".into()),
+                (k("page_down"), "Page down".into()),
+                (k("toggle_follow"), "Follow mode".into()),
+            ],
+            ViewType::Plugin(name) if name == "PortForwards" => {
+                vec![(k("scroll_up"), "Previous".into()), (k("scroll_down"), "Next".into())]
+            }
+            ViewType::Help | ViewType::Plugin(_) | ViewType::Empty => {
+                vec![(k("scroll_up"), "Scroll up".into()), (k("scroll_down"), "Scroll down".into())]
+            }
+        }
+    }
+
+    pub(super) fn close_pane_help(&mut self) {
+        self.pane_help_overlay = None;
+        self.dispatcher.set_mode(self.pane_help_prev_mode);
+    }
+
     pub(super) fn toggle_help(&mut self) {
         let active_pane_ids = self.tab_manager.active().pane_tree.leaf_ids();
         let help_pane_id = active_pane_ids

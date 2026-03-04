@@ -88,6 +88,8 @@ active input mode.
 
 ---
 
+> **Tip:** Press `F2` at any time to see a summary of all Query Pane keybindings.
+
 ## The SQL Editor
 
 The editor is active as soon as the pane opens (`InputMode::QueryEditor`).
@@ -147,7 +149,7 @@ Enter Browse mode by pressing `Ctrl+Down` in the editor, or `i`/`Enter` from Nor
 | `k` / `Up` | Select previous row |
 | `PgDn` / `Ctrl+F` | Page down |
 | `PgUp` / `Ctrl+B` | Page up |
-| `i` / `Enter` / `Ctrl+Up` | Return to editor |
+| `Ctrl+Up` / `Enter` | Return to editor |
 | `Esc` | Return to Normal mode |
 
 ### Horizontal Scroll
@@ -263,3 +265,7 @@ One configuration key affects the Query Pane's opening behavior:
 query-open-new-tab = true   # default: true
                             # false → split the current pane horizontally (0.7 ratio)
 ```
+
+---
+
+See also: [Keybindings reference](../keybindings.md)

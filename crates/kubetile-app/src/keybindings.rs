@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+use crossterm::event::{KeyCode, KeyEvent};
 
 use kubetile_config::KeybindingsConfig;
 use kubetile_tui::pane::PaneCommand;
@@ -13,9 +13,12 @@ mod parsing;
 pub use parsing::parse_key_string;
 
 use commands::{
-    browse_command_description, browse_command_from_name, global_command_description, global_command_from_name,
-    interact_command_description, interact_command_from_name, mutate_command_description, mutate_command_from_name,
-    navigation_command_description, navigation_command_from_name, tui_command_description, tui_command_from_name,
+    browse_command_description, browse_command_from_name, completion_command_description, completion_command_from_name,
+    global_command_description, global_command_from_name, interact_command_description, interact_command_from_name,
+    mutate_command_description, mutate_command_from_name, navigation_command_description, navigation_command_from_name,
+    query_browse_command_description, query_browse_command_from_name, query_editor_command_description,
+    query_editor_command_from_name, query_history_command_description, query_history_command_from_name,
+    saved_queries_command_description, saved_queries_command_from_name, tui_command_description, tui_command_from_name,
 };
 use parsing::{format_key_display, key_to_input_string, normalize_key_event};
 
@@ -42,6 +45,7 @@ pub enum InputMode {
     SavedQueries,
     ExportDialog,
     Completion,
+    PaneHelp,
 }
 
 #[allow(dead_code)]
@@ -53,81 +57,75 @@ pub struct KeybindingDispatcher {
     browse_bindings: HashMap<KeyEvent, Command>,
     navigation_bindings: HashMap<KeyEvent, Command>,
     tui_bindings: HashMap<KeyEvent, Command>,
+    query_editor_bindings: HashMap<KeyEvent, Command>,
+    query_browse_bindings: HashMap<KeyEvent, Command>,
+    query_history_bindings: HashMap<KeyEvent, Command>,
+    saved_queries_bindings: HashMap<KeyEvent, Command>,
+    completion_bindings: HashMap<KeyEvent, Command>,
     reverse_global: Vec<(String, String, String)>,
     reverse_mutate: Vec<(String, String, String)>,
     reverse_interact: Vec<(String, String, String)>,
     reverse_browse: Vec<(String, String, String)>,
     reverse_navigation: Vec<(String, String, String)>,
     reverse_tui: Vec<(String, String, String)>,
+    reverse_query_editor: Vec<(String, String, String)>,
+    reverse_query_browse: Vec<(String, String, String)>,
+    reverse_query_history: Vec<(String, String, String)>,
+    reverse_saved_queries: Vec<(String, String, String)>,
+    reverse_completion: Vec<(String, String, String)>,
 }
+
+type GroupResult = (HashMap<KeyEvent, Command>, Vec<(String, String, String)>);
 
 impl KeybindingDispatcher {
     pub fn from_config(config: &KeybindingsConfig) -> Self {
-        let mut global_bindings = HashMap::new();
-        let mut reverse_global = Vec::new();
-        for (name, key_str) in &config.global {
-            if let Some(cmd) = global_command_from_name(name) {
-                if let Some(key) = parse_key_string(key_str) {
-                    global_bindings.insert(key, cmd);
-                    reverse_global.push((name.clone(), key_str.clone(), global_command_description(name)));
+        fn build_group<'a, I, F, G>(entries: I, from_name: F, description: G) -> GroupResult
+        where
+            I: IntoIterator<Item = (&'a String, &'a String)>,
+            F: Fn(&str) -> Option<Command>,
+            G: Fn(&str) -> String,
+        {
+            let mut bindings = HashMap::new();
+            let mut reverse = Vec::new();
+            for (name, key_str) in entries {
+                if let Some(cmd) = from_name(name) {
+                    if let Some(key) = parse_key_string(key_str) {
+                        bindings.insert(key, cmd);
+                        reverse.push((name.clone(), key_str.clone(), description(name)));
+                    }
                 }
             }
+            (bindings, reverse)
         }
 
-        let mut mutate_bindings = HashMap::new();
-        let mut reverse_mutate = Vec::new();
-        for (name, key_str) in &config.mutate {
-            if let Some(cmd) = mutate_command_from_name(name) {
-                if let Some(key) = parse_key_string(key_str) {
-                    mutate_bindings.insert(key, cmd);
-                    reverse_mutate.push((name.clone(), key_str.clone(), mutate_command_description(name)));
-                }
-            }
-        }
-
-        let mut interact_bindings = HashMap::new();
-        let mut reverse_interact = Vec::new();
-        for (name, key_str) in &config.interact {
-            if let Some(cmd) = interact_command_from_name(name) {
-                if let Some(key) = parse_key_string(key_str) {
-                    interact_bindings.insert(key, cmd);
-                    reverse_interact.push((name.clone(), key_str.clone(), interact_command_description(name)));
-                }
-            }
-        }
-
-        let mut browse_bindings = HashMap::new();
-        let mut reverse_browse = Vec::new();
-        for (name, key_str) in &config.browse {
-            if let Some(cmd) = browse_command_from_name(name) {
-                if let Some(key) = parse_key_string(key_str) {
-                    browse_bindings.insert(key, cmd);
-                    reverse_browse.push((name.clone(), key_str.clone(), browse_command_description(name)));
-                }
-            }
-        }
-
-        let mut navigation_bindings = HashMap::new();
-        let mut reverse_navigation = Vec::new();
-        for (name, key_str) in &config.navigation {
-            if let Some(cmd) = navigation_command_from_name(name) {
-                if let Some(key) = parse_key_string(key_str) {
-                    navigation_bindings.insert(key, cmd);
-                    reverse_navigation.push((name.clone(), key_str.clone(), navigation_command_description(name)));
-                }
-            }
-        }
-
-        let mut tui_bindings = HashMap::new();
-        let mut reverse_tui = Vec::new();
-        for (name, key_str) in &config.tui {
-            if let Some(cmd) = tui_command_from_name(name) {
-                if let Some(key) = parse_key_string(key_str) {
-                    tui_bindings.insert(key, cmd);
-                    reverse_tui.push((name.clone(), key_str.clone(), tui_command_description(name)));
-                }
-            }
-        }
+        let (global_bindings, reverse_global) =
+            build_group(config.global.iter(), global_command_from_name, global_command_description);
+        let (mutate_bindings, reverse_mutate) =
+            build_group(config.mutate.iter(), mutate_command_from_name, mutate_command_description);
+        let (interact_bindings, reverse_interact) =
+            build_group(config.interact.iter(), interact_command_from_name, interact_command_description);
+        let (browse_bindings, reverse_browse) =
+            build_group(config.browse.iter(), browse_command_from_name, browse_command_description);
+        let (navigation_bindings, reverse_navigation) =
+            build_group(config.navigation.iter(), navigation_command_from_name, navigation_command_description);
+        let (tui_bindings, reverse_tui) =
+            build_group(config.tui.iter(), tui_command_from_name, tui_command_description);
+        let (query_editor_bindings, reverse_query_editor) =
+            build_group(config.query_editor.iter(), query_editor_command_from_name, query_editor_command_description);
+        let (query_browse_bindings, reverse_query_browse) =
+            build_group(config.query_browse.iter(), query_browse_command_from_name, query_browse_command_description);
+        let (query_history_bindings, reverse_query_history) = build_group(
+            config.query_history.iter(),
+            query_history_command_from_name,
+            query_history_command_description,
+        );
+        let (saved_queries_bindings, reverse_saved_queries) = build_group(
+            config.saved_queries.iter(),
+            saved_queries_command_from_name,
+            saved_queries_command_description,
+        );
+        let (completion_bindings, reverse_completion) =
+            build_group(config.completion.iter(), completion_command_from_name, completion_command_description);
 
         Self {
             mode: InputMode::Normal,
@@ -137,12 +135,22 @@ impl KeybindingDispatcher {
             browse_bindings,
             navigation_bindings,
             tui_bindings,
+            query_editor_bindings,
+            query_browse_bindings,
+            query_history_bindings,
+            saved_queries_bindings,
+            completion_bindings,
             reverse_global,
             reverse_mutate,
             reverse_interact,
             reverse_browse,
             reverse_navigation,
             reverse_tui,
+            reverse_query_editor,
+            reverse_query_browse,
+            reverse_query_history,
+            reverse_saved_queries,
+            reverse_completion,
         }
     }
 
@@ -191,56 +199,67 @@ impl KeybindingDispatcher {
                 KeyCode::Backspace => return Some((Command::PortForwardBackspace, false)),
                 _ => return None,
             },
-            InputMode::QueryEditor => match (key.code, key.modifiers) {
-                (KeyCode::Esc, _) => return Some((Command::ExitMode, false)),
-                (KeyCode::Enter, KeyModifiers::CONTROL) => return Some((Command::QueryEditorExecute, false)),
-                (KeyCode::Enter, _) => return Some((Command::QueryEditorNewLine, false)),
-                (KeyCode::Tab, _) => return Some((Command::QueryEditorIndent, false)),
-                (KeyCode::BackTab, _) => return Some((Command::QueryEditorDeIndent, false)),
-                (KeyCode::Char('r'), KeyModifiers::CONTROL) => return Some((Command::OpenQueryHistory, false)),
-                (KeyCode::Char('s'), KeyModifiers::CONTROL) => return Some((Command::OpenSaveQueryDialog, false)),
-                (KeyCode::Char('o'), KeyModifiers::CONTROL) => return Some((Command::OpenSavedQueries, false)),
-                (KeyCode::Down, KeyModifiers::CONTROL) => return Some((Command::EnterQueryBrowse, false)),
-                (KeyCode::Char(' '), KeyModifiers::CONTROL) => return Some((Command::TriggerCompletion, false)),
-                (KeyCode::Char(c), _) => return Some((Command::QueryEditorInput(c), false)),
-                (KeyCode::Backspace, _) => return Some((Command::QueryEditorBackspace, false)),
-                (KeyCode::Up, _) => return Some((Command::QueryEditorCursorUp, false)),
-                (KeyCode::Down, _) => return Some((Command::QueryEditorCursorDown, false)),
-                (KeyCode::Left, _) => return Some((Command::QueryEditorCursorLeft, false)),
-                (KeyCode::Right, _) => return Some((Command::QueryEditorCursorRight, false)),
-                (KeyCode::Home, _) => return Some((Command::QueryEditorHome, false)),
-                (KeyCode::End, _) => return Some((Command::QueryEditorEnd, false)),
-                (KeyCode::PageUp, _) => return Some((Command::QueryEditorScrollDown, false)),
-                (KeyCode::PageDown, _) => return Some((Command::QueryEditorScrollUp, false)),
-                _ => return None,
-            },
-            InputMode::QueryBrowse => match (key.code, key.modifiers) {
-                (KeyCode::Esc, _) => return Some((Command::ExitMode, false)),
-                (KeyCode::Char('i'), _) | (KeyCode::Enter, _) => {
-                    return Some((Command::EnterMode(InputMode::QueryEditor), false))
+            InputMode::QueryEditor => {
+                // Configurable action bindings take precedence.
+                if let Some(cmd) = self.query_editor_bindings.get(&key) {
+                    return Some((cmd.clone(), false));
                 }
-                (KeyCode::Up, KeyModifiers::CONTROL) => {
-                    return Some((Command::EnterMode(InputMode::QueryEditor), false))
+                // Non-char keys (function keys, etc.) pass through to global bindings.
+                if !matches!(key.code, KeyCode::Char(_)) {
+                    if let Some(cmd) = self.global_bindings.get(&key) {
+                        return Some((cmd.clone(), false));
+                    }
                 }
-                (KeyCode::Char('j'), _) => return Some((Command::QueryBrowseNext, false)),
-                (KeyCode::Char('k'), _) => return Some((Command::QueryBrowsePrev, false)),
-                (KeyCode::Char('h'), _) | (KeyCode::Left, _) => return Some((Command::QueryBrowseScrollLeft, false)),
-                (KeyCode::Char('l'), _) | (KeyCode::Right, _) => return Some((Command::QueryBrowseScrollRight, false)),
-                (KeyCode::PageDown, _) => return Some((Command::QueryEditorScrollUp, false)),
-                (KeyCode::PageUp, _) => return Some((Command::QueryEditorScrollDown, false)),
-                (KeyCode::Char('y'), _) => return Some((Command::QueryCopyRow, false)),
-                (KeyCode::Char('Y'), _) => return Some((Command::QueryCopyAll, false)),
-                (KeyCode::Char('E'), _) => return Some((Command::OpenExportDialog, false)),
-                _ => return None,
-            },
-            InputMode::QueryHistory => match (key.code, key.modifiers) {
-                (KeyCode::Esc, _) => return Some((Command::CloseQueryHistory, false)),
-                (KeyCode::Enter, _) => return Some((Command::QueryHistorySelect, false)),
-                (KeyCode::Char('j'), _) | (KeyCode::Down, _) => return Some((Command::QueryHistoryNext, false)),
-                (KeyCode::Char('k'), _) | (KeyCode::Up, _) => return Some((Command::QueryHistoryPrev, false)),
-                (KeyCode::Char('d'), _) => return Some((Command::QueryHistoryDelete, false)),
-                _ => return None,
-            },
+                // Hardcoded raw input / cursor movement (not configurable).
+                match (key.code, key.modifiers) {
+                    (KeyCode::Enter, _) => return Some((Command::QueryEditorNewLine, false)),
+                    (KeyCode::Char(c), _) => return Some((Command::QueryEditorInput(c), false)),
+                    (KeyCode::Backspace, _) => return Some((Command::QueryEditorBackspace, false)),
+                    (KeyCode::Up, _) => return Some((Command::QueryEditorCursorUp, false)),
+                    (KeyCode::Down, _) => return Some((Command::QueryEditorCursorDown, false)),
+                    (KeyCode::Left, _) => return Some((Command::QueryEditorCursorLeft, false)),
+                    (KeyCode::Right, _) => return Some((Command::QueryEditorCursorRight, false)),
+                    (KeyCode::Home, _) => return Some((Command::QueryEditorHome, false)),
+                    (KeyCode::End, _) => return Some((Command::QueryEditorEnd, false)),
+                    (KeyCode::PageUp, _) => return Some((Command::QueryEditorScrollDown, false)),
+                    (KeyCode::PageDown, _) => return Some((Command::QueryEditorScrollUp, false)),
+                    _ => return None,
+                }
+            }
+            InputMode::QueryBrowse => {
+                // Configurable action bindings take precedence.
+                if let Some(cmd) = self.query_browse_bindings.get(&key) {
+                    return Some((cmd.clone(), false));
+                }
+                // Non-char keys pass through to global bindings.
+                if !matches!(key.code, KeyCode::Char(_)) {
+                    if let Some(cmd) = self.global_bindings.get(&key) {
+                        return Some((cmd.clone(), false));
+                    }
+                }
+                // Hardcoded aliases: arrow keys and Enter as universal fallbacks.
+                match (key.code, key.modifiers) {
+                    (KeyCode::Down, _) => return Some((Command::QueryBrowseNext, false)),
+                    (KeyCode::Up, _) => return Some((Command::QueryBrowsePrev, false)),
+                    (KeyCode::Left, _) => return Some((Command::QueryBrowseScrollLeft, false)),
+                    (KeyCode::Right, _) => return Some((Command::QueryBrowseScrollRight, false)),
+                    (KeyCode::Enter, _) => return Some((Command::EnterMode(InputMode::QueryEditor), false)),
+                    (KeyCode::PageDown, _) => return Some((Command::QueryEditorScrollUp, false)),
+                    (KeyCode::PageUp, _) => return Some((Command::QueryEditorScrollDown, false)),
+                    _ => return None,
+                }
+            }
+            InputMode::QueryHistory => {
+                if let Some(cmd) = self.query_history_bindings.get(&key) {
+                    return Some((cmd.clone(), false));
+                }
+                // Arrow key aliases.
+                match key.code {
+                    KeyCode::Down => return Some((Command::QueryHistoryNext, false)),
+                    KeyCode::Up => return Some((Command::QueryHistoryPrev, false)),
+                    _ => return None,
+                }
+            }
             InputMode::ExportDialog => match (key.code, key.modifiers) {
                 (KeyCode::Esc, _) => return Some((Command::ExportDialogCancel, false)),
                 (KeyCode::Enter, _) => return Some((Command::ExportDialogConfirm, false)),
@@ -255,29 +274,35 @@ impl KeybindingDispatcher {
                 (KeyCode::Backspace, _) => return Some((Command::SaveQueryNameBackspace, false)),
                 _ => return None,
             },
-            InputMode::SavedQueries => match (key.code, key.modifiers) {
-                (KeyCode::Esc, _) => return Some((Command::SavedQueriesClose, false)),
-                (KeyCode::Enter, _) => return Some((Command::SavedQueriesSelect, false)),
-                (KeyCode::Char('j'), _) | (KeyCode::Down, _) => return Some((Command::SavedQueriesNext, false)),
-                (KeyCode::Char('k'), _) | (KeyCode::Up, _) => return Some((Command::SavedQueriesPrev, false)),
-                (KeyCode::Char('d'), _) => return Some((Command::SavedQueriesDelete, false)),
-                (KeyCode::Char('e'), _) => return Some((Command::SavedQueriesStartRename, false)),
-                (KeyCode::Char('/'), _) => return Some((Command::SavedQueriesStartFilter, false)),
-                (KeyCode::Char(c), _) => return Some((Command::SavedQueriesInput(c), false)),
-                (KeyCode::Backspace, _) => return Some((Command::SavedQueriesBackspace, false)),
-                _ => return None,
-            },
-            InputMode::Completion => match (key.code, key.modifiers) {
-                (KeyCode::Esc, _) => return Some((Command::CompleteDismiss, false)),
-                (KeyCode::Enter, _) | (KeyCode::Tab, _) => return Some((Command::CompleteAccept, false)),
-                (KeyCode::Up, _) | (KeyCode::Char('p'), KeyModifiers::CONTROL) => {
-                    return Some((Command::CompletePrev, false))
+            InputMode::SavedQueries => {
+                if let Some(cmd) = self.saved_queries_bindings.get(&key) {
+                    return Some((cmd.clone(), false));
                 }
-                (KeyCode::Down, _) | (KeyCode::Char('n'), KeyModifiers::CONTROL) => {
-                    return Some((Command::CompleteNext, false))
+                // Arrow key aliases and raw text input.
+                match (key.code, key.modifiers) {
+                    (KeyCode::Down, _) => return Some((Command::SavedQueriesNext, false)),
+                    (KeyCode::Up, _) => return Some((Command::SavedQueriesPrev, false)),
+                    (KeyCode::Char(c), _) => return Some((Command::SavedQueriesInput(c), false)),
+                    (KeyCode::Backspace, _) => return Some((Command::SavedQueriesBackspace, false)),
+                    _ => return None,
                 }
-                (KeyCode::Char(c), _) => return Some((Command::CompleteInput(c), false)),
-                (KeyCode::Backspace, _) => return Some((Command::CompleteBackspace, false)),
+            }
+            InputMode::Completion => {
+                if let Some(cmd) = self.completion_bindings.get(&key) {
+                    return Some((cmd.clone(), false));
+                }
+                // Arrow key aliases, Tab accept alias, and raw text input.
+                match (key.code, key.modifiers) {
+                    (KeyCode::Tab, _) => return Some((Command::CompleteAccept, false)),
+                    (KeyCode::Up, _) => return Some((Command::CompletePrev, false)),
+                    (KeyCode::Down, _) => return Some((Command::CompleteNext, false)),
+                    (KeyCode::Char(c), _) => return Some((Command::CompleteInput(c), false)),
+                    (KeyCode::Backspace, _) => return Some((Command::CompleteBackspace, false)),
+                    _ => return None,
+                }
+            }
+            InputMode::PaneHelp => match key.code {
+                KeyCode::Esc | KeyCode::Char('q') => return Some((Command::ClosePaneHelp, false)),
                 _ => return None,
             },
             InputMode::QueryDialog => match key.code {
@@ -342,7 +367,8 @@ impl KeybindingDispatcher {
             | InputMode::SaveQueryName
             | InputMode::SavedQueries
             | InputMode::ExportDialog
-            | InputMode::Completion => {
+            | InputMode::Completion
+            | InputMode::PaneHelp => {
                 unreachable!("handled above")
             }
         }
@@ -386,6 +412,19 @@ impl KeybindingDispatcher {
         all.iter().find(|(n, _, _)| n == name).map(|(_, key_str, _)| format_key_display(key_str))
     }
 
+    #[allow(dead_code)]
+    pub fn key_for_mode(&self, group: &str, name: &str) -> Option<String> {
+        let reverse: &[(String, String, String)] = match group {
+            "query_editor" => &self.reverse_query_editor,
+            "query_browse" => &self.reverse_query_browse,
+            "query_history" => &self.reverse_query_history,
+            "saved_queries" => &self.reverse_saved_queries,
+            "completion" => &self.reverse_completion,
+            _ => return None,
+        };
+        reverse.iter().find(|(n, _, _)| n == name).map(|(_, key_str, _)| format_key_display(key_str))
+    }
+
     pub fn global_shortcuts(&self) -> Vec<(String, String)> {
         self.reverse_global.iter().map(|(_, key_str, desc)| (format_key_display(key_str), desc.clone())).collect()
     }
@@ -408,6 +447,35 @@ impl KeybindingDispatcher {
 
     pub fn mutate_shortcuts(&self) -> Vec<(String, String)> {
         self.reverse_mutate.iter().map(|(_, key_str, desc)| (format_key_display(key_str), desc.clone())).collect()
+    }
+
+    pub fn query_editor_shortcuts(&self) -> Vec<(String, String)> {
+        self.reverse_query_editor.iter().map(|(_, key_str, desc)| (format_key_display(key_str), desc.clone())).collect()
+    }
+
+    pub fn query_browse_shortcuts(&self) -> Vec<(String, String)> {
+        self.reverse_query_browse.iter().map(|(_, key_str, desc)| (format_key_display(key_str), desc.clone())).collect()
+    }
+
+    #[allow(dead_code)]
+    pub fn query_history_shortcuts(&self) -> Vec<(String, String)> {
+        self.reverse_query_history
+            .iter()
+            .map(|(_, key_str, desc)| (format_key_display(key_str), desc.clone()))
+            .collect()
+    }
+
+    #[allow(dead_code)]
+    pub fn saved_queries_shortcuts(&self) -> Vec<(String, String)> {
+        self.reverse_saved_queries
+            .iter()
+            .map(|(_, key_str, desc)| (format_key_display(key_str), desc.clone()))
+            .collect()
+    }
+
+    #[allow(dead_code)]
+    pub fn completion_shortcuts(&self) -> Vec<(String, String)> {
+        self.reverse_completion.iter().map(|(_, key_str, desc)| (format_key_display(key_str), desc.clone())).collect()
     }
 }
 

@@ -98,6 +98,7 @@ open_terminal = "alt+enter"   # alt scopes enter to "open terminal here"
 
 [keybindings.global]
 help = "f1"                   # dedicated Linux help key
+show_pane_help = "f2"         # pane-specific help overlay
 namespace_selector = "ctrl+n" # n = namespace
 context_selector = "ctrl+k"   # k = kubernetes context
 quit = "ctrl+q"               # standard quit in htop, ranger, mc, ncmpcpp
@@ -117,6 +118,50 @@ exec = "e"                    # e = exec; matches k9s
 open_query = "shift+q"        # Q = query database
 port_forward = "p"            # p = port-forward; matches k9s
 view_logs = "l"               # l = logs; matches k9s
+
+[keybindings.query_editor]
+exit = "esc"
+execute = "ctrl+enter"
+indent = "tab"
+deindent = "shift+tab"
+history = "ctrl+r"
+save_query = "ctrl+s"
+open_saved = "ctrl+o"
+browse_results = "ctrl+down"
+autocomplete = "ctrl+space"
+
+[keybindings.query_browse]
+exit = "esc"
+back_to_editor = "ctrl+up"
+next_row = "j"
+prev_row = "k"
+scroll_left = "h"
+scroll_right = "l"
+copy_row = "y"
+copy_all = "shift+y"
+export = "shift+e"
+
+[keybindings.query_history]
+exit = "esc"
+select = "enter"
+next = "j"
+prev = "k"
+delete = "d"
+
+[keybindings.saved_queries]
+exit = "esc"
+select = "enter"
+next = "j"
+prev = "k"
+delete = "d"
+rename = "e"
+filter = "/"
+
+[keybindings.completion]
+dismiss = "esc"
+accept = "enter"
+prev = "ctrl+p"
+next = "ctrl+n"
 
 [views.pods]
 columns = ["name", "ready", "status", "restarts", "age", "node"]

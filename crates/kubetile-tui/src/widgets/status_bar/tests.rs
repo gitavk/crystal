@@ -22,6 +22,7 @@ fn default_widget(theme: &Theme) -> StatusBarWidget<'_> {
         mode: "Normal",
         context: Some("minikube"),
         help_key: Some("F1"),
+        pane_help_key: Some("F2"),
         namespace_key: Some("Ctrl+N"),
         context_key: Some("Ctrl+K"),
         close_pane_key: Some("Alt+X"),
@@ -44,7 +45,7 @@ fn shows_mode_and_context() {
 fn shows_keybindings() {
     let theme = Theme::default();
     let w = default_widget(&theme);
-    let text = buf_text(&render(&w, 120));
+    let text = buf_text(&render(&w, 150));
     assert!(text.contains("F1"));
     assert!(text.contains("Help"));
     assert!(text.contains("Ctrl+N"));

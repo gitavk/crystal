@@ -1,6 +1,6 @@
 use kubetile_tui::layout::{
-    ConfirmDialogView, ContextSelectorView, NamespaceSelectorView, PortForwardDialogView, PortForwardFieldView,
-    QueryDialogFieldView, QueryDialogView, RenderContext, ResourceSwitcherView,
+    ConfirmDialogView, ContextSelectorView, NamespaceSelectorView, PaneHelpView, PortForwardDialogView,
+    PortForwardFieldView, QueryDialogFieldView, QueryDialogView, RenderContext, ResourceSwitcherView,
 };
 use kubetile_tui::pane::{ResourceKind, ViewType};
 
@@ -32,10 +32,11 @@ impl App {
             InputMode::SavedQueries => "SavedQueries",
             InputMode::ExportDialog => "ExportDialog",
             InputMode::Completion => "Completion",
+            InputMode::PaneHelp => "Help",
         }
     }
 
-    pub(super) fn build_render_context(&self) -> (RenderContext<'_>, Vec<String>, [Option<String>; 6]) {
+    pub(super) fn build_render_context(&self) -> (RenderContext<'_>, Vec<String>, [Option<String>; 7]) {
         let namespace_selector = if self.dispatcher.mode() == InputMode::NamespaceSelector {
             Some(NamespaceSelectorView {
                 namespaces: &self.namespaces,
@@ -76,6 +77,15 @@ impl App {
                 QueryDialogField::Port => QueryDialogFieldView::Port,
             },
         });
+        let pane_help = self.pane_help_overlay.as_deref().map(|entries| PaneHelpView {
+            title: self
+                .panes
+                .get(&self.tab_manager.active().focused_pane)
+                .map(|p| pane_help_title(p.view_type()))
+                .unwrap_or("Help"),
+            entries,
+        });
+
         let port_forward_dialog = self.pending_port_forward.as_ref().map(|pf| PortForwardDialogView {
             pod: &pf.pod,
             namespace: &pf.namespace,
@@ -90,6 +100,7 @@ impl App {
         let tab_names = self.tab_manager.tab_names();
         let keys = [
             self.dispatcher.key_for("help"),
+            self.dispatcher.key_for("show_pane_help"),
             self.dispatcher.key_for("namespace_selector"),
             self.dispatcher.key_for("context_selector"),
             self.dispatcher.key_for("close_pane"),
@@ -109,6 +120,7 @@ impl App {
             confirm_dialog,
             port_forward_dialog,
             query_dialog,
+            pane_help,
             toasts: &self.toasts,
             pane_tree,
             focused_pane: Some(focused_pane),
@@ -118,6 +130,7 @@ impl App {
             active_tab: self.tab_manager.active_index(),
             mode_name: self.mode_name(),
             help_key: None,
+            pane_help_key: None,
             namespace_key: None,
             context_key: None,
             close_pane_key: None,
@@ -170,6 +183,23 @@ impl App {
             ViewType::Plugin(_) => "PLG".into(),
             ViewType::Query(_) => "SQL".into(),
         }
+    }
+}
+
+fn pane_help_title(view_type: &ViewType) -> &'static str {
+    match view_type {
+        ViewType::ResourceList(_) => "Help — Resource List",
+        ViewType::Detail(_, _) => "Help — Resource Detail",
+        ViewType::Yaml(_, _) => "Help — YAML",
+        ViewType::Logs(_) => "Help — Logs",
+        ViewType::Exec(_) => "Help — Exec",
+        ViewType::Terminal => "Help — Terminal",
+        ViewType::Help => "Help — Help",
+        ViewType::Empty => "Help",
+        ViewType::Plugin(name) if name == "AppLogs" => "Help — App Logs",
+        ViewType::Plugin(name) if name == "PortForwards" => "Help — Port Forwards",
+        ViewType::Plugin(_) => "Help — Plugin",
+        ViewType::Query(_) => "Help — Query",
     }
 }
 
