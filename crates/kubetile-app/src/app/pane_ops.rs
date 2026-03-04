@@ -6,6 +6,18 @@ use crate::panes::ResourceListPane;
 use super::App;
 
 impl App {
+    pub(super) fn show_pane_help(&mut self) {
+        let focused = self.tab_manager.active().focused_pane;
+        let entries = self.panes.get(&focused).map(|p| p.pane_help()).unwrap_or_default();
+        self.pane_help_overlay = Some(entries);
+        self.dispatcher.set_mode(InputMode::PaneHelp);
+    }
+
+    pub(super) fn close_pane_help(&mut self) {
+        self.pane_help_overlay = None;
+        self.dispatcher.set_mode(InputMode::Normal);
+    }
+
     pub(super) fn toggle_help(&mut self) {
         let active_pane_ids = self.tab_manager.active().pane_tree.leaf_ids();
         let help_pane_id = active_pane_ids

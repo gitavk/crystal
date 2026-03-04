@@ -182,6 +182,10 @@ impl Pane for ExecPane {
         &self.view_type
     }
 
+    fn pane_help(&self) -> Vec<(String, String)> {
+        vec![("i".into(), "Enter insert mode (send keys to shell)".into()), ("Esc".into(), "Exit insert mode".into())]
+    }
+
     fn as_any(&self) -> &dyn Any {
         self
     }

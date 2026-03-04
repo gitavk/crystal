@@ -7,6 +7,8 @@ use crate::theme::Theme;
 use crate::widgets::confirm_dialog::ConfirmDialogWidget;
 use crate::widgets::context_selector::ContextSelectorWidget;
 use crate::widgets::namespace_selector::NamespaceSelectorWidget;
+pub use crate::widgets::pane_help::PaneHelpView;
+use crate::widgets::pane_help::PaneHelpWidget;
 use crate::widgets::port_forward_dialog::PortForwardDialogWidget;
 use crate::widgets::query_dialog::QueryDialogWidget;
 use crate::widgets::resource_switcher::ResourceSwitcherWidget;
@@ -77,6 +79,7 @@ pub struct RenderContext<'a> {
     pub confirm_dialog: Option<ConfirmDialogView<'a>>,
     pub port_forward_dialog: Option<PortForwardDialogView<'a>>,
     pub query_dialog: Option<QueryDialogView<'a>>,
+    pub pane_help: Option<PaneHelpView<'a>>,
     pub toasts: &'a [ToastMessage],
     pub pane_tree: &'a PaneTree,
     pub focused_pane: Option<PaneId>,
@@ -175,6 +178,11 @@ fn render_body(frame: &mut Frame, area: Rect, ctx: &RenderContext) {
             active_field: qd.active_field,
             theme: ctx.theme,
         };
+        widget.render(frame, area);
+    }
+
+    if let Some(ref ph) = ctx.pane_help {
+        let widget = PaneHelpWidget { view: ph, theme: ctx.theme };
         widget.render(frame, area);
     }
 

@@ -332,6 +332,27 @@ impl Pane for QueryPane {
         &self.view_type
     }
 
+    fn pane_help(&self) -> Vec<(String, String)> {
+        vec![
+            ("Ctrl+Enter".into(), "Execute query".into()),
+            ("Enter".into(), "New line".into()),
+            ("Tab / Shift+Tab".into(), "Indent / de-indent".into()),
+            ("Ctrl+Down".into(), "Browse results".into()),
+            ("Ctrl+Space".into(), "Autocomplete".into()),
+            ("Ctrl+R".into(), "Query history".into()),
+            ("Ctrl+S".into(), "Save query".into()),
+            ("Ctrl+O".into(), "Saved queries".into()),
+            ("Esc".into(), "Exit editor mode".into()),
+            ("--- Browse mode ---".into(), "(Ctrl+Down to enter)".into()),
+            ("j / k".into(), "Next / previous row".into()),
+            ("h / l".into(), "Scroll left / right".into()),
+            ("y".into(), "Copy row as CSV".into()),
+            ("Y".into(), "Copy all rows as CSV".into()),
+            ("E".into(), "Export to file".into()),
+            ("i / Enter".into(), "Back to editor".into()),
+        ]
+    }
+
     fn as_any(&self) -> &dyn Any {
         self
     }

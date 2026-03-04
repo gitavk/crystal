@@ -7,6 +7,7 @@ pub(super) fn global_command_from_name(name: &str) -> Option<Command> {
     match name {
         "quit" => Some(Command::Quit),
         "help" => Some(Command::ShowHelp),
+        "show_pane_help" => Some(Command::ShowPaneHelp),
         "app_logs" => Some(Command::ToggleAppLogsTab),
         "port_forwards" => Some(Command::TogglePortForwardsTab),
         "enter_insert" => Some(Command::EnterMode(InputMode::Insert)),
@@ -20,6 +21,7 @@ pub(super) fn global_command_description(name: &str) -> String {
     match name {
         "quit" => "Quit",
         "help" => "Help",
+        "show_pane_help" => "Pane help",
         "app_logs" => "App logs",
         "port_forwards" => "Port forwards",
         "enter_insert" => "Insert mode",

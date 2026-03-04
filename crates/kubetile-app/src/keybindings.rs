@@ -42,6 +42,7 @@ pub enum InputMode {
     SavedQueries,
     ExportDialog,
     Completion,
+    PaneHelp,
 }
 
 #[allow(dead_code)]
@@ -280,6 +281,10 @@ impl KeybindingDispatcher {
                 (KeyCode::Backspace, _) => return Some((Command::CompleteBackspace, false)),
                 _ => return None,
             },
+            InputMode::PaneHelp => match key.code {
+                KeyCode::Esc | KeyCode::Char('q') | KeyCode::Char('?') => return Some((Command::ClosePaneHelp, false)),
+                _ => return None,
+            },
             InputMode::QueryDialog => match key.code {
                 KeyCode::Esc => return Some((Command::QueryDialogCancel, false)),
                 KeyCode::Enter => return Some((Command::QueryDialogConfirm, false)),
@@ -342,7 +347,8 @@ impl KeybindingDispatcher {
             | InputMode::SaveQueryName
             | InputMode::SavedQueries
             | InputMode::ExportDialog
-            | InputMode::Completion => {
+            | InputMode::Completion
+            | InputMode::PaneHelp => {
                 unreachable!("handled above")
             }
         }

@@ -14,6 +14,7 @@ fn render_context_requires_theme() {
         confirm_dialog: None,
         port_forward_dialog: None,
         query_dialog: None,
+        pane_help: None,
         toasts: &[],
         pane_tree: &pane_tree,
         focused_pane: None,

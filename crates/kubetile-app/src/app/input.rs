@@ -128,6 +128,8 @@ impl App {
                 self.running = false;
             }
             Command::ShowHelp => self.toggle_help(),
+            Command::ShowPaneHelp => self.show_pane_help(),
+            Command::ClosePaneHelp => self.close_pane_help(),
             Command::ToggleAppLogsTab => self.toggle_app_logs_tab(),
             Command::TogglePortForwardsTab => self.toggle_port_forwards_tab(),
             Command::FocusNextPane => self.focus_next(),

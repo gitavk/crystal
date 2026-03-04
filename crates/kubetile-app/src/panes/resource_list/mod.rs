@@ -279,6 +279,24 @@ impl Pane for ResourceListPane {
         &self.view_type
     }
 
+    fn pane_help(&self) -> Vec<(String, String)> {
+        vec![
+            ("j / ↓".into(), "Next row".into()),
+            ("k / ↑".into(), "Previous row".into()),
+            ("Enter".into(), "Open / select".into()),
+            ("y".into(), "View YAML".into()),
+            ("l".into(), "Logs".into()),
+            ("e".into(), "Exec shell".into()),
+            ("p".into(), "Port forward".into()),
+            ("d".into(), "Describe".into()),
+            ("/".into(), "Filter".into()),
+            ("Ctrl+Alt+D".into(), "Delete".into()),
+            ("Ctrl+Alt+S".into(), "Scale".into()),
+            ("Ctrl+Alt+R".into(), "Restart rollout".into()),
+            ("Q".into(), "Query DB".into()),
+        ]
+    }
+
     fn as_any(&self) -> &dyn Any {
         self
     }

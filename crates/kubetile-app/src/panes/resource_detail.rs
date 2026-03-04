@@ -156,6 +156,15 @@ impl Pane for ResourceDetailPane {
         &self.view_type
     }
 
+    fn pane_help(&self) -> Vec<(String, String)> {
+        vec![
+            ("j / ↓".into(), "Next section".into()),
+            ("k / ↑".into(), "Previous section".into()),
+            ("PgDn".into(), "Page down".into()),
+            ("PgUp".into(), "Page up".into()),
+        ]
+    }
+
     fn as_any(&self) -> &dyn Any {
         self
     }

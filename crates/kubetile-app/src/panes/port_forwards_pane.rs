@@ -106,6 +106,15 @@ impl Pane for PortForwardsPane {
         &self.view_type
     }
 
+    fn pane_help(&self) -> Vec<(String, String)> {
+        vec![
+            ("j / ↓".into(), "Next row".into()),
+            ("k / ↑".into(), "Previous row".into()),
+            ("Enter".into(), "Select".into()),
+            ("Ctrl+Alt+D".into(), "Remove port forward".into()),
+        ]
+    }
+
     fn as_any(&self) -> &dyn Any {
         self
     }

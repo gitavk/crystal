@@ -278,6 +278,19 @@ impl Pane for YamlPane {
         &self.view_type
     }
 
+    fn pane_help(&self) -> Vec<(String, String)> {
+        vec![
+            ("j / ↓".into(), "Scroll down".into()),
+            ("k / ↑".into(), "Scroll up".into()),
+            ("PgDn".into(), "Page down".into()),
+            ("PgUp".into(), "Page up".into()),
+            ("g".into(), "Go to top".into()),
+            ("G".into(), "Go to bottom".into()),
+            ("/".into(), "Search".into()),
+            ("n".into(), "Next match".into()),
+        ]
+    }
+
     fn as_any(&self) -> &dyn Any {
         self
     }

@@ -24,6 +24,9 @@ pub trait Pane {
     fn handle_command(&mut self, cmd: &PaneCommand);
     fn view_type(&self) -> &ViewType;
     fn on_focus_change(&mut self, _previous: Option<&ViewType>) {}
+    fn pane_help(&self) -> Vec<(String, String)> {
+        vec![]
+    }
     fn as_any(&self) -> &dyn Any;
     fn as_any_mut(&mut self) -> &mut dyn Any;
 }

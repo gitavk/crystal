@@ -98,6 +98,7 @@ open_terminal = "alt+enter"   # alt scopes enter to "open terminal here"
 
 [keybindings.global]
 help = "f1"                   # dedicated Linux help key
+show_pane_help = "?"          # pane-specific help overlay
 namespace_selector = "ctrl+n" # n = namespace
 context_selector = "ctrl+k"   # k = kubernetes context
 quit = "ctrl+q"               # standard quit in htop, ranger, mc, ncmpcpp

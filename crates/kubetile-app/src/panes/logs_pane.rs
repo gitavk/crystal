@@ -363,6 +363,20 @@ impl Pane for LogsPane {
         &self.view_type
     }
 
+    fn pane_help(&self) -> Vec<(String, String)> {
+        vec![
+            ("j / ↓".into(), "Scroll down".into()),
+            ("k / ↑".into(), "Scroll up".into()),
+            ("PgDn".into(), "Page down".into()),
+            ("PgUp".into(), "Page up".into()),
+            ("g".into(), "Go to top".into()),
+            ("G".into(), "Go to bottom".into()),
+            ("f".into(), "Toggle follow".into()),
+            ("w".into(), "Toggle wrap".into()),
+            ("/".into(), "Filter".into()),
+        ]
+    }
+
     fn as_any(&self) -> &dyn Any {
         self
     }
