@@ -21,3 +21,16 @@ securityContext:
 This is useful when you need root access inside the container (e.g., to inspect system files or install debugging tools). The original `securityContext` is preserved and restored on exit.
 
 > **Safety:** if the Deployment is already in one debug mode when you activate the other, the original application command is never overwritten — it is reused from the existing saved annotation.
+
+---
+
+## Keybindings
+
+| Key | Action |
+|-----|--------|
+| `Ctrl+Alt+D` | Toggle debug mode |
+| `F5` | Toggle root debug mode |
+
+---
+
+See also: [Resource List](resource-list.md) · [Keybindings reference](../keybindings.md)
