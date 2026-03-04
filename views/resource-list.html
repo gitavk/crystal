@@ -182,14 +182,44 @@
                     <main>
                         <h1 id="resource-list"><a class="header" href="#resource-list">Resource List</a></h1>
 <p>The default view when opening a pane. Shows a live-updating table of Kubernetes resources filtered to the selected namespace.</p>
-<p><strong>Supported Resource Kinds:</strong> Pods, Deployments, Services, StatefulSets, DaemonSets, Jobs, CronJobs, ConfigMaps, Secrets, Ingresses, Nodes, Namespaces, PVs, and PVCs.</p>
+<p><strong>Supported resource kinds:</strong> Pods, Deployments, Services, StatefulSets, DaemonSets, Jobs, CronJobs, ConfigMaps, Secrets, Ingresses, Nodes, Namespaces, PVs, and PVCs.</p>
+<hr />
+<h2 id="keybindings"><a class="header" href="#keybindings">Keybindings</a></h2>
+<h3 id="browse"><a class="header" href="#browse">Browse</a></h3>
 <div class="table-wrapper"><table><thead><tr><th>Key</th><th>Action</th></tr></thead><tbody>
-<tr><td><code>/</code></td><td>Filter resources by name</td></tr>
+<tr><td><code>/</code></td><td>Filter by name</td></tr>
 <tr><td><code>s</code></td><td>Sort by column</td></tr>
+<tr><td><code>S</code> (<code>Shift+S</code>)</td><td>Toggle sort order</td></tr>
 <tr><td><code>a</code></td><td>Toggle all-namespaces view</td></tr>
-<tr><td><code>:</code></td><td>Open the <strong>Resource Switcher</strong> (command palette)</td></tr>
+<tr><td><code>:</code></td><td>Open resource switcher</td></tr>
 </tbody></table>
 </div>
+<h3 id="open"><a class="header" href="#open">Open</a></h3>
+<div class="table-wrapper"><table><thead><tr><th>Key</th><th>Action</th></tr></thead><tbody>
+<tr><td><code>Enter</code></td><td>Open detail view</td></tr>
+<tr><td><code>y</code></td><td>Open YAML view</td></tr>
+<tr><td><code>d</code></td><td>Open describe view</td></tr>
+<tr><td><code>l</code></td><td>Stream logs</td></tr>
+<tr><td><code>e</code></td><td>Exec into pod</td></tr>
+<tr><td><code>p</code></td><td>Port-forward</td></tr>
+<tr><td><code>Shift+Q</code></td><td>Open query pane (PostgreSQL)</td></tr>
+</tbody></table>
+</div>
+<h3 id="mutate"><a class="header" href="#mutate">Mutate</a></h3>
+<blockquote>
+<p>These actions require confirmation and use triple-modifier chords to prevent accidents.</p>
+</blockquote>
+<div class="table-wrapper"><table><thead><tr><th>Key</th><th>Action</th></tr></thead><tbody>
+<tr><td><code>Ctrl+Alt+X</code></td><td>Delete resource</td></tr>
+<tr><td><code>Ctrl+Alt+S</code></td><td>Scale resource</td></tr>
+<tr><td><code>Ctrl+Alt+R</code></td><td>Restart / rollout restart</td></tr>
+<tr><td><code>Ctrl+Alt+D</code></td><td>Toggle debug mode</td></tr>
+<tr><td><code>F5</code></td><td>Toggle root debug mode</td></tr>
+</tbody></table>
+</div>
+<hr />
+<p>See also: <a href="../keybindings.html">Keybindings reference</a></p>
+
                     </main>
 
                     <nav class="nav-wrapper" aria-label="Page navigation">

@@ -249,6 +249,9 @@ navigating away) closes the tab and returns to the previous tab automatically.</
 <p>A status line below the editor shows the current connection state and the
 active input mode.</p>
 <hr />
+<blockquote>
+<p><strong>Tip:</strong> Press <code>F2</code> at any time to see a summary of all Query Pane keybindings.</p>
+</blockquote>
 <h2 id="the-sql-editor"><a class="header" href="#the-sql-editor">The SQL Editor</a></h2>
 <p>The editor is active as soon as the pane opens (<code>InputMode::QueryEditor</code>).
 It is a full multi-line editor backed by a <code>Vec&lt;String&gt;</code> with a (row, col)
@@ -292,7 +295,7 @@ executed inside the pod is:</p>
 <tr><td><code>k</code> / <code>Up</code></td><td>Select previous row</td></tr>
 <tr><td><code>PgDn</code> / <code>Ctrl+F</code></td><td>Page down</td></tr>
 <tr><td><code>PgUp</code> / <code>Ctrl+B</code></td><td>Page up</td></tr>
-<tr><td><code>i</code> / <code>Enter</code> / <code>Ctrl+Up</code></td><td>Return to editor</td></tr>
+<tr><td><code>Ctrl+Up</code> / <code>Enter</code></td><td>Return to editor</td></tr>
 <tr><td><code>Esc</code></td><td>Return to Normal mode</td></tr>
 </tbody></table>
 </div>
@@ -373,6 +376,8 @@ repeated round-trips.</p>
 query-open-new-tab = true   # default: true
                             # false → split the current pane horizontally (0.7 ratio)
 </code></pre>
+<hr />
+<p>See also: <a href="../keybindings.html">Keybindings reference</a></p>
 
                     </main>
 

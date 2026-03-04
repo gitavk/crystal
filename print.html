@@ -294,76 +294,53 @@ The setup script creates several resources designed to showcase specific feature
 </ul>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="keybindings"><a class="header" href="#keybindings">Keybindings</a></h1>
 <p>All keybindings are configurable via <code>~/.config/kubetile/config.toml</code>. These are the defaults.</p>
+<blockquote>
+<p><strong>Tip:</strong> Press <code>F2</code> in any view to see the keybindings that apply there.</p>
+</blockquote>
+<p>View-specific keybindings are documented on each view's page. This page covers keys that work everywhere.</p>
+<hr />
 <h2 id="navigation"><a class="header" href="#navigation">Navigation</a></h2>
 <div class="table-wrapper"><table><thead><tr><th>Key</th><th>Action</th></tr></thead><tbody>
-<tr><td><code>j</code> / <code>Down</code></td><td>Scroll / select next</td></tr>
-<tr><td><code>k</code> / <code>Up</code></td><td>Scroll / select previous</td></tr>
+<tr><td><code>j</code> / <code>Down</code></td><td>Next item / scroll down</td></tr>
+<tr><td><code>k</code> / <code>Up</code></td><td>Previous item / scroll up</td></tr>
 <tr><td><code>Enter</code></td><td>Confirm / select</td></tr>
 <tr><td><code>Esc</code></td><td>Back / cancel</td></tr>
 <tr><td><code>g</code></td><td>Go to top</td></tr>
-<tr><td><code>G</code> (<code>Shift+g</code>)</td><td>Go to bottom</td></tr>
-<tr><td><code>Ctrl+f</code> / <code>PageDown</code></td><td>Page down</td></tr>
-<tr><td><code>Ctrl+b</code> / <code>PageUp</code></td><td>Page up</td></tr>
+<tr><td><code>G</code> (<code>Shift+G</code>)</td><td>Go to bottom</td></tr>
+<tr><td><code>Ctrl+F</code> / <code>PageDown</code></td><td>Page down</td></tr>
+<tr><td><code>Ctrl+B</code> / <code>PageUp</code></td><td>Page up</td></tr>
 <tr><td><code>Ctrl+Right</code></td><td>Scroll right</td></tr>
 <tr><td><code>Ctrl+Left</code></td><td>Scroll left</td></tr>
 </tbody></table>
 </div>
+<hr />
 <h2 id="global"><a class="header" href="#global">Global</a></h2>
 <p>Available in every mode.</p>
 <div class="table-wrapper"><table><thead><tr><th>Key</th><th>Action</th></tr></thead><tbody>
-<tr><td><code>F1</code></td><td>Show help</td></tr>
-<tr><td><code>Ctrl+q</code></td><td>Quit</td></tr>
-<tr><td><code>Ctrl+n</code></td><td>Open namespace selector</td></tr>
-<tr><td><code>Ctrl+k</code></td><td>Open context selector</td></tr>
-<tr><td><code>Ctrl+Shift+p</code></td><td>Toggle port-forwards panel</td></tr>
-<tr><td><code>Ctrl+Shift+l</code></td><td>Toggle application logs</td></tr>
+<tr><td><code>F1</code></td><td>Open full keybindings reference</td></tr>
+<tr><td><code>F2</code></td><td>Open pane-specific help</td></tr>
+<tr><td><code>Ctrl+Q</code></td><td>Quit</td></tr>
+<tr><td><code>Ctrl+N</code></td><td>Open namespace selector</td></tr>
+<tr><td><code>Ctrl+K</code></td><td>Open context selector</td></tr>
+<tr><td><code>Ctrl+Shift+P</code></td><td>Toggle port-forwards panel</td></tr>
+<tr><td><code>Ctrl+Shift+L</code></td><td>Toggle application logs</td></tr>
 <tr><td><code>i</code></td><td>Enter insert mode</td></tr>
 </tbody></table>
 </div>
-<h2 id="browse-resource-list"><a class="header" href="#browse-resource-list">Browse (Resource List)</a></h2>
-<div class="table-wrapper"><table><thead><tr><th>Key</th><th>Action</th></tr></thead><tbody>
-<tr><td><code>:</code></td><td>Open resource switcher</td></tr>
-<tr><td><code>/</code></td><td>Filter</td></tr>
-<tr><td><code>a</code></td><td>Toggle all-namespaces</td></tr>
-<tr><td><code>y</code></td><td>View YAML</td></tr>
-<tr><td><code>d</code></td><td>View describe</td></tr>
-<tr><td><code>s</code></td><td>Sort column</td></tr>
-<tr><td><code>S</code> (<code>Shift+s</code>)</td><td>Toggle sort order</td></tr>
-<tr><td><code>f</code></td><td>Toggle log follow</td></tr>
-<tr><td><code>w</code></td><td>Toggle log wrap</td></tr>
-<tr><td><code>Ctrl+s</code></td><td>Save logs to file</td></tr>
-<tr><td><code>Ctrl+e</code></td><td>Download (export) full log history</td></tr>
-</tbody></table>
-</div>
-<h2 id="interact-resource-actions"><a class="header" href="#interact-resource-actions">Interact (Resource Actions)</a></h2>
-<div class="table-wrapper"><table><thead><tr><th>Key</th><th>Action</th></tr></thead><tbody>
-<tr><td><code>e</code></td><td>Exec into pod</td></tr>
-<tr><td><code>l</code></td><td>View logs</td></tr>
-<tr><td><code>p</code></td><td>Port-forward</td></tr>
-</tbody></table>
-</div>
-<h2 id="mutate-destructive--require-confirmation"><a class="header" href="#mutate-destructive--require-confirmation">Mutate (Destructive — require confirmation)</a></h2>
-<div class="table-wrapper"><table><thead><tr><th>Key</th><th>Action</th></tr></thead><tbody>
-<tr><td><code>Ctrl+Alt+x</code></td><td>Delete resource</td></tr>
-<tr><td><code>Ctrl+Alt+s</code></td><td>Scale resource</td></tr>
-<tr><td><code>Ctrl+Alt+r</code></td><td>Restart / rollout restart</td></tr>
-<tr><td><code>Ctrl+Alt+d</code></td><td>Toggle debug mode (Pod → owner Deployment)</td></tr>
-<tr><td><code>F5</code></td><td>Toggle root debug mode (same + <code>runAsUser: 0</code>)</td></tr>
-</tbody></table>
-</div>
+<hr />
 <h2 id="pane--tab-management"><a class="header" href="#pane--tab-management">Pane &amp; Tab Management</a></h2>
 <div class="table-wrapper"><table><thead><tr><th>Key</th><th>Action</th></tr></thead><tbody>
 <tr><td><code>Tab</code></td><td>Focus next pane</td></tr>
 <tr><td><code>Shift+Tab</code></td><td>Focus previous pane</td></tr>
-<tr><td><code>Alt+Up</code> / <code>Down</code> / <code>Left</code> / <code>Right</code></td><td>Focus pane in direction</td></tr>
-<tr><td><code>Alt+v</code></td><td>Split pane vertically</td></tr>
-<tr><td><code>Alt+h</code></td><td>Split pane horizontally</td></tr>
-<tr><td><code>Alt+x</code></td><td>Close focused pane</td></tr>
-<tr><td><code>Alt+f</code></td><td>Toggle fullscreen on focused pane</td></tr>
+<tr><td><code>Alt+Up/Down/Left/Right</code></td><td>Focus pane in direction</td></tr>
+<tr><td><code>Alt+V</code></td><td>Split pane vertically</td></tr>
+<tr><td><code>Alt+H</code></td><td>Split pane horizontally</td></tr>
+<tr><td><code>Alt+X</code></td><td>Close focused pane</td></tr>
+<tr><td><code>Alt+F</code></td><td>Toggle fullscreen</td></tr>
 <tr><td><code>Alt+Shift+Up</code></td><td>Grow pane</td></tr>
 <tr><td><code>Alt+Shift+Down</code></td><td>Shrink pane</td></tr>
-<tr><td><code>Ctrl+t</code></td><td>New tab</td></tr>
-<tr><td><code>Ctrl+w</code></td><td>Close tab</td></tr>
+<tr><td><code>Ctrl+T</code></td><td>New tab</td></tr>
+<tr><td><code>Ctrl+W</code></td><td>Close tab</td></tr>
 <tr><td><code>Alt+1</code> – <code>Alt+9</code></td><td>Jump to tab by number</td></tr>
 <tr><td><code>Alt+Enter</code></td><td>Open terminal pane</td></tr>
 </tbody></table>
@@ -463,40 +440,127 @@ allowing you to create a workspace that fits your needs with tabs and panes.
 Each pane can show a different view of your cluster.</p>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="resource-list"><a class="header" href="#resource-list">Resource List</a></h1>
 <p>The default view when opening a pane. Shows a live-updating table of Kubernetes resources filtered to the selected namespace.</p>
-<p><strong>Supported Resource Kinds:</strong> Pods, Deployments, Services, StatefulSets, DaemonSets, Jobs, CronJobs, ConfigMaps, Secrets, Ingresses, Nodes, Namespaces, PVs, and PVCs.</p>
+<p><strong>Supported resource kinds:</strong> Pods, Deployments, Services, StatefulSets, DaemonSets, Jobs, CronJobs, ConfigMaps, Secrets, Ingresses, Nodes, Namespaces, PVs, and PVCs.</p>
+<hr />
+<h2 id="keybindings-2"><a class="header" href="#keybindings-2">Keybindings</a></h2>
+<h3 id="browse"><a class="header" href="#browse">Browse</a></h3>
 <div class="table-wrapper"><table><thead><tr><th>Key</th><th>Action</th></tr></thead><tbody>
-<tr><td><code>/</code></td><td>Filter resources by name</td></tr>
+<tr><td><code>/</code></td><td>Filter by name</td></tr>
 <tr><td><code>s</code></td><td>Sort by column</td></tr>
+<tr><td><code>S</code> (<code>Shift+S</code>)</td><td>Toggle sort order</td></tr>
 <tr><td><code>a</code></td><td>Toggle all-namespaces view</td></tr>
-<tr><td><code>:</code></td><td>Open the <strong>Resource Switcher</strong> (command palette)</td></tr>
-</tbody></table>
-</div><div style="break-before: page; page-break-before: always;"></div><h1 id="yaml-view"><a class="header" href="#yaml-view">YAML View</a></h1>
-<p>Press <code>y</code> on any resource to view its full YAML definition with syntax highlighting.</p>
-<p>The configuration key <code>show_managed_fields</code> in <code>[general]</code> controls whether <code>managedFields</code> are included in the output.</p>
-<div style="break-before: page; page-break-before: always;"></div><h1 id="describe-view"><a class="header" href="#describe-view">Describe View</a></h1>
-<p>Press <code>d</code> on any resource to view detailed <code>kubectl describe</code>-style output.</p>
-<div style="break-before: page; page-break-before: always;"></div><h1 id="detail-view"><a class="header" href="#detail-view">Detail View</a></h1>
-<p>Press <code>Enter</code> on any resource to open a detailed view in a new pane. This shows metadata, status, specs, and more.</p>
-<div style="break-before: page; page-break-before: always;"></div><h1 id="terminal--logs"><a class="header" href="#terminal--logs">Terminal &amp; Logs</a></h1>
-<p>KubeTile's terminal integration provides shells and log streams automatically configured for your cluster.</p>
-<h2 id="log-streaming"><a class="header" href="#log-streaming">Log Streaming</a></h2>
-<p>Select a Pod and press <code>l</code> to stream its logs in a new pane.</p>
-<div class="table-wrapper"><table><thead><tr><th>Key</th><th>Action</th></tr></thead><tbody>
-<tr><td><code>f</code></td><td>Toggle follow mode</td></tr>
-<tr><td><code>/</code></td><td>Filter log lines</td></tr>
-<tr><td><code>w</code></td><td>Toggle line wrapping</td></tr>
-<tr><td><code>Ctrl+S</code></td><td>Save visible logs (including any active filter) to a file</td></tr>
-<tr><td><code>Ctrl+E</code></td><td>Export (download) the full available log</td></tr>
+<tr><td><code>:</code></td><td>Open resource switcher</td></tr>
 </tbody></table>
 </div>
+<h3 id="open"><a class="header" href="#open">Open</a></h3>
+<div class="table-wrapper"><table><thead><tr><th>Key</th><th>Action</th></tr></thead><tbody>
+<tr><td><code>Enter</code></td><td>Open detail view</td></tr>
+<tr><td><code>y</code></td><td>Open YAML view</td></tr>
+<tr><td><code>d</code></td><td>Open describe view</td></tr>
+<tr><td><code>l</code></td><td>Stream logs</td></tr>
+<tr><td><code>e</code></td><td>Exec into pod</td></tr>
+<tr><td><code>p</code></td><td>Port-forward</td></tr>
+<tr><td><code>Shift+Q</code></td><td>Open query pane (PostgreSQL)</td></tr>
+</tbody></table>
+</div>
+<h3 id="mutate"><a class="header" href="#mutate">Mutate</a></h3>
+<blockquote>
+<p>These actions require confirmation and use triple-modifier chords to prevent accidents.</p>
+</blockquote>
+<div class="table-wrapper"><table><thead><tr><th>Key</th><th>Action</th></tr></thead><tbody>
+<tr><td><code>Ctrl+Alt+X</code></td><td>Delete resource</td></tr>
+<tr><td><code>Ctrl+Alt+S</code></td><td>Scale resource</td></tr>
+<tr><td><code>Ctrl+Alt+R</code></td><td>Restart / rollout restart</td></tr>
+<tr><td><code>Ctrl+Alt+D</code></td><td>Toggle debug mode</td></tr>
+<tr><td><code>F5</code></td><td>Toggle root debug mode</td></tr>
+</tbody></table>
+</div>
+<hr />
+<p>See also: <a href="views/../keybindings.html">Keybindings reference</a></p>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="yaml-view"><a class="header" href="#yaml-view">YAML View</a></h1>
+<p>Press <code>y</code> on any resource to view its full YAML definition with syntax highlighting.</p>
+<p>The configuration key <code>show_managed_fields</code> in <code>[general]</code> controls whether <code>managedFields</code> are included in the output.</p>
+<hr />
+<h2 id="keybindings-3"><a class="header" href="#keybindings-3">Keybindings</a></h2>
+<div class="table-wrapper"><table><thead><tr><th>Key</th><th>Action</th></tr></thead><tbody>
+<tr><td><code>j</code> / <code>Down</code></td><td>Scroll down</td></tr>
+<tr><td><code>k</code> / <code>Up</code></td><td>Scroll up</td></tr>
+<tr><td><code>g</code></td><td>Go to top</td></tr>
+<tr><td><code>G</code></td><td>Go to bottom</td></tr>
+<tr><td><code>Ctrl+F</code> / <code>PageDown</code></td><td>Page down</td></tr>
+<tr><td><code>Ctrl+B</code> / <code>PageUp</code></td><td>Page up</td></tr>
+<tr><td><code>/</code></td><td>Search</td></tr>
+</tbody></table>
+</div>
+<hr />
+<p>See also: <a href="views/../keybindings.html">Keybindings reference</a></p>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="describe-view"><a class="header" href="#describe-view">Describe View</a></h1>
+<p>Press <code>d</code> on any resource to view detailed <code>kubectl describe</code>-style output.</p>
+<hr />
+<h2 id="keybindings-4"><a class="header" href="#keybindings-4">Keybindings</a></h2>
+<div class="table-wrapper"><table><thead><tr><th>Key</th><th>Action</th></tr></thead><tbody>
+<tr><td><code>j</code> / <code>Down</code></td><td>Scroll down</td></tr>
+<tr><td><code>k</code> / <code>Up</code></td><td>Scroll up</td></tr>
+<tr><td><code>Ctrl+F</code> / <code>PageDown</code></td><td>Page down</td></tr>
+<tr><td><code>Ctrl+B</code> / <code>PageUp</code></td><td>Page up</td></tr>
+</tbody></table>
+</div>
+<hr />
+<p>See also: <a href="views/../keybindings.html">Keybindings reference</a></p>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="detail-view"><a class="header" href="#detail-view">Detail View</a></h1>
+<p>Press <code>Enter</code> on any resource to open a detailed view in a new pane. This shows metadata, status, specs, and more, organized into collapsible sections.</p>
+<hr />
+<h2 id="keybindings-5"><a class="header" href="#keybindings-5">Keybindings</a></h2>
+<div class="table-wrapper"><table><thead><tr><th>Key</th><th>Action</th></tr></thead><tbody>
+<tr><td><code>j</code> / <code>Down</code></td><td>Next section</td></tr>
+<tr><td><code>k</code> / <code>Up</code></td><td>Previous section</td></tr>
+<tr><td><code>Ctrl+F</code> / <code>PageDown</code></td><td>Page down</td></tr>
+<tr><td><code>Ctrl+B</code> / <code>PageUp</code></td><td>Page up</td></tr>
+</tbody></table>
+</div>
+<hr />
+<p>See also: <a href="views/../keybindings.html">Keybindings reference</a></p>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="logs--terminal"><a class="header" href="#logs--terminal">Logs &amp; Terminal</a></h1>
+<p>KubeTile's terminal integration provides shells and log streams automatically configured for your cluster.</p>
+<hr />
+<h2 id="log-streaming"><a class="header" href="#log-streaming">Log Streaming</a></h2>
+<p>Select a Pod and press <code>l</code> to stream its logs in a new pane.</p>
+<h3 id="keybindings-6"><a class="header" href="#keybindings-6">Keybindings</a></h3>
+<div class="table-wrapper"><table><thead><tr><th>Key</th><th>Action</th></tr></thead><tbody>
+<tr><td><code>j</code> / <code>Down</code></td><td>Scroll down</td></tr>
+<tr><td><code>k</code> / <code>Up</code></td><td>Scroll up</td></tr>
+<tr><td><code>g</code></td><td>Go to top</td></tr>
+<tr><td><code>G</code></td><td>Go to bottom</td></tr>
+<tr><td><code>Ctrl+F</code> / <code>PageDown</code></td><td>Page down</td></tr>
+<tr><td><code>Ctrl+B</code> / <code>PageUp</code></td><td>Page up</td></tr>
+<tr><td><code>f</code></td><td>Toggle follow mode</td></tr>
+<tr><td><code>w</code></td><td>Toggle line wrapping</td></tr>
+<tr><td><code>/</code></td><td>Filter log lines</td></tr>
+<tr><td><code>Ctrl+S</code></td><td>Save visible logs to file (respects active filter)</td></tr>
+<tr><td><code>Ctrl+E</code></td><td>Download full log history to file</td></tr>
+</tbody></table>
+</div>
+<hr />
 <h2 id="exec-into-pods"><a class="header" href="#exec-into-pods">Exec into Pods</a></h2>
 <p>Select a Pod and press <code>e</code> to open an interactive shell inside its container (uses the shell configured in <code>[general] shell</code>).</p>
 <ul>
-<li>Press <code>Esc</code> to switch from the terminal to <code>NORMAL</code> mode.</li>
-<li>Press <code>i</code> to switch back to <code>INSERT</code> mode and resume typing in the terminal.</li>
+<li>Press <code>Esc</code> to switch from the terminal to Normal mode.</li>
+<li>Press <code>i</code> to switch back to Insert mode and resume typing.</li>
 </ul>
+<hr />
+<p>See also: <a href="views/../keybindings.html">Keybindings reference</a></p>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="port-forward"><a class="header" href="#port-forward">Port Forward</a></h1>
-<p>Press <code>p</code> on a Pod or Service row to open the port-forward input. Manage active forwards with <code>Ctrl+Shift+P</code>.</p>
+<p>Press <code>p</code> on a Pod or Service row to open the port-forward dialog. Manage active forwards with <code>Ctrl+Shift+P</code>.</p>
+<hr />
+<h2 id="keybindings-7"><a class="header" href="#keybindings-7">Keybindings</a></h2>
+<h3 id="port-forwards-panel"><a class="header" href="#port-forwards-panel">Port Forwards Panel</a></h3>
+<div class="table-wrapper"><table><thead><tr><th>Key</th><th>Action</th></tr></thead><tbody>
+<tr><td><code>j</code> / <code>Down</code></td><td>Next forward</td></tr>
+<tr><td><code>k</code> / <code>Up</code></td><td>Previous forward</td></tr>
+</tbody></table>
+</div>
+<hr />
+<p>See also: <a href="views/../keybindings.html">Keybindings reference</a></p>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="debug-mode"><a class="header" href="#debug-mode">Debug Mode</a></h1>
 <p>Debug mode lets you replace a running container's command with <code>sleep infinity</code> so you can exec into it for investigation without the application process interfering.</p>
 <p>Select a <strong>Pod</strong> and press <code>Ctrl+Alt+D</code> to toggle debug mode. KubeTile will:</p>
@@ -515,6 +579,15 @@ Each pane can show a different view of your cluster.</p>
 <blockquote>
 <p><strong>Safety:</strong> if the Deployment is already in one debug mode when you activate the other, the original application command is never overwritten — it is reused from the existing saved annotation.</p>
 </blockquote>
+<hr />
+<h2 id="keybindings-8"><a class="header" href="#keybindings-8">Keybindings</a></h2>
+<div class="table-wrapper"><table><thead><tr><th>Key</th><th>Action</th></tr></thead><tbody>
+<tr><td><code>Ctrl+Alt+D</code></td><td>Toggle debug mode</td></tr>
+<tr><td><code>F5</code></td><td>Toggle root debug mode</td></tr>
+</tbody></table>
+</div>
+<hr />
+<p>See also: <a href="views/resource-list.html">Resource List</a> · <a href="views/../keybindings.html">Keybindings reference</a></p>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="query-pane"><a class="header" href="#query-pane">Query Pane</a></h1>
 <p>The Query Pane is an integrated SQL environment for interacting with PostgreSQL
 databases running inside your Kubernetes cluster — without leaving the terminal.
@@ -584,6 +657,9 @@ navigating away) closes the tab and returns to the previous tab automatically.</
 <p>A status line below the editor shows the current connection state and the
 active input mode.</p>
 <hr />
+<blockquote>
+<p><strong>Tip:</strong> Press <code>F2</code> at any time to see a summary of all Query Pane keybindings.</p>
+</blockquote>
 <h2 id="the-sql-editor"><a class="header" href="#the-sql-editor">The SQL Editor</a></h2>
 <p>The editor is active as soon as the pane opens (<code>InputMode::QueryEditor</code>).
 It is a full multi-line editor backed by a <code>Vec&lt;String&gt;</code> with a (row, col)
@@ -627,7 +703,7 @@ executed inside the pod is:</p>
 <tr><td><code>k</code> / <code>Up</code></td><td>Select previous row</td></tr>
 <tr><td><code>PgDn</code> / <code>Ctrl+F</code></td><td>Page down</td></tr>
 <tr><td><code>PgUp</code> / <code>Ctrl+B</code></td><td>Page up</td></tr>
-<tr><td><code>i</code> / <code>Enter</code> / <code>Ctrl+Up</code></td><td>Return to editor</td></tr>
+<tr><td><code>Ctrl+Up</code> / <code>Enter</code></td><td>Return to editor</td></tr>
 <tr><td><code>Esc</code></td><td>Return to Normal mode</td></tr>
 </tbody></table>
 </div>
@@ -708,6 +784,8 @@ repeated round-trips.</p>
 query-open-new-tab = true   # default: true
                             # false → split the current pane horizontally (0.7 ratio)
 </code></pre>
+<hr />
+<p>See also: <a href="views/../keybindings.html">Keybindings reference</a></p>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="page-not-found"><a class="header" href="#page-not-found">Page not found</a></h1>
 <p>The page you are looking for does not exist.</p>
 <p><a href="introduction.html">Return to the introduction</a></p>
