@@ -115,6 +115,24 @@ impl AppConfig {
         for (k, v) in user.keybindings.mutate {
             self.keybindings.mutate.insert(k, v);
         }
+        for (k, v) in user.keybindings.interact {
+            self.keybindings.interact.insert(k, v);
+        }
+        for (k, v) in user.keybindings.query_editor {
+            self.keybindings.query_editor.insert(k, v);
+        }
+        for (k, v) in user.keybindings.query_browse {
+            self.keybindings.query_browse.insert(k, v);
+        }
+        for (k, v) in user.keybindings.query_history {
+            self.keybindings.query_history.insert(k, v);
+        }
+        for (k, v) in user.keybindings.saved_queries {
+            self.keybindings.saved_queries.insert(k, v);
+        }
+        for (k, v) in user.keybindings.completion {
+            self.keybindings.completion.insert(k, v);
+        }
     }
 
     pub fn tick_rate_ms(&self) -> u64 {

@@ -17,9 +17,20 @@ pub struct KeybindingsConfig {
     pub mutate: IndexMap<String, String>,
     #[serde(default)]
     pub interact: IndexMap<String, String>,
+    #[serde(default)]
+    pub query_editor: IndexMap<String, String>,
+    #[serde(default)]
+    pub query_browse: IndexMap<String, String>,
+    #[serde(default)]
+    pub query_history: IndexMap<String, String>,
+    #[serde(default)]
+    pub saved_queries: IndexMap<String, String>,
+    #[serde(default)]
+    pub completion: IndexMap<String, String>,
 }
 
 impl KeybindingsConfig {
+    /// Normal-mode groups only — used for cross-group collision detection.
     fn group_entries(&self) -> [(&str, &IndexMap<String, String>); 6] {
         [
             ("global", &self.global),
@@ -30,11 +41,28 @@ impl KeybindingsConfig {
             ("tui", &self.tui),
         ]
     }
+
+    /// All groups including mode-specific — used for key-string validation.
+    fn all_group_entries(&self) -> [(&str, &IndexMap<String, String>); 11] {
+        [
+            ("global", &self.global),
+            ("mutate", &self.mutate),
+            ("interact", &self.interact),
+            ("browse", &self.browse),
+            ("navigation", &self.navigation),
+            ("tui", &self.tui),
+            ("query_editor", &self.query_editor),
+            ("query_browse", &self.query_browse),
+            ("query_history", &self.query_history),
+            ("saved_queries", &self.saved_queries),
+            ("completion", &self.completion),
+        ]
+    }
 }
 
 pub fn validate_keybindings(config: &KeybindingsConfig) -> Vec<(String, String, String)> {
     let mut errors = Vec::new();
-    for (group, map) in config.group_entries() {
+    for (group, map) in config.all_group_entries() {
         for (name, key_str) in map {
             if let Err(e) = validate_key_string(key_str) {
                 errors.push((group.to_string(), name.clone(), e));

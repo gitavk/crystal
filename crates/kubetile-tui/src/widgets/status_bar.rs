@@ -7,6 +7,7 @@ pub struct StatusBarWidget<'a> {
     pub mode: &'a str,
     pub context: Option<&'a str>,
     pub help_key: Option<&'a str>,
+    pub pane_help_key: Option<&'a str>,
     pub namespace_key: Option<&'a str>,
     pub context_key: Option<&'a str>,
     pub close_pane_key: Option<&'a str>,
@@ -42,6 +43,7 @@ impl<'a> StatusBarWidget<'a> {
 
         let keybindings: &[(&str, Option<&str>)] = &[
             ("Help", self.help_key),
+            ("Pane help", self.pane_help_key),
             ("Namespace", self.namespace_key),
             ("Context", self.context_key),
             ("Close pane", self.close_pane_key),

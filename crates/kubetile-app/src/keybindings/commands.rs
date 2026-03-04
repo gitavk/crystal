@@ -190,3 +190,136 @@ pub(super) fn tui_command_description(name: &str) -> String {
     }
     .into()
 }
+
+pub(super) fn query_editor_command_from_name(name: &str) -> Option<Command> {
+    match name {
+        "exit" => Some(Command::ExitMode),
+        "execute" => Some(Command::QueryEditorExecute),
+        "indent" => Some(Command::QueryEditorIndent),
+        "deindent" => Some(Command::QueryEditorDeIndent),
+        "history" => Some(Command::OpenQueryHistory),
+        "save_query" => Some(Command::OpenSaveQueryDialog),
+        "open_saved" => Some(Command::OpenSavedQueries),
+        "browse_results" => Some(Command::EnterQueryBrowse),
+        "autocomplete" => Some(Command::TriggerCompletion),
+        _ => None,
+    }
+}
+
+pub(super) fn query_editor_command_description(name: &str) -> String {
+    match name {
+        "exit" => "Exit editor",
+        "execute" => "Execute query",
+        "indent" => "Indent",
+        "deindent" => "De-indent",
+        "history" => "Query history",
+        "save_query" => "Save query",
+        "open_saved" => "Saved queries",
+        "browse_results" => "Browse results",
+        "autocomplete" => "Autocomplete",
+        _ => "Unknown",
+    }
+    .into()
+}
+
+pub(super) fn query_browse_command_from_name(name: &str) -> Option<Command> {
+    match name {
+        "exit" => Some(Command::ExitMode),
+        "back_to_editor" => Some(Command::EnterMode(InputMode::QueryEditor)),
+        "next_row" => Some(Command::QueryBrowseNext),
+        "prev_row" => Some(Command::QueryBrowsePrev),
+        "scroll_left" => Some(Command::QueryBrowseScrollLeft),
+        "scroll_right" => Some(Command::QueryBrowseScrollRight),
+        "copy_row" => Some(Command::QueryCopyRow),
+        "copy_all" => Some(Command::QueryCopyAll),
+        "export" => Some(Command::OpenExportDialog),
+        _ => None,
+    }
+}
+
+pub(super) fn query_browse_command_description(name: &str) -> String {
+    match name {
+        "exit" => "Exit browse",
+        "back_to_editor" => "Back to editor",
+        "next_row" => "Next row",
+        "prev_row" => "Previous row",
+        "scroll_left" => "Scroll left",
+        "scroll_right" => "Scroll right",
+        "copy_row" => "Copy row as CSV",
+        "copy_all" => "Copy all rows as CSV",
+        "export" => "Export to file",
+        _ => "Unknown",
+    }
+    .into()
+}
+
+pub(super) fn query_history_command_from_name(name: &str) -> Option<Command> {
+    match name {
+        "exit" => Some(Command::CloseQueryHistory),
+        "select" => Some(Command::QueryHistorySelect),
+        "next" => Some(Command::QueryHistoryNext),
+        "prev" => Some(Command::QueryHistoryPrev),
+        "delete" => Some(Command::QueryHistoryDelete),
+        _ => None,
+    }
+}
+
+pub(super) fn query_history_command_description(name: &str) -> String {
+    match name {
+        "exit" => "Close history",
+        "select" => "Load query",
+        "next" => "Next entry",
+        "prev" => "Previous entry",
+        "delete" => "Delete entry",
+        _ => "Unknown",
+    }
+    .into()
+}
+
+pub(super) fn saved_queries_command_from_name(name: &str) -> Option<Command> {
+    match name {
+        "exit" => Some(Command::SavedQueriesClose),
+        "select" => Some(Command::SavedQueriesSelect),
+        "next" => Some(Command::SavedQueriesNext),
+        "prev" => Some(Command::SavedQueriesPrev),
+        "delete" => Some(Command::SavedQueriesDelete),
+        "rename" => Some(Command::SavedQueriesStartRename),
+        "filter" => Some(Command::SavedQueriesStartFilter),
+        _ => None,
+    }
+}
+
+pub(super) fn saved_queries_command_description(name: &str) -> String {
+    match name {
+        "exit" => "Close",
+        "select" => "Load query",
+        "next" => "Next entry",
+        "prev" => "Previous entry",
+        "delete" => "Delete entry",
+        "rename" => "Rename entry",
+        "filter" => "Filter",
+        _ => "Unknown",
+    }
+    .into()
+}
+
+pub(super) fn completion_command_from_name(name: &str) -> Option<Command> {
+    match name {
+        "dismiss" => Some(Command::CompleteDismiss),
+        "accept" => Some(Command::CompleteAccept),
+        "prev" => Some(Command::CompletePrev),
+        "next" => Some(Command::CompleteNext),
+        _ => None,
+    }
+}
+
+pub(super) fn completion_command_description(name: &str) -> String {
+    match name {
+        "dismiss" => "Dismiss",
+        "accept" => "Accept",
+        "prev" => "Previous item",
+        "next" => "Next item",
+        _ => "Unknown",
+    }
+    .into()
+}

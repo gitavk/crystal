@@ -15,7 +15,7 @@ use kubetile_tui::widgets::toast::ToastMessage;
 
 use crate::command::Command;
 use crate::event::{AppEvent, EventHandler};
-use crate::keybindings::KeybindingDispatcher;
+use crate::keybindings::{InputMode, KeybindingDispatcher};
 use crate::panes::ResourceListPane;
 use crate::resource_switcher::ResourceSwitcher;
 
@@ -154,6 +154,7 @@ pub struct App {
     pending_query_dialog: Option<PendingQueryDialog>,
     clipboard: Option<arboard::Clipboard>,
     pane_help_overlay: Option<Vec<(String, String)>>,
+    pane_help_prev_mode: InputMode,
     toasts: Vec<ToastMessage>,
     tab_manager: TabManager,
     panes: HashMap<PaneId, Box<dyn Pane>>,
@@ -225,6 +226,7 @@ impl App {
             pending_query_dialog: None,
             clipboard: arboard::Clipboard::new().ok(),
             pane_help_overlay: None,
+            pane_help_prev_mode: InputMode::Normal,
             toasts,
             tab_manager,
             panes,
@@ -268,11 +270,12 @@ impl App {
                 let (mut ctx, tab_names, keys) = self.build_render_context();
                 ctx.tab_names = &tab_names;
                 ctx.help_key = keys[0].as_deref();
-                ctx.namespace_key = keys[1].as_deref();
-                ctx.context_key = keys[2].as_deref();
-                ctx.close_pane_key = keys[3].as_deref();
-                ctx.new_tab_key = keys[4].as_deref();
-                ctx.quit_key = keys[5].as_deref();
+                ctx.pane_help_key = keys[1].as_deref();
+                ctx.namespace_key = keys[2].as_deref();
+                ctx.context_key = keys[3].as_deref();
+                ctx.close_pane_key = keys[4].as_deref();
+                ctx.new_tab_key = keys[5].as_deref();
+                ctx.quit_key = keys[6].as_deref();
                 kubetile_tui::layout::render_root(frame, &ctx);
             })?;
 

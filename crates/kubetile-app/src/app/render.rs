@@ -36,7 +36,7 @@ impl App {
         }
     }
 
-    pub(super) fn build_render_context(&self) -> (RenderContext<'_>, Vec<String>, [Option<String>; 6]) {
+    pub(super) fn build_render_context(&self) -> (RenderContext<'_>, Vec<String>, [Option<String>; 7]) {
         let namespace_selector = if self.dispatcher.mode() == InputMode::NamespaceSelector {
             Some(NamespaceSelectorView {
                 namespaces: &self.namespaces,
@@ -100,6 +100,7 @@ impl App {
         let tab_names = self.tab_manager.tab_names();
         let keys = [
             self.dispatcher.key_for("help"),
+            self.dispatcher.key_for("show_pane_help"),
             self.dispatcher.key_for("namespace_selector"),
             self.dispatcher.key_for("context_selector"),
             self.dispatcher.key_for("close_pane"),
@@ -129,6 +130,7 @@ impl App {
             active_tab: self.tab_manager.active_index(),
             mode_name: self.mode_name(),
             help_key: None,
+            pane_help_key: None,
             namespace_key: None,
             context_key: None,
             close_pane_key: None,

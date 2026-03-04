@@ -69,8 +69,6 @@ impl<'a> PaneHelpWidget<'a> {
             Span::styled("Esc", Style::default().fg(t.accent).add_modifier(Modifier::BOLD)),
             Span::styled(" / ", t.text_dim),
             Span::styled("q", Style::default().fg(t.accent).add_modifier(Modifier::BOLD)),
-            Span::styled(" / ", t.text_dim),
-            Span::styled("?", Style::default().fg(t.accent).add_modifier(Modifier::BOLD)),
             Span::styled("  close", t.text_dim),
         ]))
         .alignment(Alignment::Center);

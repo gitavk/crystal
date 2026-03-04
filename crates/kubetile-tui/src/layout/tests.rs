@@ -24,6 +24,7 @@ fn render_context_requires_theme() {
         active_tab: 0,
         mode_name: "Normal",
         help_key: None,
+        pane_help_key: None,
         namespace_key: None,
         context_key: None,
         close_pane_key: None,
