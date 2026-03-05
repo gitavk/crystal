@@ -374,6 +374,19 @@ impl App {
 
     pub(super) fn query_copy_row(&mut self) {
         let focused = self.tab_manager.active().focused_pane;
+        // If a multi-row selection is active, copy that instead of the single cursor row
+        let selection_text = self.panes.get(&focused).and_then(|p| p.selection_text());
+        if let Some(text) = selection_text {
+            let n = text.lines().count().saturating_sub(1); // subtract header line
+            match self.clipboard.as_mut() {
+                None => self.toasts.push(ToastMessage::error("Clipboard unavailable")),
+                Some(cb) => match cb.set_text(text) {
+                    Ok(_) => self.toasts.push(ToastMessage::info(format!("Copied {n} rows"))),
+                    Err(e) => self.toasts.push(ToastMessage::error(format!("Clipboard error: {e}"))),
+                },
+            }
+            return;
+        }
         let csv = self
             .panes
             .get(&focused)
@@ -387,6 +400,25 @@ impl App {
                     Ok(_) => self.toasts.push(ToastMessage::info("Copied 1 row")),
                     Err(e) => self.toasts.push(ToastMessage::error(format!("Clipboard error: {e}"))),
                 },
+            },
+        }
+    }
+
+    pub(super) fn copy_pane_selection(&mut self) {
+        let focused = self.tab_manager.active().focused_pane;
+        let text = match self.panes.get(&focused).and_then(|p| p.selection_text()) {
+            Some(t) => t,
+            None => {
+                self.toasts.push(ToastMessage::info("No selection"));
+                return;
+            }
+        };
+        let n = text.lines().count();
+        match self.clipboard.as_mut() {
+            None => self.toasts.push(ToastMessage::error("Clipboard unavailable")),
+            Some(cb) => match cb.set_text(text) {
+                Ok(_) => self.toasts.push(ToastMessage::info(format!("Copied {n} lines"))),
+                Err(e) => self.toasts.push(ToastMessage::error(format!("Clipboard error: {e}"))),
             },
         }
     }

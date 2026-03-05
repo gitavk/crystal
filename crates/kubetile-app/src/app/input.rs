@@ -108,8 +108,45 @@ impl App {
     }
 
     fn handle_key(&mut self, key: KeyEvent) {
+        use crossterm::event::{KeyCode, KeyModifiers};
         if key.kind != KeyEventKind::Press {
             return;
+        }
+        // D1: In Normal mode, 'y' copies pane selection when one is active (overrides view_yaml)
+        if self.dispatcher.mode() == InputMode::Normal
+            && key.code == KeyCode::Char('y')
+            && key.modifiers == KeyModifiers::NONE
+        {
+            let focused = self.tab_manager.active().focused_pane;
+            if self.panes.get(&focused).is_some_and(|p| p.has_selection()) {
+                self.copy_pane_selection();
+                return;
+            }
+        }
+        // D1: Any keyboard navigation in QueryBrowse clears the mouse selection so
+        //     the user can see exactly which row 'y' will copy.
+        if self.dispatcher.mode() == InputMode::QueryBrowse {
+            let focused = self.tab_manager.active().focused_pane;
+            if self.panes.get(&focused).is_some_and(|p| p.has_selection()) {
+                let is_nav = matches!(
+                    key.code,
+                    KeyCode::Char('j')
+                        | KeyCode::Char('k')
+                        | KeyCode::Char('h')
+                        | KeyCode::Char('l')
+                        | KeyCode::Up
+                        | KeyCode::Down
+                        | KeyCode::Left
+                        | KeyCode::Right
+                        | KeyCode::PageUp
+                        | KeyCode::PageDown
+                );
+                if is_nav {
+                    if let Some(pane) = self.panes.get_mut(&focused) {
+                        pane.handle_command(&kubetile_tui::pane::PaneCommand::ClearSelection);
+                    }
+                }
+            }
         }
         if let Some((cmd, requires_confirm)) = self.dispatcher.dispatch(key) {
             if requires_confirm || matches!(cmd, Command::Quit) {
@@ -167,7 +204,16 @@ impl App {
                     }
                 }
             }
-            Command::ExitMode => self.dispatcher.set_mode(InputMode::Normal),
+            Command::ExitMode => {
+                // D1: clear any active row selection when leaving QueryBrowse
+                if self.dispatcher.mode() == InputMode::QueryBrowse {
+                    let focused = self.tab_manager.active().focused_pane;
+                    if let Some(pane) = self.panes.get_mut(&focused) {
+                        pane.handle_command(&kubetile_tui::pane::PaneCommand::ClearSelection);
+                    }
+                }
+                self.dispatcher.set_mode(InputMode::Normal);
+            }
             Command::NamespaceConfirm => self.handle_namespace_confirm(),
             Command::NamespaceInput(c) => self.handle_namespace_input(c),
             Command::NamespaceBackspace => self.handle_namespace_backspace(),
@@ -389,6 +435,9 @@ impl App {
             }
             Command::QueryCopyAll => {
                 self.query_copy_all();
+            }
+            Command::CopyPaneSelection => {
+                self.copy_pane_selection();
             }
             Command::OpenQueryHistory => {
                 self.open_query_history();

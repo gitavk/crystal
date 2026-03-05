@@ -46,6 +46,9 @@ pub struct LogsPane {
     history_fetch_in_progress: bool,
     needs_more_history: bool,
     history_limit_notice: bool,
+    log_selection: Option<(usize, usize)>,
+    log_data_rect: Cell<ratatui::prelude::Rect>,
+    log_first_visible: Cell<usize>,
 }
 
 impl LogsPane {
@@ -71,6 +74,9 @@ impl LogsPane {
             history_fetch_in_progress: false,
             needs_more_history: false,
             history_limit_notice: false,
+            log_selection: None,
+            log_data_rect: Cell::new(ratatui::prelude::Rect::default()),
+            log_first_visible: Cell::new(0),
         }
     }
 
@@ -262,12 +268,27 @@ impl Pane for LogsPane {
         self.max_horizontal_offset.set(max_horizontal);
         let horizontal_offset = if self.wrap { 0 } else { self.horizontal_offset.min(max_horizontal) };
 
+        let content_area = Rect { x: inner.x, y: inner.y, width: inner.width, height: inner.height.saturating_sub(1) };
+        self.log_data_rect.set(content_area);
+        self.log_first_visible.set(start);
+
+        let sel_range = self.log_selection.map(|(a, b)| (a.min(b), a.max(b)));
         let content = if visible.is_empty() {
             vec![Line::from(format!("Waiting for log lines... ({})", self.status))]
         } else {
-            visible.iter().map(|l| Line::from(l.rendered.as_str())).collect()
+            visible
+                .iter()
+                .enumerate()
+                .map(|(i, l)| {
+                    let abs = start + i;
+                    if sel_range.is_some_and(|(lo, hi)| abs >= lo && abs <= hi) {
+                        Line::from(Span::styled(l.rendered.as_str(), Style::default().add_modifier(Modifier::REVERSED)))
+                    } else {
+                        Line::from(l.rendered.as_str())
+                    }
+                })
+                .collect()
         };
-        let content_area = Rect { x: inner.x, y: inner.y, width: inner.width, height: inner.height.saturating_sub(1) };
         let paragraph = if self.wrap {
             Paragraph::new(content).wrap(Wrap { trim: false })
         } else {
@@ -355,6 +376,19 @@ impl Pane for LogsPane {
                 self.filter_text.clear();
                 self.scroll_offset = 0;
             }
+            PaneCommand::SelectionAnchorRow(row) => {
+                self.log_selection = Some((*row, *row));
+            }
+            PaneCommand::SelectionExtendRow(row) => {
+                if let Some((_, ref mut end)) = self.log_selection {
+                    *end = *row;
+                } else {
+                    self.log_selection = Some((*row, *row));
+                }
+            }
+            PaneCommand::ClearSelection => {
+                self.log_selection = None;
+            }
             _ => {}
         }
     }
@@ -369,6 +403,28 @@ impl Pane for LogsPane {
 
     fn as_any_mut(&mut self) -> &mut dyn Any {
         self
+    }
+
+    fn text_selection_geometry(&self) -> Option<(ratatui::prelude::Rect, usize)> {
+        let r = self.log_data_rect.get();
+        if r.area() == 0 {
+            None
+        } else {
+            Some((r, self.log_first_visible.get()))
+        }
+    }
+
+    fn has_selection(&self) -> bool {
+        self.log_selection.is_some()
+    }
+
+    fn selection_text(&self) -> Option<String> {
+        let (a, b) = self.log_selection?;
+        let (lo, hi) = (a.min(b), a.max(b));
+        let filtered = self.filtered_lines();
+        let lines: Vec<&str> =
+            filtered.get(lo..=hi.min(filtered.len().saturating_sub(1)))?.iter().map(|l| l.rendered.as_str()).collect();
+        Some(lines.join("\n"))
     }
 }
 

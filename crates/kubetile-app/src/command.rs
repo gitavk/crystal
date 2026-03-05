@@ -176,6 +176,9 @@ pub enum Command {
     // Port forwarding
     PortForwardStart { pod: String, namespace: String, local_port: u16, remote_port: u16 },
     PortForwardStop { forward_id: ForwardId },
+
+    // D1: Copy active pane text selection (log lines or query rows)
+    CopyPaneSelection,
 }
 
 #[cfg(test)]

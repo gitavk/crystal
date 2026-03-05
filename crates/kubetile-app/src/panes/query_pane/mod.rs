@@ -43,6 +43,8 @@ pub struct QueryPane {
     result_row_count: Cell<usize>,
     result_visible_rows: Cell<usize>,
     result_last_visible_col: Cell<usize>,
+    result_data_rect: Cell<Rect>,
+    result_selection: Option<(usize, usize)>,
     editor_area_height: Cell<usize>,
     last_executed_sql: Option<String>,
     history: Option<QueryHistoryState>,
@@ -75,6 +77,8 @@ impl QueryPane {
             result_row_count: Cell::new(0),
             result_visible_rows: Cell::new(0),
             result_last_visible_col: Cell::new(0),
+            result_data_rect: Cell::new(Rect::default()),
+            result_selection: None,
             editor_area_height: Cell::new(5),
             last_executed_sql: None,
             history: None,
@@ -103,6 +107,7 @@ impl QueryPane {
         self.result_selected_row = 0;
         self.result_scroll = 0;
         self.result_h_col_offset = 0;
+        self.result_selection = None;
         self.status = QueryPaneStatus::Executing;
     }
 
@@ -199,6 +204,13 @@ impl Pane for QueryPane {
                     let scroll = self.result_scroll.min(row_count.saturating_sub(1));
                     let data_end = (scroll + data_visible).min(row_count);
 
+                    self.result_data_rect.set(Rect {
+                        x: results_area.x,
+                        y: results_area.y + 2,
+                        width: text_width as u16,
+                        height: data_visible as u16,
+                    });
+
                     let h_offset = self.result_h_col_offset;
                     let total_cols = result.headers.len();
                     let mut visible_cols: Vec<usize> = Vec::new();
@@ -255,6 +267,7 @@ impl Pane for QueryPane {
                         sep_style,
                     )));
 
+                    let sel_range = self.result_selection.map(|(a, b)| (a.min(b), a.max(b)));
                     for (idx, row) in result.rows[scroll..data_end].iter().enumerate() {
                         let abs_row = scroll + idx;
                         let text: String = visible_cols
@@ -270,8 +283,14 @@ impl Pane for QueryPane {
                                 }
                             })
                             .collect();
-                        let style =
-                            if abs_row == self.result_selected_row { theme.selection } else { Style::default() };
+                        let in_selection = sel_range.is_some_and(|(lo, hi)| abs_row >= lo && abs_row <= hi);
+                        let style = if in_selection {
+                            theme.selection.add_modifier(Modifier::REVERSED)
+                        } else if abs_row == self.result_selected_row {
+                            theme.selection
+                        } else {
+                            Style::default()
+                        };
                         lines.push(Line::from(Span::styled(text.chars().take(text_width).collect::<String>(), style)));
                     }
 
@@ -326,7 +345,29 @@ impl Pane for QueryPane {
         }
     }
 
-    fn handle_command(&mut self, _cmd: &PaneCommand) {}
+    fn handle_command(&mut self, cmd: &PaneCommand) {
+        match cmd {
+            PaneCommand::SelectionAnchorRow(row) => {
+                self.result_selection = Some((*row, *row));
+                self.result_selected_row = *row;
+                self.adjust_result_scroll();
+            }
+            PaneCommand::SelectionExtendRow(row) => {
+                if let Some((start, ref mut end)) = self.result_selection {
+                    *end = *row;
+                    let _ = start;
+                } else {
+                    self.result_selection = Some((*row, *row));
+                }
+                self.result_selected_row = *row;
+                self.adjust_result_scroll();
+            }
+            PaneCommand::ClearSelection => {
+                self.result_selection = None;
+            }
+            _ => {}
+        }
+    }
 
     fn view_type(&self) -> &ViewType {
         &self.view_type
@@ -338,5 +379,23 @@ impl Pane for QueryPane {
 
     fn as_any_mut(&mut self) -> &mut dyn Any {
         self
+    }
+
+    fn text_selection_geometry(&self) -> Option<(ratatui::prelude::Rect, usize)> {
+        let r = self.result_data_rect.get();
+        if r.area() == 0 || self.result.is_none() {
+            None
+        } else {
+            Some((r, self.result_scroll))
+        }
+    }
+
+    fn has_selection(&self) -> bool {
+        self.result_selection.is_some()
+    }
+
+    fn selection_text(&self) -> Option<String> {
+        let (a, b) = self.result_selection?;
+        Some(self.selected_range_csv(a.min(b), a.max(b)))
     }
 }

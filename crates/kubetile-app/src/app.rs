@@ -173,6 +173,9 @@ pub struct App {
     mouse_list_rows: Vec<(PaneId, Rect, usize)>, // (pane_id, data_rect, first_visible_row)
     // Mouse state (Phase C2)
     mouse_list_headers: Vec<mouse::HeaderEntry>, // (pane_id, header_y, col_spans)
+    // Mouse state (D1 — text selection)
+    mouse_selection_targets: Vec<(PaneId, Rect, usize)>, // (pane_id, data_rect, first_visible_row)
+    mouse_drag_selection_pane: Option<PaneId>,
 }
 
 impl App {
@@ -250,6 +253,8 @@ impl App {
             mouse_last_click: None,
             mouse_list_rows: Vec::new(),
             mouse_list_headers: Vec::new(),
+            mouse_selection_targets: Vec::new(),
+            mouse_drag_selection_pane: None,
         };
         app.sync_active_scope();
         app.update_active_tab_title();

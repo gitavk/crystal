@@ -41,6 +41,22 @@ impl QueryPane {
         Some(row.iter().map(|c| csv_escape(c)).collect::<Vec<_>>().join(","))
     }
 
+    pub fn selected_range_csv(&self, start: usize, end: usize) -> String {
+        let Some(result) = &self.result else {
+            return String::new();
+        };
+        let mut out = String::new();
+        let header = result.headers.iter().map(|h| csv_escape(h)).collect::<Vec<_>>().join(",");
+        out.push_str(&header);
+        out.push('\n');
+        for row in result.rows.get(start..=end.min(result.rows.len().saturating_sub(1))).unwrap_or(&[]) {
+            let line = row.iter().map(|c| csv_escape(c)).collect::<Vec<_>>().join(",");
+            out.push_str(&line);
+            out.push('\n');
+        }
+        out
+    }
+
     pub fn all_rows_csv(&self) -> String {
         let Some(result) = &self.result else {
             return String::new();
@@ -105,7 +121,7 @@ impl QueryPane {
         }
     }
 
-    fn adjust_result_scroll(&mut self) {
+    pub(super) fn adjust_result_scroll(&mut self) {
         let visible = self.result_visible_rows.get().max(1);
         let sel = self.result_selected_row;
         if sel < self.result_scroll {

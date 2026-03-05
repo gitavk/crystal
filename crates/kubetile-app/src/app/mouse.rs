@@ -88,6 +88,7 @@ impl App {
         // B1: list-pane row geometry — populated after each render
         self.mouse_list_rows.clear();
         self.mouse_list_headers.clear();
+        self.mouse_selection_targets.clear();
         for &(pane_id, _) in &self.mouse_pane_rects.clone() {
             if let Some(pane) = self.panes.get(&pane_id) {
                 if let Some((data_rect, first_row)) = pane.list_row_geometry() {
@@ -95,6 +96,9 @@ impl App {
                 }
                 if let Some((header_y, col_spans)) = pane.list_header_geometry() {
                     self.mouse_list_headers.push((pane_id, header_y, col_spans));
+                }
+                if let Some((data_rect, first_row)) = pane.text_selection_geometry() {
+                    self.mouse_selection_targets.push((pane_id, data_rect, first_row));
                 }
             }
         }
@@ -112,6 +116,35 @@ impl App {
         }
 
         match event.kind {
+            // D1: Drag extends row-range selection
+            MouseEventKind::Drag(MouseButton::Left) => {
+                if let Some(drag_pane_id) = self.mouse_drag_selection_pane {
+                    let targets = self.mouse_selection_targets.clone();
+                    for (pane_id, data_rect, first_row) in targets {
+                        if pane_id != drag_pane_id || !rect_contains(&data_rect, col, row) {
+                            continue;
+                        }
+                        let abs_row = (row - data_rect.y) as usize + first_row;
+                        if let Some(pane) = self.panes.get_mut(&pane_id) {
+                            pane.handle_command(&PaneCommand::SelectionExtendRow(abs_row));
+                        }
+                        break;
+                    }
+                }
+            }
+
+            // D1: Release finalises selection; show copy hint if anything selected
+            MouseEventKind::Up(MouseButton::Left) => {
+                let drag_pane_id = self.mouse_drag_selection_pane.take();
+                if let Some(pane_id) = drag_pane_id {
+                    if self.panes.get(&pane_id).is_some_and(|p| p.has_selection()) {
+                        self.toasts.push(kubetile_tui::widgets::toast::ToastMessage::info(
+                            "y  to copy selection  ·  Esc  to clear",
+                        ));
+                    }
+                }
+            }
+
             // A1: Click-to-focus pane / A2: Click tab to switch
             MouseEventKind::Down(MouseButton::Left) => {
                 if row == self.mouse_tab_bar_row {
@@ -134,6 +167,38 @@ impl App {
                             self.tab_manager.active_mut().focused_pane = pane_id;
                             self.set_mode_for_focused_pane();
                         }
+                    }
+
+                    // D1: Text-selection anchor — clear old drag pane if clicking elsewhere
+                    if let Some(old_pane) = self.mouse_drag_selection_pane {
+                        let still_in_target = self
+                            .mouse_selection_targets
+                            .iter()
+                            .any(|(id, rect, _)| *id == old_pane && rect_contains(rect, col, row));
+                        if !still_in_target {
+                            if let Some(pane) = self.panes.get_mut(&old_pane) {
+                                pane.handle_command(&PaneCommand::ClearSelection);
+                            }
+                            self.mouse_drag_selection_pane = None;
+                        }
+                    }
+                    // D1: Start new drag selection if click lands in a selection target
+                    let sel_targets = self.mouse_selection_targets.clone();
+                    for (pane_id, data_rect, first_row) in sel_targets {
+                        if !rect_contains(&data_rect, col, row) {
+                            continue;
+                        }
+                        let abs_row = (row - data_rect.y) as usize + first_row;
+                        self.tab_manager.active_mut().focused_pane = pane_id;
+                        // Enter QueryBrowse when the selection target is a query result pane
+                        if self.panes.get(&pane_id).is_some_and(|p| matches!(p.view_type(), ViewType::Query(_))) {
+                            self.dispatcher.set_mode(InputMode::QueryBrowse);
+                        }
+                        if let Some(pane) = self.panes.get_mut(&pane_id) {
+                            pane.handle_command(&PaneCommand::SelectionAnchorRow(abs_row));
+                        }
+                        self.mouse_drag_selection_pane = Some(pane_id);
+                        return;
                     }
 
                     // C2: Column header click → sort

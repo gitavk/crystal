@@ -34,6 +34,11 @@ pub enum PaneCommand {
     SortByColumn(usize),
     ToggleSortOrder,
     SelectDisplayRow(usize),
+
+    /// D1: Mouse text-selection (row-level)
+    SelectionAnchorRow(usize),
+    SelectionExtendRow(usize),
+    ClearSelection,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

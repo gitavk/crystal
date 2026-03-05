@@ -35,6 +35,18 @@ pub trait Pane {
     fn list_header_geometry(&self) -> Option<(u16, Vec<(u16, u16)>)> {
         None
     }
+    /// D1: Panes that support mouse row-range selection return `(data_rect, first_visible_row)`.
+    fn text_selection_geometry(&self) -> Option<(Rect, usize)> {
+        None
+    }
+    /// D1: True when a row-range selection is active.
+    fn has_selection(&self) -> bool {
+        false
+    }
+    /// D1: Returns the selected text (plain, no ANSI) or None if no selection.
+    fn selection_text(&self) -> Option<String> {
+        None
+    }
 }
 
 #[cfg(test)]
